@@ -1,0 +1,93 @@
+@startuml
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 11
+
+title 印度二手设备交易平台 - 完整时序图
+
+actor "用户" as User
+participant "门店" as Store
+participant "质检工具\n(PC)" as PCTool
+participant "估价系统" as Price
+participant "商城" as Shop
+participant "Razorpay" as Pay
+participant "库存系统" as Stock
+actor "管理员" as Admin
+
+== 回收流程 ==
+
+User -> Store : 到店回收/换购
+User -> Shop : 线上下单回收
+Shop -> Store : 推荐就近门店
+User -> Store : 选择门店
+Shop -> Shop : 生成回收订单
+
+Store -> User : 确认到店
+
+Store -> PCTool : USB连接设备检测
+PCTool -> PCTool : 执行质检
+PCTool -> Price : PC自动关联 / APP扫码导入
+
+Price -> Price : 生成质检报告(含QR码)
+Price -> Price : 系统自动估价
+
+Price -> User : 报价展示
+
+alt [用户接受报价]
+    Price -> Store : 通知成交
+    Store -> User : 现金支付
+    Store -> Stock : 设备入库
+    Stock -> Shop : 自动上架至商城
+else [用户拒绝报价]
+    Store -> User : 归还设备
+    Store -> Store : 交易取消
+end
+
+== 销售流程 ==
+
+User -> Shop : 浏览商城
+User -> Shop : 加入购物车/下单
+
+Shop -> Pay : 跳转Razorpay支付
+
+alt [支付成功]
+    Pay -> Shop : 支付回调
+    Shop -> Shop : 生成销售订单
+    Shop -> Stock : 检索设备所在门店
+    Shop -> Store : 发送订单通知
+
+    Store -> Store : 查看待出库订单
+    Store -> Stock : 出库打包发货
+    Stock -> Stock : 库存扣减
+    Store -> User : 配送到用户
+else [支付失败]
+    Pay -> User : 支付失败提示
+    User -> Pay : 重新支付
+end
+
+== 售后流程 ==
+
+User -> Shop : 申请退货(7天内)
+Shop -> Admin : 退货审核通知
+
+Admin -> Admin : 审核退货申请
+
+alt [审核通过]
+    Admin -> User : 通知审核通过
+    User -> Store : 退回设备
+    Store -> Store : 门店收货确认
+    Store -> Admin : 确认已收货
+    Admin -> Pay : Razorpay原路退款
+    Pay -> User : 退款到账
+else [审核拒绝]
+    Admin -> User : 拒绝退货(附原因)
+end
+
+== 管理后台 ==
+
+Admin -> Store : 门店管理
+Admin -> Shop : 用户角色管理
+Admin -> Shop : 数据报表查看
+Admin -> Price : 估价规则配置
+Admin -> Shop : 设备品类管理
+
+@enduml

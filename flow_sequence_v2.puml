@@ -1,0 +1,379 @@
+@startuml
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+
+box "C端用户与商城" #LightBlue
+actor "消费者 (C端)" as Client
+end box
+
+box "门店线下端" #LightYellow
+actor "门店店员/质检员" as Staff
+actor "店老板" as Owner
+participant "平板质检工具\n(门店一体机)" as Tablet
+end box
+
+box "财务结算端" #LightPink
+actor "DB (财务/结算)" as DB
+end box
+
+box "业务核心中台" #LightCyan
+participant "云端大脑 (中台/后台)" as Central
+participant "运营后台 (审核)" as Ops
+end box
+
+box "区域仓储" #LightGreen
+actor "库管" as WHManager
+participant "仓库质检平板" as WHTablet
+participant "区域总仓库" as Warehouse
+end box
+
+box "第三方支付生态" #LightGray
+participant "Razorpay 支付网关" as Razorpay
+end box
+
+== 逆向回收流 (C2B · 仅换购场景) ==
+
+' --- 预约到店 ---
+Client -> Central: (1) 发起线上换购预约
+activate Central
+Central -> Central: 登记换购预约单\n(填写旧机品牌/型号/预估机况)
+Central --> Client: 预约成功
+deactivate Central
+
+' --- 到店 ---
+Client -> Staff: (2) 携旧机到店，报手机号\nBring old device to store, provide phone number
+activate Staff
+
+' --- 统一 OTP 验证 ---
+Staff -> Tablet: 输入用户手机号\nEnter user phone number
+Tablet -> Central: 请求发送 OTP 验证码\n(手机号 + 门店 ID)\nRequest OTP (phone + store ID)
+activate Central
+Central -> Central: 生成 6 位 OTP + H5 跟踪短链\n查预约/账号信息\nGenerate 6-digit OTP + H5 tracking link\nCheck appointment/account
+Central --> Client: 发送 SMS\n(OTP: XXXXXX + H5 链接)\nSend SMS\n(OTP: XXXXXX + H5 tracking link)
+Central --> Tablet: OTP 已发送\nOTP sent
+deactivate Central
+
+note right of Client
+  一条 SMS 同时送达：
+  OTP → 店员用于验证身份
+  H5 链接 → 用户用于查看报告和报价
+  One SMS delivers both:
+  OTP → staff verifies identity
+  H5 link → user tracks report & quote
+end note
+
+Staff -> Tablet: 店员输入用户告知的 6 位 OTP\nStaff enters 6-digit OTP told by user
+Tablet -> Central: 验证 OTP\nVerify OTP
+activate Central
+
+alt OTP 验证通过\nOTP Verified
+    Central -> Central: 身份确认\n有预约？→ 加载预约信息（平板辅助参考）\n有账号？→ 关联已有账号\n无账号？→ 自动创建新账号\n创建到店会话 session_id\nIdentity confirmed\nHas appointment? → load as reference\nHas account? → link\nNo account? → auto-create\nCreate session_id
+    Central --> Tablet: 验证成功 + 会话信息\n(用户信息 / 预约信息或空白会话)\nVerification OK + session info\n(user info / appointment or blank session)
+    deactivate Central
+    Tablet --> Staff: 展示会话详情\n有预约：旧机自填 + 初步估价（参考）\n无预约：空白新会话\nDisplay session details\nAppointment: self-reported + estimate (reference)\nNo appointment: blank session
+else OTP 验证失败\nOTP Failed
+    Central --> Tablet: OTP 错误\n(剩余尝试次数 / 60 秒后重发)\nOTP incorrect\n(remaining attempts / resend in 60s)
+    deactivate Central
+    Tablet --> Staff: 重新输入或重发 OTP\nRe-enter or resend OTP
+end
+
+' --- 质检环节（平板：先外观后硬件） ---
+Staff -> Tablet: (3) 操作平板：拍照 + 录视频\n(外观采集：边框/屏幕/后盖)
+activate Tablet
+Tablet -> Tablet: (4) 外观影像采集完成
+
+Staff -> Tablet: (5) 外观检查判断：设备是否可回收？
+break 外观无法回收，店员拒收\nAppearance rejection: staff rejects device
+    Staff -> Tablet: 点击"拒收该设备"\n拍摄损坏细节照片 (≥3 张)\n选择拒收原因
+    Tablet -> Central: 上传拒收记录\n(照片 + 拒收原因 + 会话 ID)
+    activate Central
+    Central -> Central: 会话标记为 [已完成-拒收]\n不创建 IMEI 库存，不进入定价
+    deactivate Central
+    Tablet --> Staff: 拒收已记录
+    deactivate Tablet
+    Staff -> Client: 告知用户拒收原因，归还设备
+    deactivate Staff
+end
+
+Staff -> Tablet: (6) 连数据线，启动硬件检测
+Tablet -> Tablet: (7) 全自动硬件审计\n(IMEI/电池健康度/屏幕触控/传感器等)
+
+' --- 可选：录入发票信息 ---
+opt 用户提供了购买发票
+    Staff -> Tablet: (8) 拍摄发票照片\n录入发票金额 + 购买日期
+    Tablet -> Tablet: 发票信息 (可选，不影响流程)
+end
+
+Tablet -> Central: (9) 综合上传：外观影像 + 硬件数据\n+ 发票信息 (如有)
+activate Central
+Central -> Central: 数据加密存储
+
+' --- 报告+报价 推送至用户 ---
+Central -> Central: 定价引擎计算抵扣价\n基准价 = min(发票价格, 市场基准价)\n无发票则以市场基准价为准
+Central --> Tablet: 返回质检报告 + 抵扣报价
+deactivate Central
+Tablet --> Staff: (10) 质检完成，平板屏幕展示报告摘要
+deactivate Tablet
+
+Central -> Client: (11) 推送完整质检报告 + 抵扣报价\n(已装App用户推App + SMS H5 链接同步更新)
+activate Central
+deactivate Central
+note right of Client
+  用户在App/H5内查看报告详情
+  (IMEI、电池、屏幕、外观评分等)
+  建立透明信任
+end note
+
+' --- 当面沟通 + 用户自主接受 ---
+Staff -> Client: (12) 店员当面沟通解释报价\n("报告已发到您手机上，您看一下")
+
+alt 用户接受报价
+    Client -> Central: (13) 用户在App/H5内点击"接受报价"
+    activate Central
+    Central -> Central: 记录用户确认
+    Central --> Owner: (14) 推送抵扣金额至店老板App\n(旧机抵扣价 + 会话信息)
+    deactivate Central
+
+    note right of Owner
+      店老板收到抵扣金额通知
+      进入核销流程
+    end note
+
+    ' --- 店老板录入新机售价 ---
+    Owner -> Central: (15) 店老板在App录入\n新机售价 + 消费者实付金额
+    activate Central
+    Central -> Central: 自动校验：\n新机售价 − 抵扣金额 = 实付金额？
+    alt 金额校验通过
+        Central --> Owner: 校验通过，待用户确认
+    else 金额不匹配
+        Central --> Owner: 提示"金额不匹配，请核对"
+        Owner -> Central: 修正后重新提交
+    end
+    deactivate Central
+
+    ' --- 用户新手机登录App，自动识别新机并确认核销 ---
+    Client -> Central: (16) 用户在新手机上登录App
+    activate Central
+    Central -> Client: App自动读取新机信息\n(品牌/型号/IMEI)
+    Client -> Central: 上报新机设备信息
+    Central -> Central: 关联新机信息至换购会话\n展示：抵扣金额 + 新机售价 + 实付金额
+    Central --> Client: 展示核销确认摘要\n(旧机抵扣 / 新机信息 / 实付金额)
+    deactivate Central
+
+    note right of Client
+      新机信息由App自动检测
+      无需手动输入
+      用户核对金额无误后
+      点击"确认核销"
+    end note
+
+    Client -> Central: (17) 用户在App点击"确认核销"
+    activate Central
+    Central -> Central: 标记核销为 [已完成]\n记录旧机抵扣 + 新机信息 + 实付金额\n旧机回收完成
+    Central --> Client: 核销成功
+    Central --> Owner: 推送核销完成通知至店老板
+    deactivate Central
+
+    ' --- DB将旧机发往仓库 ---
+    Staff -> DB: (18) 店员将旧机交给 DB
+    activate DB
+    DB -> Warehouse: (19) DB 将旧机发往区域总/分仓库
+    deactivate DB
+    activate Warehouse
+    Warehouse -> Central: (20) 入库确认 (复用质检环节的视频/图片)
+    activate Central
+    deactivate Central
+
+    ' --- 库管判断是否需要翻新 ---
+    WHManager -> WHTablet: (21) 库管检查设备实物\n判断是否需要翻新
+    alt 需要翻新
+        WHManager -> WHTablet: (22) 仓库质检平板重新质检\n(拍照/硬件检测/外观点检)
+        activate WHTablet
+        WHTablet -> Central: 上传更新后的质检数据
+        activate Central
+        Central -> Central: 更新设备信息\n(影像/成色/扣款)
+        Central --> WHTablet: 设备信息已更新
+        deactivate Central
+        deactivate WHTablet
+    else 无需翻新
+        WHManager -> Central: 确认设备状态无误
+    end
+
+    Central -> Central: 设备状态变更为 [待上架申请]
+    Central --> Ops: (23) 推送待审核上架申请
+    activate Ops
+
+    Ops -> Ops: (24) 运营审核影像资料\n(外观/功能/配件完整性)
+    alt 机况一致，直接上架
+        Ops -> Central: 审核通过，上传商品主图\n(从新机图片库选择或本地上传)
+        activate Central
+        Central -> Central: 自动计算商城售价\n(回收价 + 平台加价率 + 市场参考价)
+        Central -> Central: 设备状态 → [在库可售]\n主图 + 质检影像 → 自动上架至商城
+        Central --> Ops: 上架成功
+        deactivate Central
+    else 机况不符，调整后上架
+        Ops -> Central: 调整成色等级/扣款项\n(填写调整原因)\n上传商品主图
+        activate Central
+        Central -> Central: 重新计算回收价和商城售价\n(基于调整后的成色/扣款)\n设备状态 → [在库可售]\n主图 + 质检影像 → 自动上架至商城
+        Central --> Ops: 价格已调整，上架成功
+        Central --> Tablet: (25) 推送调整详情至平板\n(调整项 / 原价 / 调整后价格)
+        deactivate Central
+    end
+    deactivate Ops
+    deactivate Warehouse
+    deactivate Staff
+
+else 用户拒绝报价
+    Staff -> Client: 归还旧机，换购取消
+    deactivate Staff
+end
+
+== 正向销售流 - B2C ==
+Client -> Central: (26) 浏览商城 (优先推荐同城货源)
+activate Central
+deactivate Central
+Client -> Central: (27) 锁定唯一 IMEI 商品并下单
+activate Central
+Central -> Central: 开启5分钟独占锁 (状态: 付款中)
+Central -> Razorpay: 唤起 UPI Intent (Google Pay)
+activate Razorpay
+Central --> Client: 跳转至支付界面
+deactivate Central
+
+Client -> Razorpay: (28) 输入密码完成付款
+Razorpay -> Razorpay: 扣款成功清算
+Razorpay --> Central: (29) 异步发送支付成功信号
+deactivate Razorpay
+activate Central
+
+Central -> Central: 智能路由引擎：反查库存\n精确定位所在区域总仓库
+Central -> Warehouse: (30) 向对应仓库下发出库通知
+activate Warehouse
+deactivate Central
+
+Warehouse -> Warehouse: (31) 从货架取机，扫码核销 IMEI
+Warehouse -> Central: 打印快递面单并确认出库
+activate Central
+Central -> Central: 状态机变更为 [已发货]
+Central --> Warehouse: 出库成功
+deactivate Central
+deactivate Warehouse
+
+== 正向销售流 - B2B (C端App企业采购模块 · 门店批量下单) ==
+Client -> Central: (B1) 切换至企业采购模块，登录
+activate Central
+Central --> Client: 进入批量采购界面
+deactivate Central
+
+Client -> Central: (B2) 批量筛选多台设备\n(不同机况/型号/成色)
+activate Central
+Central --> Client: 返回符合条件的在库设备列表
+deactivate Central
+
+Client -> Central: (B3) 批量加入采购车\n(多IMEI + 多机况)
+activate Central
+Central -> Central: 校验所有设备可售状态
+Central -> Central: 开启批量独占锁\n(所有商品状态: 批量付款中)
+Central --> Client: 生成合并采购订单 + 总金额
+deactivate Central
+
+Client -> Central: (B4) 确认批量下单，选择支付方式
+activate Central
+
+alt 直接企业支付
+    Central -> Razorpay: 唤起批量支付 (单笔合并)
+    activate Razorpay
+    Central --> Client: 跳转至支付界面
+    deactivate Central
+    Client -> Razorpay: (B5a) 完成企业付款
+    Razorpay -> Razorpay: 扣款成功清算
+    Razorpay --> Central: (B6a) 异步发送支付成功信号
+    deactivate Razorpay
+    activate Central
+else 授信金额支付
+    Central -> Central: (B5b) 校验门店授信额度\n可用额度 ≥ 订单金额？
+    alt 额度充足
+        Central -> Central: (B6b) 扣减授信额度\n(已用额度 + 订单金额)\n标记订单为 [授信支付-待结算]
+        Central --> Client: 授信支付成功\n(展示：本次扣减金额 / 剩余额度)
+    else 额度不足
+        Central --> Client: 授信额度不足\n(可用额度 / 订单金额 / 差额)\n引导切换直接支付
+        Client -> Central: 切换至直接支付
+        Central -> Razorpay: 唤起批量支付
+        activate Razorpay
+        Central --> Client: 跳转至支付界面
+        deactivate Central
+        Client -> Razorpay: 完成企业付款
+        Razorpay -> Razorpay: 扣款成功清算
+        Razorpay --> Central: 异步发送支付成功信号
+        deactivate Razorpay
+        activate Central
+    end
+end
+
+Central -> Central: 智能路由引擎：\n逐台反查库存定位所在仓库
+Central -> Central: 拆分为多个子订单\n(按物理存放仓库聚合)
+
+loop 每个涉及的仓库
+    Central -> Warehouse: (B7) 下发批量出库通知\n(含该仓库所有待出库设备列表)
+    activate Warehouse
+    Warehouse -> Warehouse: 逐台扫码核销 IMEI
+    Warehouse -> Central: 批量确认出库 + 打印面单
+    activate Central
+    Central --> Warehouse: 出库成功
+    deactivate Central
+    deactivate Warehouse
+end
+
+Central -> Central: 全部出库完成\n状态机变更为 [已发货]
+Central --> Client: (B8) 推送物流追踪信息
+deactivate Central
+
+== 售后退货流 (B2C 退货) ==
+Client -> Central: (R1) 用户在App申请退货\n(7天内 + 选择退货原因)
+activate Central
+Central -> Central: 校验退货条件\n(7天内/防拆标签完好/未人为损坏)
+alt 退货条件满足
+    Central --> Client: 退货申请已提交\n推送退货指引(物流/到店)
+    Central --> Ops: 推送退货审核任务
+    deactivate Central
+    activate Ops
+
+    Ops -> Ops: (R2) 运营审核退货申请\n(照片/退货原因/订单信息)
+    alt 审核通过
+        Ops -> Central: 审核通过，通知用户寄回
+        activate Central
+        Central --> Client: (R3) 退货审核通过\n请寄回设备(附物流面单)
+        deactivate Central
+
+        Client -> Warehouse: (R4) 用户寄回设备
+        activate Warehouse
+        Warehouse -> Central: 仓库收货确认\n鉴定设备状态
+        activate Central
+        Central -> Central: 比对寄回设备与原质检记录
+        alt 设备一致，退款
+            Central -> Razorpay: (R5) 发起原路退款
+            activate Razorpay
+            Razorpay --> Central: 退款成功
+            deactivate Razorpay
+            Central -> Central: 设备状态 → [已退货]\n退回库存(需重新质检上架)
+            Central --> Client: 退款已发起\n(3-5个工作日到账)
+        else 设备不符(人为损坏/配件缺失)
+            Central -> Central: 标记争议\n扣减退款金额或拒绝退款
+            Central --> Client: 退款金额已调整\n(扣减项/原因说明)
+            Central --> Ops: 推送争议处理结果
+        end
+        deactivate Central
+        deactivate Warehouse
+    else 审核拒绝
+        Ops -> Central: 拒绝退货(附原因)
+        activate Central
+        Central --> Client: 退货申请未通过\n(原因说明)
+        deactivate Central
+    end
+    deactivate Ops
+else 不满足退货条件
+    Central --> Client: 超出退货期限\n或设备已被人为损坏
+    deactivate Central
+end
+
+@enduml

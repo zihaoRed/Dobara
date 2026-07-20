@@ -1,0 +1,117 @@
+@startuml
+' PlantUML 全闭环流程图 - 印度二手设备交易平台
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 11
+
+actor 用户 as User
+actor 门店 as Store
+actor 质检员 as QC
+actor 管理员 as Admin
+
+' ===== 回收流程 =====
+title 印度二手设备交易平台 - 回收与销售全闭环流程图
+
+rectangle "回收流程" as recycle {
+  (线上下单回收) as rc1
+ (推荐就近门店) as rc2
+  (生成回收订单) as rc3
+  (确认用户到店) as rc4
+  (PC工具连接设备质检) as rc5
+  (生成质检报告\n含QR码) as rc6
+  (导入估价系统) as rc7
+  (估价系统报价) as rc8
+  (现金支付给用户) as rc9
+  (设备入库) as rc10
+  (自动上架至商城) as rc11
+  (直接到店回收/换购) as rc12
+  (交易取消\n归还设备) as rc13
+}
+
+User --> rc1
+rc1 --> rc2 : 系统推荐
+rc2 --> rc3 : 用户选择门店
+Store --> rc4 : 确认用户到店
+QC --> rc5 : USB连接设备检测
+rc5 --> rc6
+rc6 --> rc7 : PC自动关联 / APP扫码
+rc7 --> rc8
+
+rc8 --> rc9 : [接受报价]
+rc9 --> rc10
+rc10 --> rc11
+rc8 --> rc13 : [拒绝报价]
+
+User --> rc12 : 直接到店
+rc12 --> rc3
+
+' ===== 销售流程 =====
+rectangle "销售流程" as sales {
+  (浏览商城) as sl1
+  (加入购物车/下单) as sl2
+  (Razorpay支付) as sl3
+  (生成销售订单) as sl4
+  (检索设备所在门店) as sl5
+  (发送订单通知) as sl6
+  (门店查看待出库) as sl7
+  (出库打包发货) as sl8
+  (库存扣减) as sl9
+  (配送至用户) as sl10
+  (支付失败\n用户重试) as sl11
+}
+
+User --> sl1
+sl1 --> sl2
+sl2 --> sl3 : 跳转Razorpay
+
+sl3 --> sl4 : [支付成功]
+sl4 --> sl5
+sl5 --> sl6
+sl6 --> sl7
+Store --> sl8
+sl8 --> sl9
+sl9 --> sl10
+User<-- sl10
+
+sl3 --> sl11 : [支付失败]
+sl11 --> sl3 : 重试
+
+' ===== 售后流程 =====
+rectangle "售后流程" as aftersale {
+  (申请退货) as as1
+  (退货审核) as as2
+  (退回设备\n门店收货) as as3
+  (退款至原渠道) as as4
+  (拒绝退货) as as5
+}
+
+User --> as1 : 7天内
+as1 --> as2
+Admin --> as2 : 审核
+
+as2 --> as3 : [审核通过]
+as3 --> as4 : Razorpay退款
+as2 --> as5 : [审核拒绝]
+
+' ===== 管理后台 =====
+rectangle "管理后台" as admin {
+  (门店管理) as ad1
+  (用户角色管理) as ad2
+  (数据报表) as ad3
+  (估价规则配置) as ad4
+  (设备品类管理) as ad5
+}
+
+Admin --> ad1
+Admin --> ad2
+Admin --> ad3
+Admin --> ad4
+Admin --> ad5
+
+' ===== 全链路关联 =====
+rc11 ..> sl1 : 回收入库设备自动上架至商城
+sl5 ..> Store : 检索设备所在门店
+Admin ..> recycle : 监控回收数据
+Admin ..> sales : 监控销售数据
+Admin ..> aftersale : 监控售后数据
+
+@enduml

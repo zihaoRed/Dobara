@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"[System.IO.File]::ReadAllBytes\\('d:\\\\BOTT\\\\flow.puml'\\)[0..3] -join ' '\")"
+    ]
+  }
+}

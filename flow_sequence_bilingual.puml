@@ -1,0 +1,325 @@
+@startuml
+skinparam BoxPadding 10
+skinparam ParticipantPadding 10
+
+box "C端用户与商城\nConsumer & Marketplace" #LightBlue
+actor "消费者 (C端)\nConsumer (C-end)" as Client
+end box
+
+box "门店线下端\nOffline Store" #LightYellow
+actor "门店店员/质检员\nStore Staff / Inspector" as Staff
+actor "店老板\nStore Owner" as Owner
+participant "平板质检工具 (门店一体机)\nInspection Tablet (All-in-One)" as Tablet
+end box
+
+box "财务结算端\nFinance & Settlement" #LightPink
+actor "DB (财务/结算)\nDB (Finance/Settlement)" as DB
+end box
+
+box "业务核心中台\nCore Platform (Backend)" #LightCyan
+participant "云端大脑 (中台/后台)\nCloud Brain (Backend)" as Central
+participant "运营后台 (审核)\nOperations Console (Review)" as Ops
+end box
+
+box "区域仓储\nRegional Warehouse" #LightGreen
+actor "库管\nWarehouse Manager" as WHManager
+participant "仓库质检平板\nWarehouse Inspection Tablet" as WHTablet
+participant "区域总仓库\nRegional Main Warehouse" as Warehouse
+end box
+
+box "第三方支付生态\nThird-party Payment" #LightGray
+participant "Razorpay 支付网关\nRazorpay Payment Gateway" as Razorpay
+end box
+
+== 逆向回收流 (C2B · 仅换购场景)\nReverse Recycling Flow (C2B · Trade-in Only) ==
+
+' --- Appointment Booking ---
+Client -> Central: (1) 发起线上换购预约\nInitiate online trade-in appointment
+activate Central
+Central -> Central: 登记换购预约单 (填写旧机品牌/型号/预估机况)\nRegister appointment (fill in old device brand/model/estimated condition)
+Central --> Client: 预约成功\nAppointment confirmed
+deactivate Central
+
+' --- Store Visit ---
+Client -> Staff: (2) 携旧机到店，报手机号\nBring old device to store, provide phone number
+activate Staff
+
+' --- Unified OTP Verification ---
+Staff -> Tablet: 输入用户手机号\nEnter user phone number
+Tablet -> Central: 请求发送 OTP 验证码 (手机号 + 门店 ID)\nRequest OTP (phone + store ID)
+activate Central
+Central -> Central: 生成 6 位 OTP + H5 跟踪短链\n查预约/账号信息\nGenerate 6-digit OTP + H5 tracking link\nCheck appointment/account
+Central --> Client: 发送 SMS (OTP: XXXXXX + H5 链接)\nSend SMS (OTP: XXXXXX + H5 tracking link)
+Central --> Tablet: OTP 已发送\nOTP sent
+deactivate Central
+
+note right of Client
+  一条 SMS 同时送达：
+  OTP → 店员用于验证身份
+  H5 链接 → 用户用于查看报告和报价
+  One SMS delivers both:
+  OTP → staff verifies identity
+  H5 link → user tracks report & quote
+end note
+
+Staff -> Tablet: 店员输入用户告知的 6 位 OTP\nStaff enters 6-digit OTP told by user
+Tablet -> Central: 验证 OTP\nVerify OTP
+activate Central
+
+alt OTP 验证通过\nOTP Verified
+    Central -> Central: 身份确认\n有预约？→ 加载预约信息（平板辅助参考）\n有账号？→ 关联已有账号\n无账号？→ 自动创建新账号\n创建到店会话 session_id\nIdentity confirmed\nHas appointment? → load as reference\nHas account? → link\nNo account? → auto-create\nCreate session_id
+    Central --> Tablet: 验证成功 + 会话信息\n(用户信息 / 预约信息或空白会话)\nVerification OK + session info\n(user info / appointment or blank session)
+    deactivate Central
+    Tablet --> Staff: 展示会话详情\n有预约：旧机自填 + 初步估价（参考）\n无预约：空白新会话\nDisplay session details\nAppointment: self-reported + estimate (reference)\nNo appointment: blank session
+else OTP 验证失败\nOTP Failed
+    Central --> Tablet: OTP 错误 (剩余尝试次数 / 60 秒后重发)\nOTP incorrect (remaining attempts / resend in 60s)
+    deactivate Central
+    Tablet --> Staff: 重新输入或重发 OTP\nRe-enter or resend OTP
+end
+
+' --- Inspection (Tablet: Appearance first, then Hardware) ---
+Staff -> Tablet: (3) 操作平板：拍照 + 录视频 (外观采集：边框/屏幕/后盖)\nOperate tablet: Take photos + video (Appearance: frame/screen/back)
+activate Tablet
+Tablet -> Tablet: (4) 外观影像采集完成\nAppearance image capture complete
+
+Staff -> Tablet: (5) 外观检查判断：设备是否可回收？\nAppearance check: is the device recyclable?
+break 外观无法回收，店员拒收\nAppearance Rejection — Staff Rejects Device
+    Staff -> Tablet: 点击"拒收该设备"\n拍摄损坏细节照片 (≥3 张)\n选择拒收原因\nTap "Reject Device"\nTake damage detail photos (≥3)\nSelect rejection reason
+    Tablet -> Central: 上传拒收记录 (照片 + 拒收原因 + 会话 ID)\nUpload rejection record (photos + reason + session ID)
+    activate Central
+    Central -> Central: 会话标记为 [已完成-拒收]\n不创建 IMEI 库存，不进入定价\nSession marked [Completed-Rejected]\nNo IMEI inventory created, no pricing
+    deactivate Central
+    Tablet --> Staff: 拒收已记录\nRejection recorded
+    deactivate Tablet
+    Staff -> Client: 告知用户拒收原因，归还设备\nInform user of rejection reason, return device
+    deactivate Staff
+end
+
+Staff -> Tablet: (6) 连数据线，启动硬件检测\nConnect USB cable, start hardware audit
+Tablet -> Tablet: (7) 全自动硬件审计 (IMEI/电池健康度/屏幕触控/传感器等)\nAutomated hardware audit (IMEI/battery health/touch/sensors etc.)
+
+' --- Optional: Invoice Capture ---
+opt 用户提供了购买发票\nUser Provides Purchase Invoice
+    Staff -> Tablet: (8) 拍摄发票照片\n录入发票金额 + 购买日期\nTake invoice photo\nEnter invoice amount + purchase date
+    Tablet -> Tablet: 发票信息 (可选，不影响流程)\nInvoice info (optional, non-blocking)
+end
+
+Tablet -> Central: (9) 综合上传：外观影像 + 硬件数据\n+ 发票信息 (如有)\nUpload: appearance images + hardware data\n+ invoice info (if available)
+activate Central
+Central -> Central: 数据加密存储\nEncrypt and store data
+
+' --- Report & Quote Pushed to User ---
+Central -> Central: 定价引擎计算抵扣价\n基准价 = min(发票价格, 市场基准价)\n无发票则以市场基准价为准\nPricing engine calculates trade-in value\nBase price = min(invoice price, market price)\nMarket price used if no invoice
+Central --> Tablet: 返回质检报告 + 抵扣报价\nReturn inspection report + trade-in quote
+deactivate Central
+Tablet --> Staff: (10) 质检完成，平板屏幕展示报告摘要\nInspection complete, tablet shows report summary
+deactivate Tablet
+
+Central -> Client: (11) 推送完整质检报告 + 抵扣报价\n(已装App用户推App + SMS H5 链接同步更新)\nPush full report + quote\n(App for registered users + SMS H5 link updated)
+activate Central
+deactivate Central
+note right of Client
+  用户在App/H5内查看报告详情 (IMEI、电池、屏幕、外观评分等)\nView report details (IMEI, battery, screen, appearance grade, etc.)
+  建立透明信任\nBuild transparency and trust
+end note
+
+' --- Face-to-face Communication + User Accepts ---
+Staff -> Client: (12) 店员当面沟通解释报价 ("报告已发到您手机上，您看一下")\nStaff explains quote face-to-face ("The report has been sent to your phone")
+
+alt 用户接受报价\nUser Accepts Quote
+    Client -> Central: (13) 用户在App/H5内点击"接受报价"\nUser taps "Accept Quote" in App/H5
+    activate Central
+    Central -> Central: 记录用户确认\nRecord user confirmation
+    Central --> Owner: (14) 推送抵扣金额至店老板App (旧机抵扣价 + 会话信息)\nPush trade-in amount to Store Owner App (trade-in value + session info)
+    deactivate Central
+
+    note right of Owner
+      店老板收到抵扣金额通知，进入核销流程\nStore Owner receives trade-in notification
+    end note
+
+    ' --- Store Owner Enters New Phone Price ---
+    Owner -> Central: (15) 店老板在App录入新机售价 + 消费者实付金额\nStore Owner enters new phone price + actual payment in App
+    activate Central
+    Central -> Central: 自动校验：新机售价 − 抵扣金额 = 实付金额？\nAuto-validate: new phone price − trade-in = actual payment?
+    alt 金额校验通过\nValidation Passed
+        Central --> Owner: 校验通过，待用户确认\nValidation passed, awaiting user confirmation
+    else 金额不匹配\nValidation Failed
+        Central --> Owner: 提示"金额不匹配，请核对"\nAlert "Amount mismatch, please verify"
+        Owner -> Central: 修正后重新提交\nCorrect and resubmit
+    end
+    deactivate Central
+
+    ' --- User Logs into New Phone, Auto-detects & Confirms ---
+    Client -> Central: (16) 用户在新手机上登录App\nUser logs into App on new phone
+    activate Central
+    Central -> Client: App自动读取新机信息 (品牌/型号/IMEI)\nApp auto-reads new phone info (brand/model/IMEI)
+    Client -> Central: 上报新机设备信息\nUpload new device info
+    Central -> Central: 关联新机信息至换购会话\n展示：抵扣金额 + 新机售价 + 实付金额\nLink new phone info to trade-in session\nDisplay: trade-in value + new phone price + actual payment
+    Central --> Client: 展示核销确认摘要 (旧机抵扣 / 新机信息 / 实付金额)\nShow verification summary (old device trade-in / new phone info / actual payment)
+    deactivate Central
+
+    note right of Client
+      新机信息由App自动检测，无需手动输入\nNew phone info auto-detected by App — no manual entry
+      用户核对金额无误后，点击"确认核销"\nUser verifies amount and taps "Confirm Verification"
+    end note
+
+    Client -> Central: (17) 用户在App点击"确认核销"\nUser taps "Confirm Verification" in App
+    activate Central
+    Central -> Central: 标记核销为 [已完成]\n记录旧机抵扣 + 新机信息 + 实付金额\n旧机回收完成\nMark verification as [Completed]\nRecord trade-in + new phone info + actual payment\nOld device recycling complete
+    Central --> Client: 核销成功\nVerification successful
+    Central --> Owner: 推送核销完成通知至店老板\nPush completion notification to Store Owner
+    deactivate Central
+
+    ' --- DB Sends Old Device to Warehouse ---
+    Staff -> DB: (18) 店员将旧机交给 DB\nStaff hands old device to DB
+    activate DB
+    DB -> Warehouse: (19) DB 将旧机发往区域总/分仓库\nDB sends old device to regional main/sub warehouse
+    deactivate DB
+    activate Warehouse
+    Warehouse -> Central: (20) 入库确认 (复用质检环节的视频/图片)\nWarehouse check-in (reuse inspection images/video)
+    activate Central
+    deactivate Central
+
+    ' --- Warehouse Manager Determines Refurbishment ---
+    WHManager -> WHTablet: (21) 库管检查设备实物，判断是否需要翻新\nWarehouse manager inspects device, determines if refurbishment needed
+    alt 需要翻新\nRefurbishment Needed
+        WHManager -> WHTablet: (22) 仓库质检平板重新质检 (拍照/硬件检测/外观点检)\nRe-inspect on warehouse tablet (photos/hardware audit/appearance checklist)
+        activate WHTablet
+        WHTablet -> Central: 上传更新后的质检数据\nUpload updated inspection data
+        activate Central
+        Central -> Central: 更新设备信息 (影像/成色/扣款)\nUpdate device info (images/grade/deductions)
+        Central --> WHTablet: 设备信息已更新\nDevice info updated
+        deactivate Central
+        deactivate WHTablet
+    else 无需翻新\nNo Refurbishment Needed
+        WHManager -> Central: 确认设备状态无误\nConfirm device status is correct
+    end
+
+    Central -> Central: 设备状态变更为 [待上架申请]\nDevice status → [Pending Listing Request]
+    Central --> Ops: (23) 推送待审核上架申请\nPush pending review listing request
+    activate Ops
+
+    Ops -> Ops: (24) 运营审核影像资料 (外观/功能/配件完整性)\nOps reviews images/video (appearance/function/accessories)
+    alt 机况一致，直接上架\nCondition Matches — List Directly
+        Ops -> Central: 审核通过，上传商品主图 (从新机图片库选择或本地上传)\nApprove, upload product main image (select from library or upload)
+        activate Central
+        Central -> Central: 自动计算商城售价 (回收价 + 平台加价率 + 市场参考价)\nAuto-calculate marketplace price (trade-in + margin + market reference)
+        Central -> Central: 设备状态 → [在库可售]\n主图 + 质检影像 → 自动上架至商城\nDevice status → [Available for Sale]\nMain image + inspection images → auto-list on marketplace
+        Central --> Ops: 上架成功\nListing successful
+        deactivate Central
+    else 机况不符，调整后上架\nCondition Mismatch — Adjust & List
+        Ops -> Central: 调整成色等级/扣款项 (填写调整原因)\n上传商品主图\nAdjust grade/deductions (with reason)\nUpload product main image
+        activate Central
+        Central -> Central: 重新计算回收价和商城售价 (基于调整后的成色/扣款)\n设备状态 → [在库可售]\n主图 + 质检影像 → 自动上架至商城\nRecalculate trade-in & sale price (based on adjusted grade/deductions)\nDevice status → [Available for Sale]\nMain image + inspection images → auto-list on marketplace
+        Central --> Ops: 价格已调整，上架成功\nPrice adjusted, listing successful
+        Central --> Tablet: (25) 推送调整详情至平板 (调整项 / 原价 / 调整后价格)\nPush adjustment details to tablet (adjusted items / original price / new price)
+        deactivate Central
+    end
+    deactivate Ops
+    deactivate Warehouse
+    deactivate Staff
+
+else 用户拒绝报价\nUser Rejects Quote
+    Staff -> Client: 归还旧机，换购取消\nReturn old device, trade-in cancelled
+    deactivate Staff
+end
+
+== 正向销售流 - B2C\nForward Sales Flow - B2C ==
+Client -> Central: (26) 浏览商城 (优先推荐同城货源)\nBrowse marketplace (prioritize same-city inventory)
+activate Central
+deactivate Central
+Client -> Central: (27) 锁定唯一 IMEI 商品并下单\nLock unique IMEI item and place order
+activate Central
+Central -> Central: 开启5分钟独占锁 (状态: 付款中)\nStart 5-minute exclusive lock (status: Paying)
+Central -> Razorpay: 唤起 UPI Intent (Google Pay)\nInvoke UPI Intent (Google Pay)
+activate Razorpay
+Central --> Client: 跳转至支付界面\nRedirect to payment screen
+deactivate Central
+
+Client -> Razorpay: (28) 输入密码完成付款\nEnter PIN to complete payment
+Razorpay -> Razorpay: 扣款成功清算\nPayment captured & settled
+Razorpay --> Central: (29) 异步发送支付成功信号\nAsync payment success webhook
+deactivate Razorpay
+activate Central
+
+Central -> Central: 智能路由引擎：反查库存，精确定位所在区域总仓库\nSmart routing engine: reverse lookup inventory, locate regional warehouse
+Central -> Warehouse: (30) 向对应仓库下发出库通知\nSend outbound notification to warehouse
+activate Warehouse
+deactivate Central
+
+Warehouse -> Warehouse: (31) 从货架取机，扫码核销 IMEI\nPick device from shelf, scan IMEI to verify
+Warehouse -> Central: 打印快递面单并确认出库\nPrint shipping label & confirm outbound
+activate Central
+Central -> Central: 状态机变更为 [已发货]\nStatus → [Shipped]
+Central --> Warehouse: 出库成功\nOutbound successful
+deactivate Central
+deactivate Warehouse
+
+== 正向销售流 - B2B (C端App企业采购模块 · 门店批量下单)\nForward Sales Flow - B2B (Enterprise Purchase Module · Store Bulk Order) ==
+Client -> Central: (B1) 切换至企业采购模块，登录\nSwitch to Enterprise Purchase module, login
+activate Central
+Central --> Client: 进入批量采购界面\nEnter bulk purchase interface
+deactivate Central
+
+Client -> Central: (B2) 批量筛选多台设备 (不同机况/型号/成色)\nBatch filter devices (various conditions/models/grades)
+activate Central
+Central --> Client: 返回符合条件的在库设备列表\nReturn available device list
+deactivate Central
+
+Client -> Central: (B3) 批量加入采购车 (多IMEI + 多机况)\nBatch add to cart (multiple IMEI + conditions)
+activate Central
+Central -> Central: 校验所有设备可售状态\nValidate all devices available\n开启批量独占锁 (所有商品状态: 批量付款中)\nStart batch exclusive lock (all items: Batch Paying)
+Central --> Client: 生成合并采购订单 + 总金额\nGenerate combined purchase order + total
+deactivate Central
+
+Client -> Central: (B4) 确认批量下单，选择支付方式\nConfirm batch order, select payment method
+activate Central
+
+alt 直接企业支付\nDirect Enterprise Payment
+    Central -> Razorpay: 唤起批量支付 (单笔合并)\nInvoke batch payment (single combined)
+    activate Razorpay
+    Central --> Client: 跳转至支付界面\nRedirect to payment screen
+    deactivate Central
+    Client -> Razorpay: (B5a) 完成企业付款\nComplete enterprise payment
+    Razorpay -> Razorpay: 扣款成功清算\nPayment captured & settled
+    Razorpay --> Central: (B6a) 异步发送支付成功信号\nAsync payment success webhook
+    deactivate Razorpay
+    activate Central
+else 授信金额支付\nCredit Line Payment
+    Central -> Central: (B5b) 校验门店授信额度：可用额度 ≥ 订单金额？\nCheck store credit line: available credit ≥ order amount?
+    alt 额度充足\nSufficient Credit
+        Central -> Central: (B6b) 扣减授信额度 (已用额度 + 订单金额)\n标记订单为 [授信支付-待结算]\nDeduct credit (used + order amount)\nMark order as [Credit Payment - Pending Settlement]
+        Central --> Client: 授信支付成功 (展示：本次扣减金额 / 剩余额度)\nCredit payment success (show: deducted / remaining credit)
+    else 额度不足\nInsufficient Credit
+        Central --> Client: 授信额度不足 (可用额度 / 订单金额 / 差额)\n引导切换直接支付\nInsufficient credit (available / order amount / shortage)\nGuide to switch to direct payment
+        Client -> Central: 切换至直接支付\nSwitch to direct payment
+        Central -> Razorpay: 唤起批量支付\nInvoke batch payment
+        activate Razorpay
+        Central --> Client: 跳转至支付界面\nRedirect to payment screen
+        deactivate Central
+        Client -> Razorpay: 完成企业付款\nComplete enterprise payment
+        Razorpay -> Razorpay: 扣款成功清算\nPayment captured & settled
+        Razorpay --> Central: 异步发送支付成功信号\nAsync payment success webhook
+        deactivate Razorpay
+        activate Central
+    end
+end
+
+Central -> Central: 智能路由引擎：逐台反查库存定位所在仓库\nSmart routing: reverse lookup each device to locate warehouse\n拆分为多个子订单 (按物理存放仓库聚合)\nSplit into sub-orders (grouped by warehouse)
+
+loop 每个涉及的仓库\nEach Warehouse
+    Central -> Warehouse: (B7) 下发批量出库通知 (含该仓库所有待出库设备列表)\nSend batch outbound notification (all devices for this warehouse)
+    activate Warehouse
+    Warehouse -> Warehouse: 逐台扫码核销 IMEI\nScan IMEI one by one to verify
+    Warehouse -> Central: 批量确认出库 + 打印面单\nBatch confirm outbound + print labels
+    activate Central
+    Central --> Warehouse: 出库成功\nOutbound successful
+    deactivate Central
+    deactivate Warehouse
+end
+
+Central -> Central: 全部出库完成，状态机变更为 [已发货]\nAll outbound complete, status → [Shipped]
+Central --> Client: (B8) 推送物流追踪信息\nPush logistics tracking info
+deactivate Central
+
+@enduml
