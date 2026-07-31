@@ -2,16 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Light Theme ── */
 :root {
   --color-emerald-500: #0d6b4e;
   --color-emerald-600: #0a5a41;
   --color-terracotta-500: #e8793e;
+
+  --color-surface: #f9f7f4;
+  --color-surface-container: #ffffff;
+  --color-surface-low: #f3f0ec;
+  --color-surface-high: #e8e2da;
+
   --color-text-primary: #1a1d1b;
   --color-text-secondary: #4a4f4b;
+  --color-text-body: #6b706c;
   --color-text-muted: #939994;
-  --color-surface: #f9f7f4;
-  --color-surface-card: #ffffff;
+  --color-text-placeholder: #b8bfb9;
+
   --color-border: #e8e2da;
+  --color-border-light: #f0ebe4;
+  --color-border-strong: #d4cec5;
+
+  --color-primary-50: #ebf5f1;
+  --color-primary-100: #cce4db;
+  --color-primary-500: #0d6b4e;
+  --color-primary-600: #0a5a41;
+  --color-primary-700: #084a35;
+
+  --color-accent-50: #fef5ee;
+  --color-accent-100: #fde6d4;
+  --color-accent-500: #e8793e;
+
+  --color-success: #0d6b4e;
+  --color-success-light: #ebf5f1;
+  --color-warning: #e8793e;
+  --color-warning-light: #fef5ee;
+  --color-error: #dc2626;
+  --color-error-light: #fef2f2;
+  --color-info: #3b82f6;
+  --color-info-light: #eff6ff;
+
   --font-display: 'DM Serif Display', Georgia, serif;
   --font-body: 'DM Sans', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -21,25 +51,47 @@
   --shadow-elevated: 0 12px 32px -4px rgba(0,0,0,0.10);
 }
 
-/* ── Dark Mode ── */
+/* ── Dark Theme ── */
 [data-theme="dark"] {
-  --color-text-primary: #e8e6e3;
-  --color-text-secondary: #b0aca7;
-  --color-text-muted: #7a7671;
-  --color-surface: #111613;
-  --color-surface-card: #1a1e1b;
-  --color-border: #2e2b27;
+  --color-surface: #0f1411;
+  --color-surface-container: #1a1f1c;
+  --color-surface-low: #151a17;
+  --color-surface-high: #252a26;
+
+  --color-text-primary: #e4e2df;
+  --color-text-secondary: #b5b2ae;
+  --color-text-body: #8c8984;
+  --color-text-muted: #6b6762;
+  --color-text-placeholder: #4a4743;
+
+  --color-border: #2e2c28;
+  --color-border-light: #252320;
+  --color-border-strong: #3e3b37;
+
+  --color-primary-50: #0a2a1e;
+  --color-primary-100: #0d3526;
+  --color-primary-500: #3fa37b;
+  --color-primary-600: #52b88d;
+  --color-primary-700: #6dba9d;
+
+  --color-accent-50: #2a1a10;
+  --color-accent-100: #352418;
+  --color-accent-500: #f68b47;
+
+  --color-success: #3fa37b;
+  --color-success-light: #0a2a1e;
+  --color-warning: #f68b47;
+  --color-warning-light: #2a1a10;
+  --color-error: #ef4444;
+  --color-error-light: #2a1010;
+  --color-info: #60a5fa;
+  --color-info-light: #0a1a2a;
+
+  --shadow-card: 0 2px 8px -2px rgba(0,0,0,0.2);
+  --shadow-elevated: 0 12px 32px -4px rgba(0,0,0,0.3);
 }
 
-[data-theme="dark"] body {
-  color: var(--color-text-primary);
-  background-color: var(--color-surface);
-}
-
-[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3e3b37; }
-[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #55514d; }
-[data-theme="dark"] ::selection { background: rgba(13, 107, 78, 0.3); }
-
+/* ── Global ── */
 * {
   box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
@@ -56,35 +108,28 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-html {
-  scroll-behavior: smooth;
-}
+html { scroll-behavior: smooth; }
 
-/* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d4cec5; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #b8b0a8; }
+::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-text-muted); }
 
-/* ── Focus ring ── */
 *:focus-visible {
-  outline: 2px solid #0d6b4e;
+  outline: 2px solid var(--color-primary-500);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-/* ── Mobile safe area ── */
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 }
 
-/* ── Transition defaults ── */
 a, button, input, select, textarea {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* ── Selection ── */
 ::selection {
   background: rgba(13, 107, 78, 0.15);
-  color: #1a1d1b;
+  color: var(--color-text-primary);
 }
