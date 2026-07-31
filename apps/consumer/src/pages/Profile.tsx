@@ -122,7 +122,7 @@ export function Profile() {
         size="lg"
         className="w-full text-dobara-error"
         icon={<LogOut size={18} />}
-        onClick={() => { clearUser(); window.location.href = '/login'; }}
+        onClick={() => { clearUser(); navigate('/login', { replace: true }); }}
       >
         Sign Out
       </Button>

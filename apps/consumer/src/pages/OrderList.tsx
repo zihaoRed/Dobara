@@ -63,7 +63,7 @@ export function OrderList() {
             title="No purchase orders"
             description="You haven't bought any devices yet. Start shopping!"
             action={
-              <Button variant="primary" onClick={() => navigate('/')}>
+              <Button variant="primary" onClick={() => navigate('/home')}>
                 Browse Marketplace
               </Button>
             }
