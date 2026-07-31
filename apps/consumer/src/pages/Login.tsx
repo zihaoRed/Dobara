@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Input, Button, Card } from '@dobara/ui';
 import { setUser } from '../App';
 
@@ -18,6 +19,7 @@ async function apiCall(url: string, body: Record<string, string>) {
 }
 
 export function Login() {
+  const navigate = useNavigate();
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
@@ -53,14 +55,14 @@ export function Login() {
     const data = await apiCall('/api/otp/verify', { phone, otp });
     if (data?.success) {
       setUser(phone, data.userId || 'Demo User');
-      window.location.href = '/home';
+      navigate('/home', { replace: true });
       return;
     }
 
     // Demo fallback
     if (otp === DEMO_OTP) {
       setUser(phone, 'Demo User');
-      window.location.href = '/home';
+      navigate('/home', { replace: true });
     } else {
       setError('Invalid OTP. Demo code: 123456');
       setLoading(false);
