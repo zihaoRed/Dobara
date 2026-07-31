@@ -1,0 +1,24 @@
+{
+  "common": {
+    "demo_mode": "Demo Mode",
+    "reset_data": "Reset Data",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "back": "Back",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "loading": "Loading...",
+    "no_data": "No data available"
+  },
+  "home": {
+    "title": "Dobara",
+    "subtitle": "Buy & Sell Pre-owned Phones"
+  },
+  "mall": {
+    "title": "Marketplace",
+    "buy_now": "Buy Now",
+    "add_to_cart": "Add to Cart"
+  }
+}
