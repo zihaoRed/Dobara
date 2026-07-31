@@ -15,7 +15,8 @@ echo "========================================"
 # 1. 安装依赖
 echo ""
 echo "[1/5] Installing dependencies..."
-pnpm install --no-frozen-lockfile
+rm -f pnpm-lock.yaml
+pnpm install
 
 # 2. 构建所有应用
 echo ""
