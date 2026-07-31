@@ -61,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({ active, onNavigate }) => {
     <div className="h-full flex flex-col">
       {/* Logo */}
       <div className="px-5 py-4 border-b border-border">
-        <h1 className="text-h4 font-heading text-primary-500">Dobara</h1>
+        <a href="/" className="text-h4 font-heading text-primary-500 hover:text-primary-600 transition-colors no-underline">Dobara</a>
         <span className="text-caption text-text-muted">Management Console</span>
       </div>
 

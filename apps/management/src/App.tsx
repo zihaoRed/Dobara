@@ -66,7 +66,7 @@ function AppLayout() {
         <main className="flex-1 w-full max-w-lg md:max-w-none mx-auto pb-14 md:pb-0">
           {/* Mobile Header */}
           <header className="md:hidden bg-surface-container border-b border-border px-4 py-3 flex items-center justify-between">
-            <h1 className="text-h4 font-heading text-primary-500">Dobara</h1>
+            <a href="/" className="text-h4 font-heading text-primary-500 hover:text-primary-600 transition-colors no-underline">Dobara</a>
             <span className="text-caption text-text-muted">{moduleConfig[activeModule].label}</span>
           </header>
 

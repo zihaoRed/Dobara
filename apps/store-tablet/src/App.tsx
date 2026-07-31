@@ -95,12 +95,9 @@ function TopBar() {
   return (
     <header className="h-[48px] bg-surface-container border-b border-border flex items-center justify-between px-4 shrink-0">
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => navigate('/')}
-          className="text-lead font-heading font-bold text-primary-600 hover:text-primary-500 transition-colors"
-        >
+        <a href="/" className="text-lead font-heading font-bold text-primary-600 hover:text-primary-500 transition-colors no-underline">
           Dobara
-        </button>
+        </a>
         <Badge variant="accent" size="sm">Demo Mode</Badge>
       </div>
       <div className="flex items-center gap-2">

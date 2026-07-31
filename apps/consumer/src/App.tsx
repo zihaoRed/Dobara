@@ -96,6 +96,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
+      {showTabs && (
+        <header className="h-11 bg-surface-container border-b border-border flex items-center px-4 shrink-0">
+          <a href="/" className="text-h4 font-heading text-primary-500 hover:text-primary-600 transition-colors no-underline">Dobara</a>
+        </header>
+      )}
       <main className={`flex-1 ${showTabs ? 'pb-16' : ''}`}>{children}</main>
       {showTabs && <TabBar />}
     </div>
