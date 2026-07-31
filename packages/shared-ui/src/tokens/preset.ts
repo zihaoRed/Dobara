@@ -61,6 +61,19 @@ const preset = {
         'surface-low': '#f3f0ec',
         'surface-high': '#e8e2da',
       },
+      backgroundColor: {
+        surface: {
+          DEFAULT: '#f9f7f4',
+          container: '#ffffff',
+          low: '#f3f0ec',
+          high: '#e8e2da',
+        },
+      },
+      borderColor: {
+        DEFAULT: '#e8e2da',
+        light: '#f0ebe4',
+        strong: '#d4cec5',
+      },
       textColor: {
         DEFAULT: '#1a1d1b',
         secondary: '#4a4f4b',

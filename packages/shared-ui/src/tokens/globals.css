@@ -21,6 +21,25 @@
   --shadow-elevated: 0 12px 32px -4px rgba(0,0,0,0.10);
 }
 
+/* ── Dark Mode ── */
+[data-theme="dark"] {
+  --color-text-primary: #e8e6e3;
+  --color-text-secondary: #b0aca7;
+  --color-text-muted: #7a7671;
+  --color-surface: #111613;
+  --color-surface-card: #1a1e1b;
+  --color-border: #2e2b27;
+}
+
+[data-theme="dark"] body {
+  color: var(--color-text-primary);
+  background-color: var(--color-surface);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #3e3b37; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #55514d; }
+[data-theme="dark"] ::selection { background: rgba(13, 107, 78, 0.3); }
+
 * {
   box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
