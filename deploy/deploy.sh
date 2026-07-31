@@ -16,6 +16,7 @@ echo "========================================"
 echo ""
 echo "[1/5] Installing dependencies..."
 rm -f pnpm-lock.yaml
+pnpm approve-builds esbuild msw 2>/dev/null || true
 pnpm install
 
 # 2. 构建所有应用
