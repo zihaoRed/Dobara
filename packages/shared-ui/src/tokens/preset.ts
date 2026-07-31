@@ -1,5 +1,6 @@
 /** Dobara Tailwind CSS Preset — Commercial Edition */
 const preset = {
+  darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
