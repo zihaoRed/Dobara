@@ -75,9 +75,7 @@ export const Portal: React.FC = () => {
 
       {/* Footer */}
       <footer style={{ marginTop: 'auto', padding: '32px 24px', textAlign: 'center' }}>
-        <p style={{ fontSize: '0.8125rem', color: '#b8bfb9', margin: 0 }}>
-          All services running — <code style={{ background: '#f3f0ec', padding: '2px 8px', borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem' }}>pnpm dev</code>
-        </p>
+        <p style={{ fontSize: '0.8125rem', color: '#b8bfb9', margin: 0 }}>Version MVP</p>
       </footer>
     </div>
   );
