@@ -1,0 +1,323 @@
+@startuml 设备生命周期主状态机
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 11
+
+title 设备生命周期主状态机 | Device Lifecycle State Machine\n(云端中台 CLOUD-P0-03)
+
+[*] --> InspectionPending : 到店会话创建(OTP验证通过)
+
+state InspectionPending : 待质检\nInspectionPending
+state Inspecting : 质检中\nInspecting
+state InspectionRejected : 已完成-拒收\nRejected(终止)
+state InspectionDone : 质检完成\nInspectionDone
+state PendingReview : 待上架申请\nPendingReview
+state Available : 在库可售\nAvailable
+state Paying : 付款中\nPaying
+state Sold : 已售\nSold
+state Shipped : 已发货\nShipped(终止)
+state Returning : 退货中\nReturning
+state Refunded : 已退货退款\nRefunded(终止)
+
+InspectionPending --> Inspecting : 店员开始质检(外观+硬件)
+InspectionPending --> InspectionRejected : 外观拒收\n(损坏照片≥3张+选择拒收原因)
+
+Inspecting --> InspectionDone : 数据上传成功+定价引擎出价
+Inspecting --> Inspecting : 单步中断→从断点恢复\n(断电/USB断开/App崩溃)
+Inspecting --> InspectionRejected : 准入检查命中\n(IMEI黑名单/iCloud锁/进水/无法开机)
+
+InspectionDone --> PendingReview : 用户接受报价+店老板核销成功\n+DB发旧机到仓库+入库确认
+InspectionDone --> InspectionRejected : 用户拒绝报价(归还设备)
+
+PendingReview --> Available : 运营审核通过\n(机况一致→直接上架+计算商城售价+上传商品主图)
+PendingReview --> Available : 运营调整后上架\n(机况不符→下调成色/补扣款→重算价格→上架)
+
+Available --> Paying : 用户下单(提交订单→5分钟独占锁)
+
+Paying --> Sold : Razorpay支付成功回调
+Paying --> Available : 支付超时(5分钟) / 用户主动取消
+
+Sold --> Shipped : 仓库出库(扫码核销IMEI+打印面单)
+
+Shipped --> Returning : 用户发起退货(7天内)
+
+Returning --> Refunded : 退货审核通过+仓库收货确认+退款完成
+Returning --> Shipped : 退货审核拒绝
+
+@enduml
+
+
+@startuml 换购会话生命周期
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 11
+
+title 换购会话生命周期 | Trade-in Session Lifecycle\n(门店平板+服务端)
+
+[*] --> SessionCreated : 店员输入手机号\n+OTP验证通过
+
+state SessionCreated : 会话已创建\nCreated
+state Authorizing : 授权中（到店）\nAuthorizing
+state Inspecting : 质检进行中\nInspecting
+state InspectionPaused : 质检中断\nPaused
+state PriceGenerated : 报告已生成\n报价待用户决策
+state UserRejected : 用户拒收\nUserRejected(终止)
+state VerificationInProgress : 核销进行中\n店老板录入价格+用户新机确认
+state Completed : 换购完成\nCompleted(终止)
+
+SessionCreated --> Inspecting : 店员开始质检
+SessionCreated --> Authorizing : 到店用户需H5授权\n(P2阶段不再使用,已由OTP替代)
+
+Authorizing --> Inspecting : 用户扫码同意
+Authorizing --> UserRejected : 用户拒绝授权
+
+Inspecting --> InspectionPaused : 断电/USB断开/崩溃
+InspectionPaused --> Inspecting : 恢复→从断点继续
+Inspecting --> PriceGenerated : 所有检测项完成+数据上传+定价引擎出价
+Inspecting --> UserRejected : 外观拒收
+
+PriceGenerated --> VerificationInProgress : 用户在App/H5点击接受报价
+PriceGenerated --> UserRejected : 用户拒绝报价 / 报价30分钟超时
+
+VerificationInProgress --> Completed : 店老板录入售价→系统校验→\n用户新机登录确认→店老板点击确认核销
+
+@enduml
+
+
+@startuml B2C购买订单状态机
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 11
+
+title B2C 购买订单状态机 | B2C Order State Machine\n(C端App+服务端)
+
+[*] --> PendingConfirm : 用户点击提交订单
+
+state PendingConfirm : 待确认\nPendingConfirm
+state Paying : 付款中\nPaying
+state Paid : 已支付\nPaid
+state Shipped : 已发货\nShipped
+state Delivered : 已签收\nDelivered
+state Returning : 退货中\nReturning
+state Returned : 已退货退款\nReturned(终止)
+state Cancelled : 已取消\nCancelled(终止)
+state Completed : 已完成(超期)\nCompleted(终止)
+
+PendingConfirm --> Paying : 系统加锁成功(5分钟)
+PendingConfirm --> Cancelled : 库存不足/设备已被他人锁定
+
+Paying --> Paid : Razorpay支付成功
+Paying --> Cancelled : 支付超时(5分钟)→释放锁
+Paying --> Cancelled : 用户主动取消
+
+Paid --> Shipped : 仓库出库(扫码核销+面单)
+Paid --> Cancelled : 用户取消(待发货)\n→退款+释放库存
+
+Shipped --> Delivered : 物流签收
+Shipped --> Returning : 用户发起退货(签收前)
+
+Delivered --> Returning : 用户发起退货(签收7天内)
+Delivered --> Completed : 超过7天未退货→自动完成
+
+Returning --> Returned : 退货审核通过+退款完成
+Returning --> Delivered : 退货审核拒绝
+
+@enduml
+
+
+@startuml B2B批量采购订单状态机
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 11
+
+title B2B 批量采购订单状态机 | B2B Order State Machine\n(C端App企业模式+服务端)
+
+[*] --> PendingPayment : 提交批量订单+所有设备加锁成功
+
+state PendingPayment : 待支付\nPendingPayment
+state Paying : 付款中\nPaying
+state Confirmed : 已确认\nConfirmed
+state Splitting : 拆单中\nSplitting
+state PartiallyShipped : 部分发货\nPartiallyShipped
+state FullyShipped : 全部发货\nFullyShipped
+state CreditPending : 授信待结算\nCreditPending
+state CreditSettled : 授信已结算\nCreditSettled(终止)
+state Completed : 已完成\nCompleted(终止)
+state Cancelled : 已取消\nCancelled(终止)
+
+PendingPayment --> Paying : 选择直接企业支付→Razorpay
+PendingPayment --> CreditPending : 选择授信支付\n(校验额度→扣减→确认)
+
+Paying --> Confirmed : 支付成功
+Paying --> Cancelled : 支付超时/失败→释放所有锁
+
+CreditPending --> Confirmed : 授信额度扣减成功
+CreditPending --> Cancelled : 授信额度不足→引导切换直接支付
+
+Confirmed --> Splitting : 智能路由引擎\n按仓库聚合拆分为子订单
+
+Splitting --> PartiallyShipped : 部分子订单仓库出库
+PartiallyShipped --> FullyShipped : 全部子订单出库完成
+PartiallyShipped --> PartiallyShipped : 其他仓库陆续出库
+
+FullyShipped --> Completed : B2C直付订单完成
+FullyShipped --> CreditSettled : 授信订单→DB结算→\n门店付款→确认收款→释放额度
+
+@enduml
+
+
+@startuml 核销确认状态机
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 11
+
+title 核销确认状态机 | Verification State Machine\n(店老板App+用户App+服务端CLOUD-P0-02)
+
+[*] --> UserAccepted : 用户在App/H5点击接受报价
+
+state UserAccepted : 用户已接受\nUserAccepted
+state OwnerPricePending : 待店老板录入售价\nOwnerPricePending
+state PriceValidated : 售价校验通过\n待用户新机确认
+state UserConfirmed : 用户新机确认\n待店老板最终核销
+state Verified : 已核销\nVerified(终止)
+state Expired : 已过期\nExpired(终止)
+
+UserAccepted --> OwnerPricePending : 推送抵扣金额至店老板App
+
+OwnerPricePending --> PriceValidated : 店老板录入新机售价+实付金额\n系统校验:新机售价−抵扣=实付 ✓
+OwnerPricePending --> OwnerPricePending : 金额不匹配→提示修正\n(新机售价−抵扣≠实付)
+OwnerPricePending --> Expired : 30分钟超时未录入
+
+PriceValidated --> UserConfirmed : 用户在新手机登录App\nApp自动读取新机IMEI/型号\n用户确认金额无误
+
+UserConfirmed --> Verified : 用户在App点击"确认核销"\n→标记为已核销→旧机回收完成\n→推送通知至店老板App
+UserConfirmed --> Expired : 30分钟超时未确认
+
+@enduml
+
+
+@startuml 质检检测步骤状态机
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 11
+
+title 质检检测步骤状态机 | Inspection Step State Machine\n(平板质检工具 TAB-P0-02/TAB-P0-11)
+
+[*] --> PhotoCapture : 开始质检
+
+state PhotoCapture : 外观拍照(3)\n10张+视频
+state PhotoQualityCheck : 拍照质量检测\n(P1 模糊/光线/角度)
+state RejectionCheck : 外观拒收判断(5)
+state HardwareAudit : 硬件审计(6-7)\nUSB OTG
+state InvoiceCapture : 发票采集(8)\n可选
+state DataUpload : 数据上传(9)
+state PricingWait : 等待定价
+state ReportDisplay : 报告展示(10)
+
+PhotoCapture --> PhotoQualityCheck : 每张照片拍摄后
+PhotoQualityCheck --> PhotoCapture : 质量不合格→重拍提示
+PhotoQualityCheck --> RejectionCheck : 全部10张完成
+
+RejectionCheck --> HardwareAudit : 外观正常→继续
+RejectionCheck --> Rejected : 外观无法回收\n→拒收流程→会话终止
+
+HardwareAudit --> HardwareAudit : 单项失败→跳过+标记异常\n(超时30秒/手动跳过)
+HardwareAudit --> HardwareAudit : 单项中断→从断点恢复\n(断电/USB断开→持久化检查点)
+
+HardwareAudit --> InvoiceCapture : 硬件审计完成
+
+InvoiceCapture --> DataUpload : 跳过发票 / 发票录入完成
+
+DataUpload --> PricingWait : 上传成功
+DataUpload --> DataUpload : 上传失败→重试\n(断点续传)
+
+PricingWait --> ReportDisplay : 定价引擎返回报告+报价
+
+state Rejected : 已完成-拒收
+
+@enduml
+
+
+@startuml 售后退货状态机
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 11
+
+title 售后退货状态机 | After-Sales Return State Machine\n(C端App+仓库+服务端)
+
+[*] --> ReturnRequested : 用户发起退货申请
+
+state ReturnRequested : 待审核\nReturnRequested
+state ReturnApproved : 审核通过\n待退回
+state ReturnRejected : 审核拒绝\nReturnRejected(终止)
+state PickupScheduled : 已预约取件\nPickupScheduled
+state ReturnShipped : 退货在途\nReturnShipped
+state WarehouseReceived : 仓库已收货\n待鉴定
+state Refunding : 退款中\nRefunding
+state Refunded : 已退款\nRefunded(终止)
+state ExchangeApproved : 换货审核通过\nExchangeApproved
+state ExchangeShipped : 换货已发出\nExchangeShipped
+state ExchangeReceived : 用户已收到换货\nExchangeReceived(终止)
+
+ReturnRequested --> ReturnApproved : 运营审核通过
+ReturnRequested --> ReturnRejected : 运营审核拒绝(附原因)
+
+ReturnApproved --> PickupScheduled : 选择上门取件→预约时间
+ReturnApproved --> ReturnShipped : 选择自行寄回→上传快递单号
+
+PickupScheduled --> ReturnShipped : 物流取件完成
+
+ReturnShipped --> WarehouseReceived : 仓库签收
+
+WarehouseReceived --> Refunding : 鉴定通过(与质检记录一致)
+WarehouseReceived --> ReturnRejected : 鉴定不通过(人为损坏/IMEI不符)
+
+Refunding --> Refunded : Razorpay原路退款成功
+
+ReturnApproved --> ExchangeApproved : 用户选择换货
+ExchangeApproved --> ExchangeShipped : 仓库重新出库(换货设备)
+ExchangeShipped --> ExchangeReceived : 用户签收换货
+
+@enduml
+
+
+@startuml 授信额度状态机
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 11
+
+title B2B 授信额度状态机 | B2B Credit Line State Machine\n(服务端CLOUD-P1-06+DB端)
+
+[*] --> Active : 运营配置授信额度
+
+state Active : 额度正常\nActive
+state Deducted : 额度已扣减\n订单待结算
+state Overdue : 逾期未结算\nOverdue
+state Frozen : 额度冻结\nFrozen
+state Settled : 已结算释放\nSettled
+
+Active --> Deducted : 门店授信支付下单\n可用额度−订单金额
+
+Deducted --> Active : DB发起结算→门店付款\n→DB确认收款→释放额度
+Deducted --> Overdue : 超过结算周期未付款\n(T+7/T+15)
+
+Overdue --> Frozen : 运营/DB手动冻结
+
+Frozen --> Active : 门店还清逾期款\n+运营解冻额度
+
+@enduml
+
+
+@startuml 预约单状态机
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontSize 11
+
+title 换购预约单状态机 | Appointment State Machine\n(C端App+服务端CLOUD-P1-01)
+
+[*] --> Booked : 用户在App填写旧机信息\n+选择门店+预约时间
+
+state Booked : 已预约\nBooked
+state CheckedIn : 已到店\nCheckedIn
+state NoShow : 爽约\nNoShow(终止)
+state Cancelled : 已取消\nCancelled(终止)
+state Completed : 已完成(关联换购)\nCompleted(终止)
+
+Booked --> CheckedIn : 到店OTP验证通过\n(自动匹配预约)
+Booked --> NoShow : 预约时间+24小时未到店
+Booked --> Cancelled : 用户主动取消预约
+
+CheckedIn --> Completed : 换购完成(核销成功)
+
+@enduml
