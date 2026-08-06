@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Dobara 平板选品 — 现场验证清单</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #5c5c5c;
+    --rule: #c4c4c4;
+    --bg: #ffffff;
+    --stripe: #f6f6f6;
+    --tag-bg: #ececec;
+    --fail-bg: #fff0f0;
+    --fail-border: #d44;
+    --check-size: 15px;
+    --gap: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    max-width: 810px;
+    margin: 0 auto;
+    padding: 28px 32px;
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 2.5px solid var(--ink);
+    padding-bottom: 12px;
+    margin-bottom: 6px;
+  }
+  header h1 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    margin-bottom: 2px;
+    color: var(--ink);
+  }
+  header .sub {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ── Meta row ── */
+  .meta-row {
+    display: flex;
+    gap: 32px;
+    margin-top: 10px;
+    font-size: 11px;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .meta-item label { color: var(--muted); white-space: nowrap; }
+  .meta-item .line {
+    border-bottom: 1px solid var(--ink);
+    min-width: 100px;
+    height: 14px;
+  }
+
+  /* ── Sections ── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 24px;
+    margin-top: 8px;
+  }
+  .section {
+    break-inside: avoid;
+    margin-bottom: 6px;
+  }
+  .section.full { grid-column: 1 / -1; }
+
+  .section h2 {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 3px 6px;
+    background: var(--tag-bg);
+    border-radius: 2px;
+    margin-bottom: 2px;
+    color: var(--ink);
+  }
+  .section.highlight h2 {
+    background: #1a1a1a;
+    color: white;
+  }
+
+  /* ── Checklist items ── */
+  ul {
+    list-style: none;
+    padding: 0;
+  }
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    padding: 1.8px 0;
+    border-bottom: 1px dotted var(--rule);
+  }
+  li .cb {
+    flex-shrink: 0;
+    width: var(--check-size);
+    height: var(--check-size);
+    border: 1.5px solid var(--ink);
+    border-radius: 2px;
+    margin-top: 0.5px;
+    display: inline-block;
+    position: relative;
+  }
+  li .label {
+    flex: 1;
+  }
+  li .label code {
+    font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+    font-size: 10px;
+    background: #f0f0f0;
+    padding: 1px 4px;
+    border-radius: 2px;
+  }
+  li .note {
+    font-size: 10px;
+    color: var(--muted);
+    margin-left: 2px;
+  }
+
+  /* ── Pass/Fail section ── */
+  .section.passfail li {
+    font-weight: 600;
+    padding: 3px 4px;
+    border-bottom: none;
+    margin-bottom: 2px;
+    border-radius: 2px;
+  }
+  .section.passfail li.fail-item {
+    background: var(--fail-bg);
+  }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1.5px solid var(--ink);
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ── Print ── */
+  @media print {
+    body {
+      max-width: none;
+      padding: 18px 22px;
+      font-size: 10.5px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    header h1 { font-size: 14px; }
+    .grid { gap: 2px 18px; }
+    li { padding: 1.2px 0; }
+    .section h2 { font-size: 10.5px; padding: 2px 5px; }
+    @page { size: A4; margin: 12mm; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Dobara 平板选品 — 现场验证清单</h1>
+  <div class="sub">Tablet Supplier Meeting Checklist &nbsp;|&nbsp; 供应商：_______________ &nbsp;|&nbsp; 型号：_______________</div>
+  <div class="meta-row">
+    <div class="meta-item"><label>日期 Date：</label><span class="line"></span></div>
+    <div class="meta-item"><label>评审人 Reviewer：</label><span class="line"></span></div>
+    <div class="meta-item"><label>OS 版本：</label><span class="line"></span></div>
+  </div>
+</header>
+
+<div class="grid">
+
+<!-- ===== SECTION 1 ===== -->
+<div class="section">
+  <h2>📋 1. 携带物品 Items to Bring</h2>
+  <ul>
+    <li><span class="cb"></span><span class="label">Android 测试手机（已开 USB 调试）</span></li>
+    <li><span class="cb"></span><span class="label">iOS 测试手机（可选 optional）</span></li>
+    <li><span class="cb"></span><span class="label">USB-C to USB-C OTG 线</span></li>
+    <li><span class="cb"></span><span class="label">USB-C to Lightning 线</span></li>
+    <li><span class="cb"></span><span class="label">USB-C to Micro-USB 线</span></li>
+    <li><span class="cb"></span><span class="label">U 盘（验证 OTG 基础功能）</span></li>
+    <li><span class="cb"></span><span class="label">笔记本电脑（adb shell 备用）</span></li>
+  </ul>
+</div>
+
+<!-- ===== SECTION 2 ===== -->
+<div class="section">
+  <h2>🔬 2. 硬件规格 Hardware Specs</h2>
+  <ul>
+    <li><span class="cb"></span><span class="label">屏幕 ≥ 10"，分辨率 ≥ 1920×1200</span></li>
+    <li><span class="cb"></span><span class="label">后置摄像头 ≥ 13MP，支持自动对焦</span></li>
+    <li><span class="cb"></span><span class="label">存储 ≥ 64GB，RAM ≥ 4GB</span></li>
+    <li><span class="cb"></span><span class="label">电池 ≥ 8000mAh</span></li>
+    <li><span class="cb"></span><span class="label">USB-C 接口，支持 OTG</span></li>
+    <li><span class="cb"></span><span class="label">4G SIM 卡槽（WiFi 备用）</span></li>
+    <li><span class="cb"></span><span class="label">做工/防护（防摔防尘）</span></li>
+  </ul>
+</div>
+
+<!-- ===== SECTION 3 ===== -->
+<div class="section highlight">
+  <h2>⚡ 3. OTG + ADB 核心验证 Critical</h2>
+  <ul>
+    <li><span class="cb"></span><span class="label">U 盘测试：文件管理器可见 U 盘内容</span></li>
+    <li><span class="cb"></span><span class="label">手机连接：平板通知栏有反应 / 手机充电灯亮</span></li>
+    <li><span class="cb"></span><span class="label"><code>lsusb</code> 能看到手机 Vendor ID</span></li>
+    <li><span class="cb"></span><span class="label"><code>adb devices</code> → unauthorized → 授权后 → device ✅</span></li>
+    <li><span class="cb"></span><span class="label"><code>adb shell getprop ro.product.model</code> 返回型号</span></li>
+    <li><span class="cb"></span><span class="label"><code>adb shell dumpsys battery</code> 返回电池 %</span></li>
+    <li><span class="cb"></span><span class="label">换另一品牌手机再测一遍 🔁</span></li>
+  </ul>
+</div>
+
+<!-- ===== SECTION 4 ===== -->
+<div class="section">
+  <h2>🔒 4. ROM 系统定制 ROM Customization</h2>
+  <ul>
+    <li><span class="cb"></span><span class="label">禁用浏览器 / 应用商店 / 系统设置</span></li>
+    <li><span class="cb"></span><span class="label">禁用截屏 / 录屏</span></li>
+    <li><span class="cb"></span><span class="label">禁用 USB 调试开关 / 侧载安装</span></li>
+    <li><span class="cb"></span><span class="label">Kiosk Mode 单应用锁定（店员无法退出）</span></li>
+    <li><span class="cb"></span><span class="label">开机动画 / Logo 定制（Dobara 品牌）</span></li>
+    <li><span class="cb"></span><span class="label">工厂批量预装 APK</span></li>
+  </ul>
+</div>
+
+<!-- ===== SECTION 5 ===== -->
+<div class="section">
+  <h2>📡 5. MDM 设备管理 MDM Capability</h2>
+  <ul>
+    <li><span class="cb"></span><span class="label">远程锁定 / 擦除（平板丢失时）</span></li>
+    <li><span class="cb"></span><span class="label">按门店/地区分组管理</span></li>
+    <li><span class="cb"></span><span class="label">静默安装/卸载 APK</span></li>
+    <li><span class="cb"></span><span class="label">OTA 更新策略控制</span></li>
+    <li><span class="cb"></span><span class="label">设备-门店绑定机制</span></li>
+    <li><span class="cb"></span><span class="label">MDM 授权费用（每台/年 or 买断）</span></li>
+  </ul>
+</div>
+
+<!-- ===== SECTION 6 ===== -->
+<div class="section full">
+  <h2>🏭 6. 供应链与商务 Supply Chain &amp; Commercial</h2>
+  <ul style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px;">
+    <li><span class="cb"></span><span class="label">月产能 ≥ 50 台</span></li>
+    <li><span class="cb"></span><span class="label">保修期 _____ 年，印度售后网点 _____ 个</span></li>
+    <li><span class="cb"></span><span class="label">备机比例 _____ %</span></li>
+    <li><span class="cb"></span><span class="label">产品生命周期 _____ 年</span></li>
+    <li><span class="cb"></span><span class="label">能否小批量试单（5-10 台）</span></li>
+    <li><span class="cb"></span><span class="label">单价：50台=_____ / 100台=_____ / 200台=_____</span></li>
+    <li><span class="cb"></span><span class="label">ROM 定制费：一次性 _____ or 摊入单价</span></li>
+    <li><span class="cb"></span><span class="label">付款条件：预付 _____% / 尾款 _____</span></li>
+  </ul>
+</div>
+
+<!-- ===== SECTION 7 ===== -->
+<div class="section full passfail">
+  <h2>🚨 7. 一票否决项 GO / NO-GO</h2>
+  <ul>
+    <li class="fail-item"><span class="cb"></span><span class="label">❌ OTG 硬件不通 → <strong>直接否决 REJECT</strong></span></li>
+    <li class="fail-item"><span class="cb"></span><span class="label">❌ adb devices 看不到手机 → <strong>极高风险，慎重评估</strong></span></li>
+    <li class="fail-item"><span class="cb"></span><span class="label">❌ ROM 定制不承诺 → <strong>高风险（依赖第三方无法替代）</strong></span></li>
+    <li class="fail-item"><span class="cb"></span><span class="label">❌ MDM 不支持远程擦除 → <strong>合规缺口（用户数据保护）</strong></span></li>
+  </ul>
+</div>
+
+</div><!-- .grid -->
+
+<footer>
+  <span>Dobara Tablet Selection Checklist v1.0</span>
+  <span>结论 Conclusion：□ 通过 Pass &nbsp;&nbsp; □ 有条件通过 Conditional &nbsp;&nbsp; □ 淘汰 Reject</span>
+  <span>备注 Notes：________________________________________</span>
+</footer>
+
+</body>
+</html>
