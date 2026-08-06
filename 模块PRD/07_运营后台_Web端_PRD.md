@@ -8,7 +8,6 @@
 运营后台 Web 端是平台运营人员日常工作的核心操作界面，承载审核工作台、角色权限管理、数据报表、设备品类维护等职能。与中台服务端 API 共享 CLOUD 模块编号前缀。
 
 ## 功能列表
-
 | 编号 | 功能名称 | 优先级 |
 |------|----------|--------|
 | CLOUD-P0-08 | 运营审核 | P0 |
@@ -23,7 +22,6 @@
 **功能描述：**
 运营人员在 Web 后台对待上架设备进行审核。审核时对比质检影像与系统判定的成色等级及扣款项是否一致。若一致则直接上架；若不一致，运营人员直接在审核界面调整成色等级或扣款项（如降级外观、增加扣款），系统重新计算回收价和商城售价后上架。不设"拒绝上架"操作——所有设备均会上架，只是价格可能因调整而变化。
 **审核流程：**
-
 ```
 待上架设备进入任务队列
   → 运营人员打开审核工作台
@@ -43,7 +41,6 @@
 
 ```
 **审核界面要素：**
-
 | 区域 | 内容 |
 |------|------|
 | 任务队列 | 按入库时间排序的待审核设备列表，支持按品牌/机型/成色等级筛选 |
@@ -52,7 +49,6 @@
 | 商品主图上传 | 运营从系统图片库选择或本地上传一张新机精修图作为商城商品列表主图（与质检原始照片区分），支持预览裁剪 |
 | 操作区 | "直接上架"按钮（机况一致）+ "调整后上架"按钮（机况不符，展开调整面板） |
 **运营调整面板（点击"调整后上架"时展开）：**
-
 | 可调整项 | 说明 |
 |----------|------|
 | 成色等级 | 可下调（如 B→C、B→D），不可上调（防止虚标高等级卖高价） |
@@ -60,7 +56,6 @@
 | 硬件扣款项 | 可新增店员漏判的硬件扣款（如店员未标记触控异常，运营从检测结果中确认后补勾） |
 | 调整原因 | 必填，文本输入框，简要说明为何调整（如"屏幕划痕在视频中清晰可见，店员未勾选"），最少 10 字 |
 **调整后系统自动执行：**
-
 | 动作 | 说明 |
 |------|------|
 | 重新计算回收价 | 基于调整后的成色等级和新增扣款项，重新跑定价引擎（CLOUD-P0-01） |
@@ -68,7 +63,6 @@
 | 推送调整详情至平板 | 通知门店：调整了哪些项、原价格 → 调整后价格、调整原因（参见 TAB-P0-06） |
 | 设备状态 → [在库可售] | 直接上架至商城，不阻塞流转 |
 **业务规则：**
-
 | 规则项 | 说明 |
 |--------|------|
 | 无拒绝操作 | 所有设备均上架，不存在"拒绝上架"按钮；极端劣质设备可通过降级+多扣款压低价格后上架 |
@@ -98,7 +92,6 @@
 平台系统管理员通过运营后台管理全平台的组织架构（门店/仓库）、用户角色与权限。系统采用 RBAC 权限模型，以 7 个预置角色和 22 个原子权限编码为基础，实现精细化的功能访问控制和门店/仓库级数据隔离。所有账号创建、角色分配、权限变更操作均需由系统管理员执行。同一账号可拥有多个角色（每个角色绑定不同的门店/仓库），登录后可在 App/Web 内切换角色视图。
 
 ### 编码体系
-
 | 实体 | 格式 | 示例 |
 |------|------|------|
 | 门店 | `ST-{州码2位}-{4位序号}` | `ST-MH-0001` |
@@ -109,7 +102,6 @@
 印度各邦双字母代码：MH(马哈拉施特拉), DL(德里), KA(卡纳塔克), TN(泰米尔纳德), GJ(古吉拉特), UP(北方邦), WB(西孟加拉), RJ(拉贾斯坦)
 
 ### 7 个预置角色
-
 | 角色编码 | 角色名称 | 所属端 | 绑定实体 | 可删除 |
 |------|------|------|------|:---:|
 | `ROLE-SA` | 系统管理员 | 运营后台 Web | 无（全局） | ❌ |
@@ -119,9 +111,7 @@
 | `ROLE-WH` | 库管 | 门店综合 App | 仓库 | ❌ |
 | `ROLE-DB` | 财务/结算 | 门店综合 App | 无（跨门店） | ❌ |
 | `ROLE-ENT` | 企业采购员 | C 端 App | 无 | ❌ |
-
 ### 22 个原子权限编码
-
 格式：`{resource}:{action}`
 
 | 权限编码 | 说明 | SA | OPS | OWN | CLK | WH | DB | ENT |
@@ -148,9 +138,7 @@
 | `device:admin` | 平板设备管理 | ✅ | — | ✅ | — | — | — | — |
 | `pricing:config` | 定价参数配置 | ✅ | ✅ | — | — | — | — | — |
 | `review:write` | 运营审核操作 | ✅ | ✅ | — | — | — | — | — |
-
 ### 角色管理功能
-
 | 功能 | 说明 |
 |------|------|
 | 新建自定义角色 | 输入角色名称、描述，勾选该角色可访问的权限编码集合；不可与系统预置角色重名 |
@@ -158,11 +146,8 @@
 | 停用角色 | 不可物理删除系统预置角色或有账号关联的角色；停用后该角色的所有账号失去对应权限 |
 | 角色列表 | 展示角色编码、名称、描述、关联账号数、创建时间；可按端筛选 |
 | 权限预览 | 选中角色后以表格形式展示该角色在各功能模块的权限明细 |
-
 ### 门店/仓库管理
-
 **创建门店：**
-
 ```
 SA 登录运营后台 → "组织管理" → "新建门店"
   → 填写门店信息：
@@ -176,9 +161,7 @@ SA 登录运营后台 → "组织管理" → "新建门店"
   → 系统自动生成门店编码（如 ST-MH-0001，按州+序号自增）
   → 保存 → 门店状态 = "active"
 ```
-
 **创建仓库：**
-
 ```
 SA → "组织管理" → "新建仓库"
   → 填写仓库信息：
@@ -190,9 +173,7 @@ SA → "组织管理" → "新建仓库"
       └── 备注
   → 系统自动生成仓库编码（如 WH-MH-0001）
 ```
-
 **门店/仓库列表功能：**
-
 | 功能 | 说明 |
 |------|------|
 | 搜索筛选 | 按名称、编码、州、状态筛选 |
@@ -200,11 +181,8 @@ SA → "组织管理" → "新建仓库"
 | 编辑门店 | 修改名称、地址、电话、营业时间等 |
 | 门店关店 | 状态 active → closed；触发关联账号批量禁用 + 平板远程锁定（详见门店App PRD 账号生命周期） |
 | 门店重开 | 状态 closed → active；需手动恢复账号 |
-
 ### 账号管理功能
-
 **创建账号（三步流程）：**
-
 ```
 SA 在运营后台 → "账号管理" → "创建账号"
 
@@ -233,9 +211,7 @@ Step 3: 确认创建
         ├── 若 ROLE-CLK/ROLE-OWN → 自动生成店员编号（STAFF-{门店编码}-{序号}）
         └── 发送邀请 SMS（含临时密码 + App 下载链接 + 门店名称）
 ```
-
 **邀请 SMS 模板：**
-
 ```
 [Platform] You've been added as [角色名] at [门店/仓库名].
 Login: your phone number
@@ -247,9 +223,7 @@ Change your password after first login.
 लॉगिन: आपका फ़ोन नंबर | पासवर्ड: XXXXXXXX
 ऐप: [短链] | पहले लॉगिन के बाद पासवर्ड बदलें।
 ```
-
 **账号列表与操作：**
-
 | 功能 | 说明 |
 |------|------|
 | 创建账号 | 三步流程（基本信息 → 角色分配 → 确认创建），系统自动发送邀请 SMS |
@@ -261,9 +235,7 @@ Change your password after first login.
 | 更换手机号 | 输入新手机号 → OTP 验证 → 更新 phone → 新旧手机号同时收到通知 SMS |
 | 强制踢出 | 该账号所有设备的 JWT 立即失效（加入黑名单），正在使用的会话强制登出 |
 | 查看详情 | 完整账号信息 + 角色分配历史 + 登录历史 + 操作审计 |
-
 **账号状态标签：**
-
 | 状态 | 标签颜色 | 说明 |
 |------|:---:|------|
 | `pending_activation` | 橙色 | 待激活（收到邀请但未登录），7 天后自动清理 |
@@ -272,18 +244,14 @@ Change your password after first login.
 | `disabled` | 灰色 | 管理员已禁用 |
 | `removed` | 灰色 | 已被移除（不可逆，终态） |
 | `deleted` | 灰色 | 用户已注销（终态） |
-
 ### 多角色切换
-
 | 场景 | 说明 |
 |------|------|
 | 同一账号多角色 | 如某员工同时持有 ROLE-OWN + ROLE-DB，登录后切换角色视图 |
 | 切换行为 | 切换角色后生成新 JWT（含目标角色的权限声明），刷新界面 |
 | 权限计算 | 每个角色独立 JWT；当前 token 的 permissions = 该角色的权限集合 |
 | 真实案例 | 一家门店的老板可能也是该区域多家门店的 DB——OWN(ST-MH-0001)+DB(null) |
-
 ### 门店/仓库数据隔离
-
 | 规则项 | 说明 |
 |--------|------|
 | 门店隔离 | ROLE-OWN 和 ROLE-CLK 通过 JWT 中的 org_id=ST-MH-0001 实现数据隔离，只能访问本门店数据 |
@@ -292,9 +260,7 @@ Change your password after first login.
 | 跨门店授权 | 区域经理等特殊情况可创建自定义角色，授予多门店/多仓库的 inspection:read 权限 |
 | 数据范围变更 | SA 修改账号的 org_id 绑定后，用户下次切换角色或重新登录时生效 |
 | 平板绑定 | 平板设备绑定唯一门店；店员登录时校验 store_id(平板) == store_id(店员)，不匹配则拒绝 |
-
 ### 业务规则
-
 | 规则项 | 说明 |
 |--------|------|
 | 权限粒度 | 按 22 个原子权限编码控制；自定义角色可任意组合权限编码 |
@@ -304,7 +270,6 @@ Change your password after first login.
 | 店员上限 | 默认每个门店最多 10 个 ROLE-CLK 店员，运营后台可配置 |
 | 邀请过期 | 创建账号后 7 天内未激活 → 自动清理（user 和 user_role_assignment 记录删除） |
 | 操作日志 | 所有门店/仓库创建、角色创建/修改、账号创建/禁用/权限变更操作记录审计日志 |
-
 ### 验收标准
 - [ ] SA 可在运营后台创建门店和仓库，编码自动按州+序号生成
 - [ ] SA 可通过三步流程创建账号：基本信息 → 角色分配 → 确认创建，系统自动发送邀请 SMS
@@ -327,7 +292,6 @@ Change your password after first login.
 **功能描述：**
 运营后台提供审核历史查询和审核效率统计功能。运营主管可按时间范围、门店、审核人维度筛选历史审核记录，查看每台设备的审核详情（审核人、审核时间、审核结果、调整项）。效率统计按审核人汇总人均审核量和平均审核时效，支持数据导出，用于运营团队绩效考核和工作量管理。
 **审核历史查询：**
-
 | 筛选项 | 说明 |
 |--------|------|
 | 时间范围 | 日期选择器，支持快捷选择（今日/昨日/本周/本月/自定义） |
@@ -337,7 +301,6 @@ Change your password after first login.
 | 品牌/机型 | 下拉筛选，级联选择 |
 | 成色等级 | 多选 A/B/C/D |
 **审核历史列表字段：**
-
 | 字段 | 说明 |
 |------|------|
 | 设备标识 | 品牌 + 型号 + IMEI 后四位 |
@@ -350,7 +313,6 @@ Change your password after first login.
 | 审核时间 | 审核提交时间 |
 | 操作 | 查看审核详情（展开审核工作台回放，含影像、扣款明细、调整原因） |
 **审核效率统计：**
-
 | 统计指标 | 说明 |
 |----------|------|
 | 人均日审核量 | 按天统计每个审核人的审核设备数量 |
@@ -361,7 +323,6 @@ Change your password after first login.
 | 常见调整项分布 | 统计各扣款项被运营补勾的频次（如"屏幕划痕"被补勾 120 次），用于优化平板外观点检引导 |
 | 各门店调整率排名 | 按门店统计其设备被运营调整的比例，识别质检质量薄弱的门店 |
 **统计展示形式：**
-
 | 展示形式 | 适用场景 |
 |----------|----------|
 | 汇总卡片 | 总审核量、今日审核量、平均审核耗时等核心 KPI |
@@ -370,14 +331,12 @@ Change your password after first login.
 | 饼图 | 审核结果分布（直接上架 vs 调整后上架） |
 | 数据表格 | 详细审核记录列表，支持排序和导出 |
 **数据导出：**
-
 | 导出类型 | 说明 |
 |----------|------|
 | 审核历史明细 | 导出当前筛选条件下的审核记录为 Excel/CSV |
 | 效率统计报表 | 导出按审核人/时间段聚合的统计报表为 Excel |
 | 调整分析报告 | 导出调整项分布和各门店质检质量分析为 PDF（P2） |
 **业务规则：**
-
 | 规则项 | 说明 |
 |--------|------|
 | 数据保留 | 审核记录永久保留，不自动清理 |
@@ -400,7 +359,6 @@ Change your password after first login.
 **功能描述：**
 运营后台提供回收、销售、库存周转三大核心维度的数据报表。报表支持按时间范围（日/周/月/季/年）、区域、门店、品牌/机型的多维度下钻分析。数据以可视化图表和明细表格结合展示，支持导出。报表帮助运营团队掌握平台整体运营状况、识别趋势和问题、支撑业务决策。
 **报表一：回收报表**
-
 | 指标 | 说明 | 下钻维度 |
 |------|------|----------|
 | 回收量 | 完成核销的旧机台数 | 按门店、按品牌/机型、按成色等级 |
@@ -411,7 +369,6 @@ Change your password after first login.
 | 预约转化率 | 实际到店数 / 预约数（P1） | 按门店、按城市 |
 | 运营调整率 | 被运营调整的设备数 / 总审核数 | 按门店 |
 **报表二：销售报表**
-
 | 指标 | 说明 | 下钻维度 |
 |------|------|----------|
 | 销售量 | 支付成功并已发货的订单设备总数 | 按品牌/机型、按成色等级、按区域 |
@@ -422,7 +379,6 @@ Change your password after first login.
 | 滞销设备 | 上架超过 14 天未售出的设备列表 | 按品牌/机型、按成色等级、按仓库 |
 | 退货率 | 退货完成数 / 总售出数（P1） | 按退货原因分布 |
 **报表三：库存报表**
-
 | 指标 | 说明 | 下钻维度 |
 |------|------|----------|
 | 在库总量 | 当前状态为 [在库可售] 的设备数量 | 按仓库、按品牌/机型、按成色等级 |
@@ -432,7 +388,6 @@ Change your password after first login.
 | 库存健康度 | 库存中 > 30 天未售出的设备占比 | 按仓库 |
 | 仓库库容利用率 | 在库量 / 仓库配置容量（P2） | 按仓库 |
 **报表通用功能：**
-
 | 功能 | 说明 |
 |------|------|
 | 时间范围选择 | 支持日/周/月/季/年 + 自定义起止日期 |
@@ -443,7 +398,6 @@ Change your password after first login.
 | 定时报表 | 支持配置日报/周报/月报自动生成并通过邮件/推送发送（P2 后期） |
 | 收藏视图 | 保存常用筛选条件组合为"我的视图"，一键加载 |
 **业务规则：**
-
 | 规则项 | 说明 |
 |--------|------|
 | 数据刷新 | 报表数据每 30 分钟刷新一次，支持手动刷新 |
@@ -466,7 +420,6 @@ Change your password after first login.
 **功能描述：**
 运营人员在后台维护品牌、型号、成色标准等基础数据字典。设备品类数据是平台正常运行的基础数据支撑——定价引擎的基准价按品牌/型号配置，商城的筛选和搜索依赖品牌/型号数据，商品详情页的参数规格 Tab 从此处读取型号模板数据。支持新增、编辑、停用品牌和型号，管理成色等级标准和规格参数模板。
 **功能一：品牌管理**
-
 | 功能 | 说明 |
 |------|------|
 | 品牌列表 | 展示所有已配置的品牌，含品牌名称、LOGO 图标、设备数量、状态（启用/停用） |
@@ -475,7 +428,6 @@ Change your password after first login.
 | 停用/启用品牌 | 停用后该品牌下的型号在新质检中不可选（历史数据保留）；启用后恢复 |
 | 品牌搜索 | 按品牌名称模糊搜索 |
 **功能二：型号管理**
-
 | 功能 | 说明 |
 |------|------|
 | 型号列表 | 按品牌分组展示所有型号，含型号名称、发布年份、设备数量、状态 |
@@ -484,7 +436,6 @@ Change your password after first login.
 | 停用/启用型号 | 停用后该型号在新质检中不可选（历史数据保留） |
 | 型号搜索 | 按型号名称模糊搜索 |
 **功能三：成色等级标准管理**
-
 | 功能 | 说明 |
 |------|------|
 | 等级标准查看 | 展示 A/B/C/D 四个成色等级的定义、判定规则、示例说明 |
@@ -492,7 +443,6 @@ Change your password after first login.
 | 参考图例管理 | 为每个等级上传典型设备的外观参考照片，用于平板质检时引导店员评级 |
 | 默认不可新增等级 | 系统固定 A/B/C/D 四级，不可新增或删除等级 |
 **功能四：规格参数模板管理**
-
 | 功能 | 说明 |
 |------|------|
 | 模板列表 | 按型号展示已配置的规格参数模板，含 13 项标准参数项 |
@@ -501,7 +451,6 @@ Change your password after first login.
 | 模板预览 | 预览该型号在 C 端 App 商品详情页"参数规格"Tab 的最终展示效果 |
 | 批量导入 | 支持通过 Excel 模板批量导入多个型号的参数规格数据 |
 **规格参数标准字段（每个型号）：**
-
 | 分类 | 参数项 | 输入方式 |
 |------|--------|----------|
 | 基本信息 | 品牌、型号、发布年份 | 自动关联/手动选择 |
@@ -518,7 +467,6 @@ Change your password after first login.
 | 防水防尘 | IP 等级 | 文本输入 |
 | 卡槽 | 单卡/双卡 | 单选 |
 **业务规则：**
-
 | 规则项 | 说明 |
 |--------|------|
 | 品牌唯一性 | 品牌名称全局唯一，不区分大小写 |
@@ -545,7 +493,6 @@ Change your password after first login.
 运营后台集中管理平台所有可动态调整的业务参数、选项列表和规则阈值。配置中心将每个可调项暴露为可视化表单控件（开关/数字输入/下拉/列表编辑），变更后即时生效或按规则生效，无需发版或重启服务。所有配置变更记录操作日志。配置中心按业务域分为 7 个配置组，SA 和具有 `pricing:config` 权限的 OPS 角色可操作。
 
 **设计原则：**
-
 | 原则 | 说明 |
 |------|------|
 | 零代码变更 | 所有可调参数均通过后台 UI 修改，不通过代码常量或配置文件 |
@@ -558,11 +505,8 @@ Change your password after first login.
 ---
 
 ### 配置组 A：定价引擎参数
-
 > 权限要求：`pricing:config`
-
 **A1. 准入检查开关：**
-
 | 配置项 Key | 说明 | 默认值 | 类型 |
 |------|------|------|------|
 | `admission.blacklist.enabled` | IMEI 黑名单检查 | ON | 开关 |
@@ -573,9 +517,7 @@ Change your password after first login.
 | `admission.emi_check.enabled` | 分期/EMI 检查（NBFC） | OFF（P2 开启） | 开关 |
 | `admission.carrier_lock.enabled` | 运营商锁检查 | ON | 开关 |
 | `admission.third_party_timeout_ms` | 第三方 API 超时(ms) | 5000 | 数字 |
-
 **A2. 电池扣款分档：**
-
 | 配置项 Key | 说明 | 默认值 | 类型 |
 |------|------|------|------|
 | `pricing.battery.bh_90_100_deduction` | BH ≥ 90% 扣款 | 0 INR | 数字 |
@@ -583,9 +525,7 @@ Change your password after first login.
 | `pricing.battery.bh_80_85_deduction` | 80% ≤ BH < 85% 扣款 | 1,200 INR | 数字 |
 | `pricing.battery.bh_70_80_deduction` | 70% ≤ BH < 80% 扣款 | 2,500 INR | 数字 |
 | `pricing.battery.bh_below_70_deduction` | BH < 70% 扣款 | 4,000 INR | 数字 |
-
 **A3. 非原厂部件扣款（5 项）：**
-
 | 配置项 Key | 说明 | 默认值 |
 |------|------|------|
 | `pricing.hw.screen_non_original` | 屏幕非原厂 | 3,000 INR |
@@ -593,9 +533,7 @@ Change your password after first login.
 | `pricing.hw.motherboard_repaired` | 主板有维修痕迹 | 5,000 INR |
 | `pricing.hw.biometric_not_working` | Face ID/Touch ID 不可用 | 2,000 INR |
 | `pricing.hw.touch_abnormal` | 触控异常 | 2,500 INR |
-
 **A4. 屏幕外观扣款（6 项）：**
-
 | 配置项 Key | 说明 | 默认值 |
 |------|------|------|
 | `pricing.cosmetic.screen_minor_scratch` | 轻微划痕 | 300 INR |
@@ -604,18 +542,14 @@ Change your password after first login.
 | `pricing.cosmetic.screen_burn_in` | 老化/红斑/黄斑 | 1,500 INR |
 | `pricing.cosmetic.screen_dead_pixel` | 亮点/坏点/彩线 | 2,000 INR |
 | `pricing.cosmetic.screen_not_displaying` | 屏幕无法正常显示 | 4,000 INR |
-
 **A5. 机身边框扣款（4 项）：**
-
 | 配置项 Key | 说明 | 默认值 |
 |------|------|------|
 | `pricing.cosmetic.body_minor_wear` | 轻微掉漆或磨损 | 200 INR |
 | `pricing.cosmetic.body_visible_dent` | 明显磕碰或凹陷 | 1,000 INR |
 | `pricing.cosmetic.body_deformed` | 边框变形 | 2,500 INR |
 | `pricing.cosmetic.body_back_cracked` | 后盖碎裂 | 3,000 INR |
-
 **A6. 功能缺陷扣款（8 项）：**
-
 | 配置项 Key | 说明 | 默认值 |
 |------|------|------|
 | `pricing.functional.flash_abnormal` | 闪光灯异常 | 500 INR |
@@ -626,9 +560,7 @@ Change your password after first login.
 | `pricing.functional.camera_focus_fail` | 摄像头无法对焦 | 1,500 INR |
 | `pricing.functional.vibration_abnormal` | 振动马达异常 | 500 INR |
 | `pricing.functional.wireless_abnormal` | GPS/WiFi/蓝牙异常 | 2,000 INR |
-
 **A7. 维修历史扣款（5 项）：**
-
 | 配置项 Key | 说明 | 默认值 |
 |------|------|------|
 | `pricing.repair.screen_replaced` | 更换过屏幕 | 1,500 INR |
@@ -636,36 +568,27 @@ Change your password after first login.
 | `pricing.repair.camera_replaced` | 更换过摄像头 | 500 INR |
 | `pricing.repair.other_repair` | 其他维修 | 1,000 INR |
 | `pricing.repair.multi_repair_penalty` | 多次维修(≥3项)叠加惩罚 | 2,000 INR |
-
 **A8. 配件缺失扣款（3 项）：**
-
 | 配置项 Key | 说明 | 默认值 |
 |------|------|------|
 | `pricing.accessory.no_charger` | 缺少原装充电器 | 500 INR |
 | `pricing.accessory.no_cable` | 缺少原装数据线 | 300 INR |
 | `pricing.accessory.no_box` | 缺少原装包装盒 | 0 INR |
-
 **A9. 成色等级加价率：**
-
 | 配置项 Key | 等级 | 默认值 |
 |------|------|------|
 | `pricing.markup.grade_a` | A 级（99新） | 35% |
 | `pricing.markup.grade_b` | B 级（95新） | 28% |
 | `pricing.markup.grade_c` | C 级（90新） | 22% |
 | `pricing.markup.grade_d` | D 级（85新） | 15% |
-
 **A10. 市场基准价 + Floor Price + 存储溢价（按品牌×型号矩阵维护）：**
-
 > 此三项数据量较大，独立管理界面，非简单 key-value
-
 | 功能 | 说明 |
 |------|------|
 | 市场基准价管理 | 按「品牌→型号→最低存储版本」维护市场基准回收价（INR）；P2 接入第三方价格数据自动刷新 |
 | Floor Price 管理 | 按「品牌→型号→最低存储版本」维护保底价（INR）；防止扣款叠加过低 |
 | 存储溢价表 | 按品牌维护各存储档位溢价：64→128GB、128→256GB、256→512GB、512GB→1TB |
-
 **A11. 商城售价参数：**
-
 | 配置项 Key | 说明 | 默认值 | 类型 |
 |------|------|------|------|
 | `pricing.sale.price_floor_ratio` | 售价下限系数（回收价×） | 1.05 | 数字 |
@@ -677,53 +600,38 @@ Change your password after first login.
 ---
 
 ### 配置组 B：预约自填选项
-
 > 权限要求：`pricing:config`
 > 作用：C 端换购预约页面的所有下拉/点选选项由后台动态配置，APP 通过 API 拉取最新选项列表
-
 **B1. 设备信息选项：**
-
 | 配置项 Key | 说明 | 默认选项列表 | 展示形式 |
 |------|------|------|------|
 | `appointment.color_options` | 机身颜色 | `["Graphite", "Silver", "Gold", "Pacific Blue", "Midnight", "Starlight", "Red", "Blue", "Green", "Purple", "Yellow", "Black", "White", "Other"]` | 可增删改排序 |
 | `appointment.storage_options` | 存储容量(GB) | `[32, 64, 128, 256, 512, 1024]` | 可增删改排序 |
 | `appointment.ram_options` | 运行内存(GB) | `[2, 3, 4, 6, 8, 12, 16]` | 可增删改排序 |
-
 **B2. 使用状况选项：**
-
 | 配置项 Key | 说明 | 默认选项列表 |
 |------|------|------|
 | `appointment.warranty_options` | 保修状态 | `[{"key":"in_warranty","label":"在保","label_hi":"वारंटी में"},{"key":"out_of_warranty","label":"已过保","label_hi":"वारंटी से बाहर"},{"key":"unknown","label":"不确定","label_hi":"अनिश्चित"}]` |
 | `appointment.usage_condition_options` | 使用状况 | `[{"key":"working","label":"可正常使用"},{"key":"locked","label":"已锁定/iCloud"},{"key":"wiped","label":"已抹掉数据"}]` |
-
 **B3. 电池健康选项：**
-
 | 配置项 Key | 说明 | 默认选项列表 |
 |------|------|------|
 | `appointment.battery_options` | 电池健康度 | `[{"key":"above_90","label":"90% 以上","label_hi":"90% से ऊपर"},{"key":"80_to_90","label":"80%-90%","label_hi":"80%-90%"},{"key":"70_to_80","label":"70%-80%","label_hi":"70%-80%"},{"key":"below_70","label":"70% 以下","label_hi":"70% से नीचे"},{"key":"unknown","label":"不确定","label_hi":"अनिश्चित"}]` |
-
 **B4. 外观状况选项：**
-
 | 配置项 Key | 说明 | 默认选项列表 |
 |------|------|------|
 | `appointment.body_condition_options` | 机身外观 | `[{"key":"like_new","label":"几近全新","label_hi":"लगभग नया"},{"key":"minor_scratches","label":"轻微划痕","label_hi":"हल्की खरोंचें"},{"key":"visible_dents","label":"明显磕碰/凹陷","label_hi":"दिखने वाले निशान"},{"key":"deformed_or_cracked","label":"变形/碎裂","label_hi":"मुड़ा या टूटा हुआ"}]` |
 | `appointment.screen_condition_options` | 屏幕外观 | `[{"key":"like_new","label":"几近全新"},{"key":"minor_scratches","label":"轻微划痕"},{"key":"deep_scratches","label":"明显划痕"},{"key":"cracked","label":"碎裂"}]` |
 | `appointment.display_condition_options` | 屏幕显示 | `[{"key":"normal","label":"正常"},{"key":"minor_burn","label":"轻微老化/烧屏"},{"key":"dead_pixels_or_lines","label":"坏点/彩线"},{"key":"not_working","label":"无法正常显示"}]` |
-
 **B5. 维修记录选项：**
-
 | 配置项 Key | 说明 | 默认选项列表（多选） |
 |------|------|------|
 | `appointment.repair_options` | 维修历史 | `[{"key":"none","label":"无维修"},{"key":"screen","label":"更换过屏幕"},{"key":"battery","label":"更换过电池"},{"key":"camera","label":"更换过摄像头"},{"key":"other","label":"其他维修"}]` |
-
 **B6. 功能性问题选项：**
-
 | 配置项 Key | 说明 | 默认选项列表（多选） |
 |------|------|------|
 | `appointment.functional_issue_options` | 功能性问题 | `[{"key":"none","label":"全部正常"},{"key":"flash","label":"闪光灯"},{"key":"charging_port","label":"充电口"},{"key":"buttons","label":"按键"},{"key":"mic","label":"麦克风"},{"key":"speaker","label":"扬声器"},{"key":"biometric","label":"指纹/面部识别"},{"key":"camera_focus","label":"摄像头对焦"}]` |
-
 **B7. 预约通用配置：**
-
 | 配置项 Key | 说明 | 默认值 | 类型 |
 |------|------|------|------|
 | `appointment.estimate_price_range_percent` | 初步估价浮动比例 | 20% | 数字 |
@@ -733,17 +641,12 @@ Change your password after first login.
 ---
 
 ### 配置组 C：质检流程参数
-
 > 权限要求：`pricing:config`
-
 **C1. 外观拒收原因列表：**
-
 | 配置项 Key | 说明 | 默认选项列表 |
 |------|------|------|
 | `inspection.reject_reasons` | 拒收原因预设 | `[{"key":"screen_severe_damage","label":"屏幕严重碎裂","label_hi":"स्क्रीन गंभीर रूप से टूटी"},{"key":"body_severe_bent","label":"机身严重弯曲变形","label_hi":"बॉडी गंभीर रूप से मुड़ी"},{"key":"water_corrosion","label":"进水腐蚀严重","label_hi":"पानी से जंग"},{"key":"motherboard_damaged","label":"主板损坏/缺失","label_hi":"मदरबोर्ड क्षतिग्रस्त"},{"key":"core_parts_missing","label":"核心配件缺失","label_hi":"मुख्य पुर्जे गायब"},{"key":"user_cancel","label":"用户主动放弃","label_hi":"उपयोगकर्ता ने छोड़ा"},{"key":"other","label":"其他异常情况","label_hi":"अन्य"}]` |
-
 **C2. 拍照质量阈值：**
-
 | 配置项 Key | 说明 | 默认值 | 类型 |
 |------|------|------|------|
 | `inspection.photo.blur_threshold` | 模糊检测（拉普拉斯方差阈值） | 100 | 数字 |
@@ -755,17 +658,13 @@ Change your password after first login.
 | `inspection.video.min_resolution` | 视频最低分辨率 | "720P/30fps" | 下拉 |
 | `inspection.video.min_duration_seconds` | 视频最短时长(秒) | 10 | 数字 |
 | `inspection.video.max_duration_seconds` | 视频最长时长(秒) | 30 | 数字 |
-
 **C3. 硬件检测参数：**
-
 | 配置项 Key | 说明 | 默认值 | 类型 |
 |------|------|------|------|
 | `inspection.hw.detection_timeout_seconds` | 单项检测超时(秒) | 30 | 数字 |
 | `inspection.hw.max_retry_per_item` | 单项最大重试次数 | 2 | 数字 |
 | `inspection.hw.usb_reconnect_interval_seconds` | USB 断开后重连间隔(秒) | 5 | 数字 |
-
 **C4. 上传与离线参数：**
-
 | 配置项 Key | 说明 | 默认值 | 类型 |
 |------|------|------|------|
 | `inspection.upload.chunk_size_mb` | 分片大小(MB) | 2 | 数字 |
@@ -773,9 +672,7 @@ Change your password after first login.
 | `inspection.offline.max_queue_count` | 离线队列上限(条) | 20 | 数字 |
 | `inspection.offline.data_expire_days` | 离线数据过期天数 | 7 | 数字 |
 | `inspection.session.expire_hours` | 未完成会话过期时间 | 24 | 数字 |
-
 **C5. OTA 更新参数：**
-
 | 配置项 Key | 说明 | 默认值 | 类型 |
 |------|------|------|------|
 | `ota.check_interval_minutes` | 更新检查间隔(分钟) | 30 | 数字 |
@@ -784,9 +681,7 @@ Change your password after first login.
 ---
 
 ### 配置组 D：订单与配送
-
 > 权限要求：`pricing:config`
-
 | 配置项 Key | 说明 | 默认值 | 类型 |
 |------|------|------|------|
 | `order.lock.ttl_seconds` | 库存锁定时长(秒) | 300 | 数字 |
@@ -804,9 +699,7 @@ Change your password after first login.
 ---
 
 ### 配置组 E：安全与验证
-
 > 权限要求：`admin:role_mgmt`（仅 SA 可修改）
-
 | 配置项 Key | 说明 | 默认值 | 类型 |
 |------|------|------|------|
 | `otp.length` | OTP 位数 | 6 | 数字 |
@@ -827,9 +720,7 @@ Change your password after first login.
 ---
 
 ### 配置组 F：门店与账号
-
 > 权限要求：`admin:user_mgmt`
-
 | 配置项 Key | 说明 | 默认值 | 类型 | 级别 |
 |------|------|------|------|------|
 | `store.max_staff_count` | 门店店员上限 | 10 | 数字 | 门店级 |
@@ -837,15 +728,12 @@ Change your password after first login.
 | `account.deletion_cooldown_days` | 账号注销冷静期 | 30 | 数字 | 全局 |
 | `store.audit_log_retention_years` | 审计日志保留年数 | 7 | 数字 | 全局 |
 | `inspection.notification_retention_days` | 审核调整通知保留天数 | 30 | 数字 | 全局 |
-
 **门店级配置覆盖规则：**
-
 > 标记为"门店级"的配置项，系统默认使用全局默认值。SA 可在门店详情页对该门店独立设置，覆盖全局默认值。门店独立配置的项标记"已自定义"。门店关店/重新开业时保留其独立配置。
 
 ---
 
 ### 配置组 G：其他业务规则
-
 | 配置项 Key | 说明 | 默认值 | 类型 |
 |------|------|------|------|
 | `review.max_pending_hours` | 审核超时标记阈值(小时) | 24 | 数字 |
@@ -856,27 +744,21 @@ Change your password after first login.
 ---
 
 ### 配置项通用功能
-
 **配置列表页：**
-
 | 功能 | 说明 |
 |------|------|
 | 按配置组筛选 | 7 个配置组 Tab 切换（A-G） |
 | 搜索 | 按 key 或说明文字模糊搜索 |
 | 状态标签 | 默认值(灰) / 已自定义(蓝) / 门店覆盖(橙) |
 | 快速跳转 | 侧边锚点导航，点击跳转到对应配置组 |
-
 **配置编辑：**
-
 | 控件类型 | 适用场景 | 交互 |
 |------|------|------|
 | 开关 | 布尔型配置 | 点击即生效 |
 | 数字输入 + 单位 | 金额/时长/百分比 | 输入后失焦保存，校验上下限 |
 | 下拉选择 | 有限的枚举值 | 点击选择即生效 |
 | 列表编辑器 | 选项列表（如颜色、拒收原因） | 拖拽排序 + 增删改 + 每个选项含 key/label/label_hi 三个字段 |
-
 **变更历史与回滚：**
-
 ```
 点击配置项 → 展开"变更历史"
   → 展示最近 10 次变更记录：
@@ -884,9 +766,7 @@ Change your password after first login.
   → 每条历史记录右侧有"回滚到此版本"按钮
   → 点击 → 二次确认 → 立即生效
 ```
-
 **业务规则：**
-
 | 规则项 | 说明 |
 |------|------|
 | 权限分级 | 配置组 A/B/C/D/G → `pricing:config` 权限可操作；配置组 E/F → 仅 `admin:role_mgmt`(SA) 可操作 |
@@ -894,7 +774,6 @@ Change your password after first login.
 | 类型校验 | 数字型配置有 min/max 校验；文本型有长度校验；选项型校验 key 唯一性 |
 | 依赖校验 | 关联配置联动校验（如免运费阈值 ≥ 标准配送费） |
 | 操作日志 | 每次修改记录操作人、时间、key、旧值、新值、变更原因（可选） |
-
 **验收标准：**
 - [ ] 7 个配置组完整展示，支持切换、搜索和锚点导航
 - [ ] 所有 80+ 配置项逐项可编辑，控件类型匹配（开关/数字/下拉/列表编辑）
