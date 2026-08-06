@@ -1665,6 +1665,280 @@ Response: { "token": "new-jwt-token", "role": "warehouse", ... }
 - [ ] 30 分钟无操作全部角色 token 失效
 - [ ] 强制踢出后当前 token 立即失效
 
+### 2.12.1 编码体系
+
+| 实体 | 格式 | 示例 | 说明 |
+|------|------|------|------|
+| 门店 | `ST-{州码2位}-{4位序号}` | `ST-MH-0001` | 印度邦/直辖区双字母代码：MH(马哈拉施特拉), DL(德里), KA(卡纳塔克), TN(泰米尔纳德), GJ(古吉拉特), UP(北方邦), WB(西孟加拉), RJ(拉贾斯坦) |
+| 仓库 | `WH-{州码2位}-{4位序号}` | `WH-MH-0001` | 仓库独立于门店，一个仓库可服务多个门店 |
+| 平板设备 | `TAB-{门店编码}-{2位序号}` | `TAB-ST-MH-0001-01` | |
+| 店员 | `STAFF-{门店编码}-{3位序号}` | `STAFF-ST-MH-0001-001` | |
+| 用户ID | `U-{8位hex}` | `U-a3f2b901` | 系统内部唯一标识 |
+
+### 2.12.2 角色与权限编码
+
+| 角色编码 | 角色名称 | 所属端 | 绑定实体 |
+|------|------|------|------|
+| `ROLE-SA` | 系统管理员 | 运营后台 | 无（全局） |
+| `ROLE-OPS` | 运营人员 | 运营后台 | 无 |
+| `ROLE-OWN` | 店老板 | 门店综合App | 门店(store_id) |
+| `ROLE-CLK` | 店员/质检员 | 平板质检工具 | 门店(store_id) |
+| `ROLE-WH` | 库管 | 门店综合App | 仓库(warehouse_id) |
+| `ROLE-DB` | 财务/结算 | 门店综合App | 无（跨门店） |
+| `ROLE-ENT` | 企业采购员 | C端App | 无 |
+
+**权限编码格式：** `{resource}:{action}`
+
+| 权限编码 | 说明 |
+|------|------|
+| `admin:user_mgmt` | 创建/编辑/禁用账号 |
+| `admin:role_mgmt` | 创建/编辑/删除角色 |
+| `admin:org_mgmt` | 创建/编辑门店和仓库 |
+| `admin:audit` | 查看审计日志 |
+| `store:staff_mgmt` | 添加/移除本门店店员 |
+| `store:revenue_read` | 查看门店营收 |
+| `inspection:read` | 查看质检数据 |
+| `inspection:write` | 执行质检操作 |
+| `verification:write` | 核销价格录入 |
+| `inventory:read` | 查看库存 |
+| `inventory:write` | 入库/出库/盘点 |
+| `outbound:write` | 扫码核销/面单打印 |
+| `order:read` | 查看订单 |
+| `order:cancel` | 取消订单 |
+| `order:refund` | 处理退款 |
+| `settlement:read` | 查看结算数据 |
+| `settlement:approve` | 审批授信结算 |
+| `report:read` | 查看报表 |
+| `report:export` | 导出报表 |
+| `device:admin` | 平板设备管理 |
+| `pricing:config` | 定价参数配置 |
+
+### 2.12.3 账号注册与邀请 API
+
+**系统管理员创建账号（运营后台调用）：**
+
+```
+POST /api/v1/admin/users
+Headers: Authorization Bearer {SA token}
+Body: {
+  "phone": "+919876543210",
+  "name": "Rajesh Kumar",
+  "role_code": "ROLE-OWN",
+  "org_id": "ST-MH-0001",
+  "temp_password": "Abc12345"         // 可选，不填则系统自动生成
+}
+Response 201:
+{
+  "user_id": "U-a3f2b901",
+  "phone": "+919876543210",
+  "name": "Rajesh Kumar",
+  "staff_code": "STAFF-ST-MH-0001-001",  // 自动生成
+  "role_code": "ROLE-OWN",
+  "org_id": "ST-MH-0001",
+  "account_status": "pending_activation",
+  "activation_expires_at": "2026-08-13T00:00:00Z"  // 7天有效
+}
+```
+创建成功后，系统自动：
+- 在 `user` 表创建记录（account_status = "pending_activation"）
+- 在 `user_role_assignment` 表插入记录
+- 若 role_code = ROLE-CLK 或 ROLE-OWN，自动生成店员编号（如 `STAFF-ST-MH-0001-001`）
+- 调用 SMS 服务发送邀请短信（含临时密码 + App 下载链接）
+- 若 7 天内未激活，账号自动清理
+
+**店老板添加店员 API（门店综合 App 调用）：**
+
+```
+POST /api/v1/store/staff
+Headers: Authorization Bearer {OWN token, role=ROLE-OWN, org_id=ST-MH-0001}
+Body: {
+  "phone": "+919111111111",
+  "role_code": "ROLE-CLK",            // ROLE-CLK 或 ROLE-WH
+  "warehouse_id": null                 // 仅 ROLE-WH 时需要
+}
+Response 201: { ... 同上方创建响应 ... }
+```
+
+添加店员时服务端校验：
+- 调用者必须有 `store:staff_mgmt` 权限
+- 调用者的 org_id == 目标店员要绑定的 org_id
+- 该手机号不能已是本门店店员
+- 门店店员数量 ≤ 上限（默认 10 人/店，运营后台可配置）
+
+**用户激活账号 API（App 端调用）：**
+
+```
+POST /api/v1/auth/activate
+Body: {
+  "phone": "+919876543210",
+  "temp_password": "Abc12345",
+  "new_password": "NewPass123",
+  "agreed_terms": true
+}
+Response 200:
+{
+  "user_id": "U-a3f2b901",
+  "token": "eyJhbGciOi...",
+  "roles": [...],
+  "default_role": "ROLE-OWN"
+}
+```
+
+### 2.12.4 密码管理 API
+
+**修改密码：**
+
+```
+PUT /api/v1/auth/password
+Headers: Authorization Bearer {token}
+Body: {
+  "old_password": "CurrentPass123",
+  "new_password": "NewPass456"
+}
+Response 200: { "message": "密码已修改，请重新登录" }
+→ 所有设备 token 立即失效
+```
+
+**忘记密码——发送 OTP：**
+
+```
+POST /api/v1/auth/forgot-password/send-otp
+Body: { "phone": "+919876543210" }
+Response 200: { "message": "验证码已发送", "retry_after_seconds": 60 }
+```
+
+**忘记密码——验证 OTP 并重置：**
+
+```
+POST /api/v1/auth/forgot-password/reset
+Body: {
+  "phone": "+919876543210",
+  "otp": "123456",
+  "new_password": "NewPass789"
+}
+Response 200: { "message": "密码已重置，请使用新密码登录" }
+→ 所有设备 token 立即失效
+```
+
+### 2.12.5 账号生命周期状态机
+
+```
+                    SA/OWN 创建账号
+                          │
+                          ▼
+          ┌──────────────────────────────┐
+          │     pending_activation       │  ← 待激活
+          │   (7天有效期，超时自动清理)    │
+          └──────────────┬───────────────┘
+                         │ 用户首次登录 + 设置密码 + 同意协议
+                         ▼
+          ┌──────────────────────────────┐
+          │          active              │  ← 正常使用
+          └──────┬──────────┬────────────┘
+                 │          │
+    5次密码错误  │          │ SA/OWN 主动禁用
+                 ▼          ▼
+          ┌──────────┐  ┌──────────────┐
+          │  locked  │  │   disabled   │  ← 可重新启用
+          │ (15分钟)  │  └──────────────┘
+          └────┬─────┘
+               │ 15分钟后自动解锁
+               ▼
+          ┌──────────┐
+          │  active  │  ← 回到正常
+          └──────────┘
+
+          ┌──────────────┐
+          │   removed    │  ← OWN 移除店员（不可逆）
+          └──────────────┘
+
+          ┌──────────────┐
+          │   deleted    │  ← 用户主动注销（30天冷静期后可永久删除）
+          └──────────────┘
+```
+
+**状态定义：**
+
+| 状态 | 含义 | 可流转至 | 说明 |
+|------|------|----------|------|
+| `pending_activation` | 待激活 | active | 账号已创建但用户未登录激活；7 天后自动清理 |
+| `active` | 正常 | locked, disabled, removed, deleted | 可正常使用所有功能 |
+| `locked` | 临时锁定 | active | 5次密码错误自动锁定 15 分钟 |
+| `disabled` | 已禁用 | active | 管理员主动禁用，可重新启用 |
+| `removed` | 已移除 | —（终态） | 店员被移除，不可逆，历史数据保留 |
+| `deleted` | 已注销 | —（终态） | 用户主动注销，30天冷静期后永久删除 PII |
+
+**验收标准：**
+- [ ] SA 可创建店老板账号，系统自动发送邀请 SMS
+- [ ] 店老板可添加店员，系统校验权限和门店归属
+- [ ] 首次登录（临时密码）强制激活：设置新密码 + 同意协议
+- [ ] 临时密码仅可使用一次
+- [ ] 7 天未激活账号自动清理
+- [ ] 忘记密码：OTP 验证 → 重置密码 → 所有 token 失效
+- [ ] 密码规则：8-20 位，至少含大写字母 + 数字
+- [ ] 连续 5 次密码错误锁定 15 分钟，锁定期间 OTP 登录也禁用
+- [ ] 店员数量上限可配置（默认 10 人/店）
+- [ ] 账号生命周期状态机正确流转
+- [ ] 密码修改后所有设备 JWT 立即失效
+
+### 2.12.6 新增数据模型
+
+**组织表（organization）：**
+```sql
+CREATE TABLE organization (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code VARCHAR(20) UNIQUE NOT NULL,       -- ST-MH-0001 / WH-MH-0001
+  type VARCHAR(10) NOT NULL CHECK (type IN ('store', 'warehouse')),
+  name VARCHAR(100) NOT NULL,
+  state_code CHAR(2) NOT NULL,
+  city VARCHAR(50),
+  address TEXT,
+  phone VARCHAR(15),
+  gps_lat DECIMAL(10,7),
+  gps_lng DECIMAL(10,7),
+  status VARCHAR(16) DEFAULT 'active' CHECK (status IN ('pending', 'active', 'suspended', 'closed')),
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_org_code ON organization(code);
+CREATE INDEX idx_org_type_status ON organization(type, status);
+```
+
+**用户角色分配表（user_role_assignment）：**
+```sql
+CREATE TABLE user_role_assignment (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id),
+  role_code VARCHAR(20) NOT NULL,         -- ROLE-OWN / ROLE-CLK / ROLE-WH / ROLE-DB
+  org_id UUID REFERENCES organization(id), -- 门店或仓库ID；ROLE-SA/OPS/DB/ENT 可为 NULL
+  staff_code VARCHAR(30),                  -- 店员编号，如 STAFF-ST-MH-0001-001
+  status VARCHAR(16) DEFAULT 'active' CHECK (status IN ('pending_activation', 'active', 'disabled', 'removed')),
+  assigned_by UUID REFERENCES users(id),
+  assigned_at TIMESTAMP DEFAULT NOW(),
+  activated_at TIMESTAMP,
+  expired_at TIMESTAMP,                    -- 临时店员到期时间
+  UNIQUE (user_id, role_code, org_id)
+);
+CREATE INDEX idx_ura_user ON user_role_assignment(user_id);
+CREATE INDEX idx_ura_org ON user_role_assignment(org_id);
+CREATE INDEX idx_ura_role ON user_role_assignment(role_code);
+```
+
+**用户表（users）扩充字段：**
+```sql
+ALTER TABLE users ADD COLUMN account_status VARCHAR(20) DEFAULT 'pending_activation'
+  CHECK (account_status IN ('pending_activation', 'active', 'locked', 'disabled', 'removed', 'deleted'));
+ALTER TABLE users ADD COLUMN activation_expires_at TIMESTAMP;
+ALTER TABLE users ADD COLUMN temp_password_hash VARCHAR(255);
+ALTER TABLE users ADD COLUMN temp_password_used BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN locked_until TIMESTAMP;
+ALTER TABLE users ADD COLUMN deleted_at TIMESTAMP;         -- 注销30天冷静期后
+ALTER TABLE users ADD COLUMN registered_source VARCHAR(30) DEFAULT 'admin_created';
+  -- admin_created | offline_otp | store_owner_invite | app_self_register
+```
+
 ---
 
 ## 3.1 CLOUD-P1-01 换购预约管理
