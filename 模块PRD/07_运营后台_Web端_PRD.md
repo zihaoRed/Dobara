@@ -1,7 +1,7 @@
 # 运营后台-Web 端 PRD
 > 基于 [功能描述文档](../功能描述文档.md) 展开  
 > 模块简称：**CLOUD-Web** | 平台：Web 浏览器 | 使用角色：运营人员、系统管理员  
-> PRD 版本：v1.0 | 更新日期：2026-07-30
+> PRD 版本：v2.1 | 更新日期：2026-08-06
 
 ## 文档说明
 本文档对运营后台 Web 端的核心功能进行详细定义，包含功能描述、业务规则、输入/输出和验收标准，作为研发、测试和产品验收的统一参考。每条功能编号格式为 `CLOUD-Px-xx`。
@@ -13,6 +13,7 @@
 |------|----------|--------|
 | CLOUD-P0-08 | 运营审核 | P0 |
 | CLOUD-P0-11 | 平台角色与权限管理 | P0 |
+| CLOUD-P0-13 | 运营配置中心 | P0 |
 | CLOUD-P1-05 | 审核历史与效率统计 | P1 |
 | CLOUD-P2-02 | 数据报表 | P2 |
 | CLOUD-P2-03 | 设备品类管理 | P2 |
@@ -537,6 +538,374 @@ Change your password after first login.
 - [ ] 模板修改后，该型号所有在售设备的商品详情页同步更新
 - [ ] 参数规格模板支持批量导入 Excel
 - [ ] 所有数据变更记录操作日志
+
+## CLOUD-P0-13 运营配置中心
+**优先级：** P0
+**功能描述：**
+运营后台集中管理平台所有可动态调整的业务参数、选项列表和规则阈值。配置中心将每个可调项暴露为可视化表单控件（开关/数字输入/下拉/列表编辑），变更后即时生效或按规则生效，无需发版或重启服务。所有配置变更记录操作日志。配置中心按业务域分为 7 个配置组，SA 和具有 `pricing:config` 权限的 OPS 角色可操作。
+
+**设计原则：**
+
+| 原则 | 说明 |
+|------|------|
+| 零代码变更 | 所有可调参数均通过后台 UI 修改，不通过代码常量或配置文件 |
+| 即时生效 | 修改保存后推送到 Redis，服务端实时读取最新值；部分参数（如JWT时长）需下一次签发时生效 |
+| 变更审计 | 每次修改记录：操作人、时间、配置项key、旧值→新值、变更原因（可选） |
+| 版本回滚 | 每项配置保留最近 10 次历史值，支持一键回滚到任意历史版本 |
+| 默认值保护 | 所有配置项有系统默认值；运营修改过的项标记"已自定义"；支持恢复默认 |
+| 全局 vs 门店级 | 大部分参数为全局配置；标注"门店级"的可按门店独立设置（如店员上限） |
+
+---
+
+### 配置组 A：定价引擎参数
+
+> 权限要求：`pricing:config`
+
+**A1. 准入检查开关：**
+
+| 配置项 Key | 说明 | 默认值 | 类型 |
+|------|------|------|------|
+| `admission.blacklist.enabled` | IMEI 黑名单检查 | ON | 开关 |
+| `admission.icloud.enabled` | iCloud/FRP 锁检查 | ON | 开关 |
+| `admission.water_damage.enabled` | 进水/受潮检查 | ON | 开关 |
+| `admission.no_power.enabled` | 无法开机检查 | ON | 开关 |
+| `admission.lost_stolen.enabled` | 被盗/报失检查（CEIR） | ON | 开关 |
+| `admission.emi_check.enabled` | 分期/EMI 检查（NBFC） | OFF（P2 开启） | 开关 |
+| `admission.carrier_lock.enabled` | 运营商锁检查 | ON | 开关 |
+| `admission.third_party_timeout_ms` | 第三方 API 超时(ms) | 5000 | 数字 |
+
+**A2. 电池扣款分档：**
+
+| 配置项 Key | 说明 | 默认值 | 类型 |
+|------|------|------|------|
+| `pricing.battery.bh_90_100_deduction` | BH ≥ 90% 扣款 | 0 INR | 数字 |
+| `pricing.battery.bh_85_90_deduction` | 85% ≤ BH < 90% 扣款 | 500 INR | 数字 |
+| `pricing.battery.bh_80_85_deduction` | 80% ≤ BH < 85% 扣款 | 1,200 INR | 数字 |
+| `pricing.battery.bh_70_80_deduction` | 70% ≤ BH < 80% 扣款 | 2,500 INR | 数字 |
+| `pricing.battery.bh_below_70_deduction` | BH < 70% 扣款 | 4,000 INR | 数字 |
+
+**A3. 非原厂部件扣款（5 项）：**
+
+| 配置项 Key | 说明 | 默认值 |
+|------|------|------|
+| `pricing.hw.screen_non_original` | 屏幕非原厂 | 3,000 INR |
+| `pricing.hw.camera_non_original` | 后摄非原厂 | 1,500 INR |
+| `pricing.hw.motherboard_repaired` | 主板有维修痕迹 | 5,000 INR |
+| `pricing.hw.biometric_not_working` | Face ID/Touch ID 不可用 | 2,000 INR |
+| `pricing.hw.touch_abnormal` | 触控异常 | 2,500 INR |
+
+**A4. 屏幕外观扣款（6 项）：**
+
+| 配置项 Key | 说明 | 默认值 |
+|------|------|------|
+| `pricing.cosmetic.screen_minor_scratch` | 轻微划痕 | 300 INR |
+| `pricing.cosmetic.screen_visible_scratch` | 明显划痕 | 1,000 INR |
+| `pricing.cosmetic.screen_cracked` | 屏幕碎裂 | 3,500 INR |
+| `pricing.cosmetic.screen_burn_in` | 老化/红斑/黄斑 | 1,500 INR |
+| `pricing.cosmetic.screen_dead_pixel` | 亮点/坏点/彩线 | 2,000 INR |
+| `pricing.cosmetic.screen_not_displaying` | 屏幕无法正常显示 | 4,000 INR |
+
+**A5. 机身边框扣款（4 项）：**
+
+| 配置项 Key | 说明 | 默认值 |
+|------|------|------|
+| `pricing.cosmetic.body_minor_wear` | 轻微掉漆或磨损 | 200 INR |
+| `pricing.cosmetic.body_visible_dent` | 明显磕碰或凹陷 | 1,000 INR |
+| `pricing.cosmetic.body_deformed` | 边框变形 | 2,500 INR |
+| `pricing.cosmetic.body_back_cracked` | 后盖碎裂 | 3,000 INR |
+
+**A6. 功能缺陷扣款（8 项）：**
+
+| 配置项 Key | 说明 | 默认值 |
+|------|------|------|
+| `pricing.functional.flash_abnormal` | 闪光灯异常 | 500 INR |
+| `pricing.functional.charging_port_abnormal` | 充电口异常 | 1,000 INR |
+| `pricing.functional.buttons_not_working` | 按键失灵 | 800 INR |
+| `pricing.functional.mic_abnormal` | 麦克风异常 | 1,200 INR |
+| `pricing.functional.speaker_abnormal` | 扬声器异常 | 800 INR |
+| `pricing.functional.camera_focus_fail` | 摄像头无法对焦 | 1,500 INR |
+| `pricing.functional.vibration_abnormal` | 振动马达异常 | 500 INR |
+| `pricing.functional.wireless_abnormal` | GPS/WiFi/蓝牙异常 | 2,000 INR |
+
+**A7. 维修历史扣款（5 项）：**
+
+| 配置项 Key | 说明 | 默认值 |
+|------|------|------|
+| `pricing.repair.screen_replaced` | 更换过屏幕 | 1,500 INR |
+| `pricing.repair.battery_replaced` | 更换过电池 | 800 INR |
+| `pricing.repair.camera_replaced` | 更换过摄像头 | 500 INR |
+| `pricing.repair.other_repair` | 其他维修 | 1,000 INR |
+| `pricing.repair.multi_repair_penalty` | 多次维修(≥3项)叠加惩罚 | 2,000 INR |
+
+**A8. 配件缺失扣款（3 项）：**
+
+| 配置项 Key | 说明 | 默认值 |
+|------|------|------|
+| `pricing.accessory.no_charger` | 缺少原装充电器 | 500 INR |
+| `pricing.accessory.no_cable` | 缺少原装数据线 | 300 INR |
+| `pricing.accessory.no_box` | 缺少原装包装盒 | 0 INR |
+
+**A9. 成色等级加价率：**
+
+| 配置项 Key | 等级 | 默认值 |
+|------|------|------|
+| `pricing.markup.grade_a` | A 级（99新） | 35% |
+| `pricing.markup.grade_b` | B 级（95新） | 28% |
+| `pricing.markup.grade_c` | C 级（90新） | 22% |
+| `pricing.markup.grade_d` | D 级（85新） | 15% |
+
+**A10. 市场基准价 + Floor Price + 存储溢价（按品牌×型号矩阵维护）：**
+
+> 此三项数据量较大，独立管理界面，非简单 key-value
+
+| 功能 | 说明 |
+|------|------|
+| 市场基准价管理 | 按「品牌→型号→最低存储版本」维护市场基准回收价（INR）；P2 接入第三方价格数据自动刷新 |
+| Floor Price 管理 | 按「品牌→型号→最低存储版本」维护保底价（INR）；防止扣款叠加过低 |
+| 存储溢价表 | 按品牌维护各存储档位溢价：64→128GB、128→256GB、256→512GB、512GB→1TB |
+
+**A11. 商城售价参数：**
+
+| 配置项 Key | 说明 | 默认值 | 类型 |
+|------|------|------|------|
+| `pricing.sale.price_floor_ratio` | 售价下限系数（回收价×） | 1.05 | 数字 |
+| `pricing.sale.auto_discount_days` | 滞销触发天数 | 14 天 | 数字 |
+| `pricing.sale.auto_discount_rate` | 每次自动降价比例 | 5% | 数字 |
+| `pricing.sale.auto_discount_max_times` | 最大降价次数 | 3 次 | 数字 |
+| `pricing.sale.auto_discount_floor_ratio` | 累计降价下限（原始售价×） | 0.85 | 数字 |
+
+---
+
+### 配置组 B：预约自填选项
+
+> 权限要求：`pricing:config`
+> 作用：C 端换购预约页面的所有下拉/点选选项由后台动态配置，APP 通过 API 拉取最新选项列表
+
+**B1. 设备信息选项：**
+
+| 配置项 Key | 说明 | 默认选项列表 | 展示形式 |
+|------|------|------|------|
+| `appointment.color_options` | 机身颜色 | `["Graphite", "Silver", "Gold", "Pacific Blue", "Midnight", "Starlight", "Red", "Blue", "Green", "Purple", "Yellow", "Black", "White", "Other"]` | 可增删改排序 |
+| `appointment.storage_options` | 存储容量(GB) | `[32, 64, 128, 256, 512, 1024]` | 可增删改排序 |
+| `appointment.ram_options` | 运行内存(GB) | `[2, 3, 4, 6, 8, 12, 16]` | 可增删改排序 |
+
+**B2. 使用状况选项：**
+
+| 配置项 Key | 说明 | 默认选项列表 |
+|------|------|------|
+| `appointment.warranty_options` | 保修状态 | `[{"key":"in_warranty","label":"在保","label_hi":"वारंटी में"},{"key":"out_of_warranty","label":"已过保","label_hi":"वारंटी से बाहर"},{"key":"unknown","label":"不确定","label_hi":"अनिश्चित"}]` |
+| `appointment.usage_condition_options` | 使用状况 | `[{"key":"working","label":"可正常使用"},{"key":"locked","label":"已锁定/iCloud"},{"key":"wiped","label":"已抹掉数据"}]` |
+
+**B3. 电池健康选项：**
+
+| 配置项 Key | 说明 | 默认选项列表 |
+|------|------|------|
+| `appointment.battery_options` | 电池健康度 | `[{"key":"above_90","label":"90% 以上","label_hi":"90% से ऊपर"},{"key":"80_to_90","label":"80%-90%","label_hi":"80%-90%"},{"key":"70_to_80","label":"70%-80%","label_hi":"70%-80%"},{"key":"below_70","label":"70% 以下","label_hi":"70% से नीचे"},{"key":"unknown","label":"不确定","label_hi":"अनिश्चित"}]` |
+
+**B4. 外观状况选项：**
+
+| 配置项 Key | 说明 | 默认选项列表 |
+|------|------|------|
+| `appointment.body_condition_options` | 机身外观 | `[{"key":"like_new","label":"几近全新","label_hi":"लगभग नया"},{"key":"minor_scratches","label":"轻微划痕","label_hi":"हल्की खरोंचें"},{"key":"visible_dents","label":"明显磕碰/凹陷","label_hi":"दिखने वाले निशान"},{"key":"deformed_or_cracked","label":"变形/碎裂","label_hi":"मुड़ा या टूटा हुआ"}]` |
+| `appointment.screen_condition_options` | 屏幕外观 | `[{"key":"like_new","label":"几近全新"},{"key":"minor_scratches","label":"轻微划痕"},{"key":"deep_scratches","label":"明显划痕"},{"key":"cracked","label":"碎裂"}]` |
+| `appointment.display_condition_options` | 屏幕显示 | `[{"key":"normal","label":"正常"},{"key":"minor_burn","label":"轻微老化/烧屏"},{"key":"dead_pixels_or_lines","label":"坏点/彩线"},{"key":"not_working","label":"无法正常显示"}]` |
+
+**B5. 维修记录选项：**
+
+| 配置项 Key | 说明 | 默认选项列表（多选） |
+|------|------|------|
+| `appointment.repair_options` | 维修历史 | `[{"key":"none","label":"无维修"},{"key":"screen","label":"更换过屏幕"},{"key":"battery","label":"更换过电池"},{"key":"camera","label":"更换过摄像头"},{"key":"other","label":"其他维修"}]` |
+
+**B6. 功能性问题选项：**
+
+| 配置项 Key | 说明 | 默认选项列表（多选） |
+|------|------|------|
+| `appointment.functional_issue_options` | 功能性问题 | `[{"key":"none","label":"全部正常"},{"key":"flash","label":"闪光灯"},{"key":"charging_port","label":"充电口"},{"key":"buttons","label":"按键"},{"key":"mic","label":"麦克风"},{"key":"speaker","label":"扬声器"},{"key":"biometric","label":"指纹/面部识别"},{"key":"camera_focus","label":"摄像头对焦"}]` |
+
+**B7. 预约通用配置：**
+
+| 配置项 Key | 说明 | 默认值 | 类型 |
+|------|------|------|------|
+| `appointment.estimate_price_range_percent` | 初步估价浮动比例 | 20% | 数字 |
+| `appointment.max_future_days` | 最早可预约天数 | 7 天 | 数字 |
+| `appointment.auto_cancel_no_show_hours` | 预约未到店自动取消 | 24 小时 | 数字 |
+
+---
+
+### 配置组 C：质检流程参数
+
+> 权限要求：`pricing:config`
+
+**C1. 外观拒收原因列表：**
+
+| 配置项 Key | 说明 | 默认选项列表 |
+|------|------|------|
+| `inspection.reject_reasons` | 拒收原因预设 | `[{"key":"screen_severe_damage","label":"屏幕严重碎裂","label_hi":"स्क्रीन गंभीर रूप से टूटी"},{"key":"body_severe_bent","label":"机身严重弯曲变形","label_hi":"बॉडी गंभीर रूप से मुड़ी"},{"key":"water_corrosion","label":"进水腐蚀严重","label_hi":"पानी से जंग"},{"key":"motherboard_damaged","label":"主板损坏/缺失","label_hi":"मदरबोर्ड क्षतिग्रस्त"},{"key":"core_parts_missing","label":"核心配件缺失","label_hi":"मुख्य पुर्जे गायब"},{"key":"user_cancel","label":"用户主动放弃","label_hi":"उपयोगकर्ता ने छोड़ा"},{"key":"other","label":"其他异常情况","label_hi":"अन्य"}]` |
+
+**C2. 拍照质量阈值：**
+
+| 配置项 Key | 说明 | 默认值 | 类型 |
+|------|------|------|------|
+| `inspection.photo.blur_threshold` | 模糊检测（拉普拉斯方差阈值） | 100 | 数字 |
+| `inspection.photo.brightness_threshold` | 光线不足（平均亮度阈值 0-255） | 50 | 数字 |
+| `inspection.photo.angle_deviation_degrees` | 角度偏差阈值（度） | 15 | 数字 |
+| `inspection.photo.angle_translation_percent` | 平移偏差阈值（画幅 %） | 20 | 数字 |
+| `inspection.photo.min_resolution_width` | 最低分辨率-宽(px) | 1920 | 数字 |
+| `inspection.photo.min_resolution_height` | 最低分辨率-高(px) | 1080 | 数字 |
+| `inspection.video.min_resolution` | 视频最低分辨率 | "720P/30fps" | 下拉 |
+| `inspection.video.min_duration_seconds` | 视频最短时长(秒) | 10 | 数字 |
+| `inspection.video.max_duration_seconds` | 视频最长时长(秒) | 30 | 数字 |
+
+**C3. 硬件检测参数：**
+
+| 配置项 Key | 说明 | 默认值 | 类型 |
+|------|------|------|------|
+| `inspection.hw.detection_timeout_seconds` | 单项检测超时(秒) | 30 | 数字 |
+| `inspection.hw.max_retry_per_item` | 单项最大重试次数 | 2 | 数字 |
+| `inspection.hw.usb_reconnect_interval_seconds` | USB 断开后重连间隔(秒) | 5 | 数字 |
+
+**C4. 上传与离线参数：**
+
+| 配置项 Key | 说明 | 默认值 | 类型 |
+|------|------|------|------|
+| `inspection.upload.chunk_size_mb` | 分片大小(MB) | 2 | 数字 |
+| `inspection.upload.timeout_seconds` | 上传总超时(分钟) | 5 | 数字 |
+| `inspection.offline.max_queue_count` | 离线队列上限(条) | 20 | 数字 |
+| `inspection.offline.data_expire_days` | 离线数据过期天数 | 7 | 数字 |
+| `inspection.session.expire_hours` | 未完成会话过期时间 | 24 | 数字 |
+
+**C5. OTA 更新参数：**
+
+| 配置项 Key | 说明 | 默认值 | 类型 |
+|------|------|------|------|
+| `ota.check_interval_minutes` | 更新检查间隔(分钟) | 30 | 数字 |
+| `ota.wifi_only_apk` | APK 仅 WiFi 下载 | ON | 开关 |
+
+---
+
+### 配置组 D：订单与配送
+
+> 权限要求：`pricing:config`
+
+| 配置项 Key | 说明 | 默认值 | 类型 |
+|------|------|------|------|
+| `order.lock.ttl_seconds` | 库存锁定时长(秒) | 300 | 数字 |
+| `order.quote.validity_minutes` | 报价有效期(分钟) | 30 | 数字 |
+| `order.verification.timeout_minutes` | 核销超时(分钟) | 30 | 数字 |
+| `shipping.standard_fee_inr` | 标准配送费(INR) | 50 | 数字 |
+| `shipping.express_fee_inr` | 快速配送费(INR) | 150 | 数字 |
+| `shipping.free_threshold_inr` | 免运费阈值(INR) | 5,000 | 数字 |
+| `shipping.standard_delivery_days` | 标准配送预计(工作日) | "3-5" | 文本 |
+| `shipping.express_delivery_days` | 快速配送预计(工作日) | "1-2" | 文本 |
+| `tax.gst_rate` | GST 税率 | 18% | 数字 |
+| `return.eligible_days` | 售后退货可申请天数 | 7 | 数字 |
+| `return.pickup_fee_user_cancel_inr` | 用户原因退货-取件费(INR) | 100 | 数字 |
+
+---
+
+### 配置组 E：安全与验证
+
+> 权限要求：`admin:role_mgmt`（仅 SA 可修改）
+
+| 配置项 Key | 说明 | 默认值 | 类型 |
+|------|------|------|------|
+| `otp.length` | OTP 位数 | 6 | 数字 |
+| `otp.validity_seconds` | OTP 有效期(秒) | 60 | 数字 |
+| `otp.max_attempts` | OTP 最大重试次数 | 3 | 数字 |
+| `otp.lock_duration_seconds` | OTP 错误锁定时间(秒) | 60 | 数字 |
+| `otp.daily_limit` | 每日 OTP 发送上限 | 5 | 数字 |
+| `otp.resend_cooldown_seconds` | 重发 OTP 冷却(秒) | 30 | 数字 |
+| `auth.password.min_length` | 密码最小长度 | 8 | 数字 |
+| `auth.password.max_length` | 密码最大长度 | 20 | 数字 |
+| `auth.max_login_attempts` | 最大登录尝试次数 | 5 | 数字 |
+| `auth.login_lock_minutes` | 登录锁定时间(分钟) | 15 | 数字 |
+| `auth.session.timeout_minutes` | 会话超时(分钟) | 30 | 数字 |
+| `auth.jwt.validity_hours` | JWT Token 有效期(小时) | 8 | 数字 |
+| `auth.jwt.refresh_before_minutes` | Token 提前刷新(分钟) | 5 | 数字 |
+| `auth.max_devices_per_account` | 单账号最大设备数 | 3 | 数字 |
+
+---
+
+### 配置组 F：门店与账号
+
+> 权限要求：`admin:user_mgmt`
+
+| 配置项 Key | 说明 | 默认值 | 类型 | 级别 |
+|------|------|------|------|------|
+| `store.max_staff_count` | 门店店员上限 | 10 | 数字 | 门店级 |
+| `account.activation_expire_days` | 待激活账号过期天数 | 7 | 数字 | 全局 |
+| `account.deletion_cooldown_days` | 账号注销冷静期 | 30 | 数字 | 全局 |
+| `store.audit_log_retention_years` | 审计日志保留年数 | 7 | 数字 | 全局 |
+| `inspection.notification_retention_days` | 审核调整通知保留天数 | 30 | 数字 | 全局 |
+
+**门店级配置覆盖规则：**
+
+> 标记为"门店级"的配置项，系统默认使用全局默认值。SA 可在门店详情页对该门店独立设置，覆盖全局默认值。门店独立配置的项标记"已自定义"。门店关店/重新开业时保留其独立配置。
+
+---
+
+### 配置组 G：其他业务规则
+
+| 配置项 Key | 说明 | 默认值 | 类型 |
+|------|------|------|------|
+| `review.max_pending_hours` | 审核超时标记阈值(小时) | 24 | 数字 |
+| `inventory.stale_days` | 滞销库存阈值(天) | 30 | 数字 |
+| `report.data_refresh_interval_minutes` | 报表数据刷新间隔(分钟) | 30 | 数字 |
+| `report.presale_stale_days` | 滞销降价触发天数 | 14 | 数字 |
+
+---
+
+### 配置项通用功能
+
+**配置列表页：**
+
+| 功能 | 说明 |
+|------|------|
+| 按配置组筛选 | 7 个配置组 Tab 切换（A-G） |
+| 搜索 | 按 key 或说明文字模糊搜索 |
+| 状态标签 | 默认值(灰) / 已自定义(蓝) / 门店覆盖(橙) |
+| 快速跳转 | 侧边锚点导航，点击跳转到对应配置组 |
+
+**配置编辑：**
+
+| 控件类型 | 适用场景 | 交互 |
+|------|------|------|
+| 开关 | 布尔型配置 | 点击即生效 |
+| 数字输入 + 单位 | 金额/时长/百分比 | 输入后失焦保存，校验上下限 |
+| 下拉选择 | 有限的枚举值 | 点击选择即生效 |
+| 列表编辑器 | 选项列表（如颜色、拒收原因） | 拖拽排序 + 增删改 + 每个选项含 key/label/label_hi 三个字段 |
+
+**变更历史与回滚：**
+
+```
+点击配置项 → 展开"变更历史"
+  → 展示最近 10 次变更记录：
+      时间 | 操作人 | 旧值 | 新值 | 变更原因（如有）
+  → 每条历史记录右侧有"回滚到此版本"按钮
+  → 点击 → 二次确认 → 立即生效
+```
+
+**业务规则：**
+
+| 规则项 | 说明 |
+|------|------|
+| 权限分级 | 配置组 A/B/C/D/G → `pricing:config` 权限可操作；配置组 E/F → 仅 `admin:role_mgmt`(SA) 可操作 |
+| 即时生效 | 保存后通过 Redis Pub/Sub 通知所有服务节点刷新配置缓存 |
+| 类型校验 | 数字型配置有 min/max 校验；文本型有长度校验；选项型校验 key 唯一性 |
+| 依赖校验 | 关联配置联动校验（如免运费阈值 ≥ 标准配送费） |
+| 操作日志 | 每次修改记录操作人、时间、key、旧值、新值、变更原因（可选） |
+
+**验收标准：**
+- [ ] 7 个配置组完整展示，支持切换、搜索和锚点导航
+- [ ] 所有 80+ 配置项逐项可编辑，控件类型匹配（开关/数字/下拉/列表编辑）
+- [ ] 定价扣款金额修改后，新质检的设备立即按新金额计算
+- [ ] 预约选项修改后，C 端 App 重新进入预约页面时拉取最新选项
+- [ ] 安全参数修改后即时生效
+- [ ] 门店级配置可覆盖全局默认值，门店列表展示自定义标记
+- [ ] 每项配置保留最近 10 次变更历史
+- [ ] 支持一键回滚到任意历史版本
+- [ ] 数字型配置有 min/max 范围校验
+- [ ] 所有变更记录操作日志
 
 ## 附录：与中台服务端的关系
 运营后台 Web 端与中台服务端 API 共享 CLOUD 模块前缀。本文档聚焦运营后台 Web 端的前端交互和业务功能。以下 CLOUD 编号的功能属于中台服务端，不在本 PRD 范围内，但为运营后台提供底层数据支撑：

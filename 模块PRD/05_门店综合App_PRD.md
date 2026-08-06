@@ -1,4 +1,5 @@
 # 05 — 门店综合 App PRD（店老板 + 库管 + DB 三合一） | Unified Store App PRD
+> 文档版本：v2.0 | 更新日期：2026-08-06
 > 面向：iOS + Android 移动端开发 / QA  
 > 平台：iOS + Android  
 > 使用角色：店老板 / 库管 / DB（财务）— 同一 App，按角色权限显示不同模块
