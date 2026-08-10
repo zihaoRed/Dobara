@@ -48,7 +48,7 @@
 │  ┌──────────────────────────────────┐                    │
 │  │ [Platform] OTP: 123456           │ ← 店员用            │
 │  │ Track: bott.in/s/abc123          │ ← 用户用            │
-│  │ Valid 60s. Do not share.         │                    │
+│  │ Valid 3min. Do not share.        │                    │
 │  └──────────────────────────────────┘                    │
 │       │                                                  │
 │       ├── 店员收到口述 OTP → 平板输入 6 位 OTP               │
@@ -152,7 +152,7 @@
 | 设计点 | 方案 | 说明 |
 |--------|------|------|
 | OTP 长度 | 6 位数字 | 印度标准 |
-| 有效期 | 60 秒 | 过期需重新发送 |
+| 有效期 | 3 分钟 | 过期需重新发送 |
 | 发送渠道 | SMS（优先）+ WhatsApp Business API（备选） | 印度 WhatsApp 渗透率高 |
 | 发送方 ID | 平台品牌名（如 "BOTT-OTP"） | 避免被误判为垃圾短信 |
 | 重试次数 | 最多 3 次 | 超过后 60 秒冷却 |
@@ -164,7 +164,7 @@
 ```
 [Platform Name] OTP: 123456
 Track your inspection: https://bott.in/s/abc123
-Valid for 60 seconds. Do not share this message.
+Valid for 3 minutes. Do not share this message.
 आपका OTP: 123456। निरीक्षण ट्रैक करें: https://bott.in/s/abc123
 ```
 
@@ -192,10 +192,10 @@ Valid for 60 seconds. Do not share this message.
 │   [ _ ] [ _ ] [ _ ] [ _ ]    │
 │   [ _ ] [ _ ]                │
 │                              │
-│   60 秒内有效                 │
-│   Valid for 60s              │
+│   3 分钟内有效                 │
+│   Valid for 3min              │
 │                              │
-│   [ 重新发送 ] (45s 后可用)    │
+│   [ 重新发送 ] (60s 后可用)    │
 │                              │
 │   用户将收到带有质检跟踪链接的短信  │
 │   User will receive SMS with   │
@@ -258,11 +258,11 @@ Valid for 60 seconds. Do not share this message.
 
 **OTP 生命周期：**
 ```
-[已生成] ──(60 秒内输入正确)──→ [已验证]
+[已生成] ──(3 分钟内输入正确)──→ [已验证]
      │
-     ├──(3 次错误)──→ [已锁定 60s]
+     ├──(3 次错误)──→ [已锁定 3min]
      │
-     └──(60 秒超时)──→ [已过期]
+     └──(3 分钟超时)──→ [已过期]
 ```
 
 **业务规则：**
@@ -271,7 +271,7 @@ Valid for 60 seconds. Do not share this message.
 |--------|------|
 | 生成时机 | 店员输入手机号并点击"发送验证码" |
 | OTP 格式 | 6 位随机数字 |
-| 有效期 | 60 秒 |
+| 有效期 | 3 分钟 |
 | 最大尝试 | 3 次；超过锁定 60 秒 |
 | 每日上限 | 同一手机号每天 5 次 |
 | SMS 成本 | ₹0.15-0.30/条（MSG91 / Twilio / Exotel）|
