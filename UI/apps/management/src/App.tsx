@@ -65,6 +65,14 @@ function PublicOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Session required; pending users may stay here (e.g. /activate). */
+function RequireSession({ children }: { children: React.ReactNode }) {
+  const { session } = useAuth();
+  if (!session) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+/** Session + activated; pending → /activate. Do not wrap /activate itself. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
   if (!session) return <Navigate to="/login" replace />;
@@ -215,9 +223,9 @@ function AppRoutes() {
       <Route
         path="/activate"
         element={
-          <RequireAuth>
+          <RequireSession>
             <Activate />
-          </RequireAuth>
+          </RequireSession>
         }
       />
       <Route
