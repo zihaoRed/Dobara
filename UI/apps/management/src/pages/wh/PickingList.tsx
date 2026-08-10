@@ -1,53 +1,65 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardContent, Badge, Button } from '@dobara/ui';
-import { ArrowRight, Box, MapPin, ArrowLeft } from 'lucide-react';
-
-const mockOrders = [
-  { orderId: 'ORD-001', device: 'iPhone 13', quantity: 5, destination: 'MobileXchange Andheri', status: 'ready' },
-  { orderId: 'ORD-002', device: 'Galaxy S22', quantity: 3, destination: 'GadgetMart CP', status: 'ready' },
-  { orderId: 'ORD-003', device: 'iPhone 14', quantity: 2, destination: 'Fonfix Koramangala', status: 'ready' },
-];
+import { Card, CardContent, Badge, Input } from '@dobara/ui';
+import { ArrowRight, MapPin, ArrowLeft } from 'lucide-react';
+import { searchPickOrders } from '../../lib/whStore';
 
 const PickingList: React.FC = () => {
   const navigate = useNavigate();
+  const [q, setQ] = useState('');
+  const orders = useMemo(() => searchPickOrders(q), [q]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="picking-list">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/wh')} className="p-1 hover:bg-surface-high rounded">
+        <button type="button" onClick={() => navigate('/wh')} className="p-1 hover:bg-surface-high rounded">
           <ArrowLeft size={20} className="text-text-secondary" />
         </button>
-        <h2 className="text-h3 font-heading">Pending Picking</h2>
+        <div>
+          <h2 className="text-h3 font-heading">Outbound tasks</h2>
+          <p className="text-caption text-text-muted">B2C prioritized · search order / IMEI</p>
+        </div>
       </div>
 
-      {mockOrders.map((order) => (
+      <Input
+        data-testid="picking-search"
+        label="Search"
+        value={q}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)}
+        placeholder="Order ID, IMEI, address…"
+      />
+
+      {orders.map((order) => (
         <Card
           key={order.orderId}
           variant="hover"
+          data-testid={`pick-order-${order.orderId}`}
           onClick={() => navigate(`/wh/picking/${order.orderId}/scan`)}
         >
           <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="space-y-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-body font-semibold">{order.orderId}</span>
-                  <Badge variant="success">{order.status}</Badge>
+                  {order.channel === 'B2C' && <Badge variant="accent">Priority · B2C</Badge>}
+                  {order.channel === 'B2B' && <Badge variant="neutral">B2B</Badge>}
+                  <Badge variant={order.status === 'done' ? 'success' : 'warning'}>{order.status}</Badge>
                 </div>
-                <p className="text-body text-text-secondary">{order.device} ×{order.quantity}</p>
-                <p className="text-caption text-text-muted flex items-center gap-1">
-                  <MapPin size={12} />
-                  {order.destination}
+                <p className="text-body text-text-secondary">{order.deviceSummary} ×{order.quantity}</p>
+                <p className="text-caption text-text-muted flex items-start gap-1">
+                  <MapPin size={12} className="mt-0.5 shrink-0" />
+                  <span>{order.address}</span>
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Box size={20} className="text-text-muted" />
-                <ArrowRight size={16} className="text-text-muted" />
-              </div>
+              <ArrowRight size={16} className="text-text-muted shrink-0 mt-1" />
             </div>
           </CardContent>
         </Card>
       ))}
+
+      {orders.length === 0 && (
+        <p className="text-center text-text-muted py-6">No open outbound tasks</p>
+      )}
     </div>
   );
 };

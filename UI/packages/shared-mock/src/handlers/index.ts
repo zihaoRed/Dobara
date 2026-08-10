@@ -390,15 +390,56 @@ export const handlers = [
     });
   }),
 
-  // Trade-in
-  http.post('/api/trade-in/:sessionId/price', async ({ request }) => {
-    await simulateDelay();
-    const body = await request.json() as { newPrice: number; actualPayment: number; deduction: number };
-    if (body.newPrice - body.deduction !== body.actualPayment) {
-      return HttpResponse.json({ error: 'Formula mismatch' }, { status: 400 });
-    }
-    return HttpResponse.json({ success: true });
-  }),
+  // Trade-in (OWN-P0-01) — in-memory demo sessions
+  ...(() => {
+    type TTrade = {
+      sessionId: string;
+      storeId: string;
+      customerName: string;
+      customerPhone: string;
+      device: string;
+      deduction: number;
+      status: 'pending' | 'awaiting_user_confirm' | 'confirmed' | 'submitted';
+      date: string;
+      newPrice?: number;
+      actualPayment?: number;
+      newDeviceHint?: string;
+    };
+    const tradeIns: TTrade[] = [
+      { sessionId: 'sess-001', storeId: 'ST-MH-0001', customerName: 'Rahul Sharma', customerPhone: '9876501001', device: 'iPhone 13 128GB', deduction: 38000, status: 'pending', date: '2026-08-10', newDeviceHint: 'iPhone 15' },
+      { sessionId: 'sess-002', storeId: 'ST-MH-0001', customerName: 'Priya Patel', customerPhone: '9876501002', device: 'Galaxy S22 256GB', deduction: 31000, status: 'pending', date: '2026-08-09', newDeviceHint: 'Galaxy S24' },
+      { sessionId: 'sess-003', storeId: 'ST-MH-0001', customerName: 'Amit Singh', customerPhone: '9876501003', device: 'OnePlus Nord 2 128GB', deduction: 14000, status: 'awaiting_user_confirm', date: '2026-08-08', newPrice: 28000, actualPayment: 14000, newDeviceHint: 'OnePlus 12R' },
+      { sessionId: 'sess-004', storeId: 'ST-MH-0001', customerName: 'Sneha Reddy', customerPhone: '9876501004', device: 'Xiaomi 11 Lite', deduction: 12000, status: 'confirmed', date: '2026-08-05', newPrice: 32000, actualPayment: 20000, newDeviceHint: 'Xiaomi 14' },
+      { sessionId: 'sess-101', storeId: 'ST-KA-0002', customerName: 'Arjun Nair', customerPhone: '9876502001', device: 'iPhone 12 64GB', deduction: 22000, status: 'pending', date: '2026-08-10' },
+    ];
+    return [
+      http.get('/api/trade-in', async ({ request }) => {
+        await simulateDelay();
+        const storeId = new URL(request.url).searchParams.get('storeId');
+        const list = storeId ? tradeIns.filter((t) => t.storeId === storeId) : tradeIns;
+        return HttpResponse.json({ sessions: list });
+      }),
+      http.get('/api/trade-in/:sessionId', async ({ params }) => {
+        await simulateDelay();
+        const t = tradeIns.find((x) => x.sessionId === String(params.sessionId));
+        if (!t) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+        return HttpResponse.json(t);
+      }),
+      http.post('/api/trade-in/:sessionId/price', async ({ params, request }) => {
+        await simulateDelay();
+        const body = await request.json() as { newPrice: number; actualPayment: number; deduction: number };
+        if (body.newPrice - body.deduction !== body.actualPayment) {
+          return HttpResponse.json({ error: 'Formula mismatch' }, { status: 400 });
+        }
+        const t = tradeIns.find((x) => x.sessionId === String(params.sessionId));
+        if (!t) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+        t.newPrice = body.newPrice;
+        t.actualPayment = body.actualPayment;
+        t.status = 'awaiting_user_confirm';
+        return HttpResponse.json({ success: true, session: t });
+      }),
+    ];
+  })(),
 
   // Ops Review
   http.get('/api/ops/review', async () => {

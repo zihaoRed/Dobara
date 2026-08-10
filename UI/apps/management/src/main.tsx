@@ -33,7 +33,10 @@ const startMSW = async () => {
   try {
     const { worker } = await import('@dobara/mock/browser');
     await Promise.race([
-      worker.start({ onUnhandledRequest: 'bypass' }),
+      worker.start({
+        onUnhandledRequest: 'bypass',
+        serviceWorker: { url: `${import.meta.env.BASE_URL}mockServiceWorker.js` },
+      }),
       new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 3000)),
     ]);
   } catch { /* ignore */ }

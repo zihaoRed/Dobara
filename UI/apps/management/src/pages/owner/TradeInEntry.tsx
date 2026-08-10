@@ -1,129 +1,201 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardContent, Button, Input, PriceDisplay } from '@dobara/ui';
+import { Card, CardHeader, CardContent, Button, Input, PriceDisplay, Badge } from '@dobara/ui';
 import { ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  getTradeIn,
+  submitTradeInPrice,
+  tradeInStatusLabel,
+  type ITradeInSession,
+} from '../../lib/tradeInStore';
 
 const TradeInEntry: React.FC = () => {
-  const { sessionId } = useParams<{ sessionId: string }>();
+  const { sessionId = '' } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
-
-  // Mock data — in real app, fetch from API
-  const oldDevicePrice = 38000;
-  const [newPrice, setNewPrice] = useState<string>('');
-  const [actualPayment, setActualPayment] = useState<string>('');
+  const [session, setSession] = useState<ITradeInSession | null>(null);
+  const [newPrice, setNewPrice] = useState('');
+  const [actualPayment, setActualPayment] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/trade-in/${sessionId}`);
+        if (res.ok) {
+          const data = await res.json() as ITradeInSession;
+          if (!cancelled) {
+            setSession(data);
+            if (data.newPrice != null) setNewPrice(String(data.newPrice));
+            if (data.actualPayment != null) setActualPayment(String(data.actualPayment));
+            if (data.status === 'awaiting_user_confirm' || data.status === 'confirmed') {
+              setSubmitted(data.status !== 'pending');
+            }
+          }
+          return;
+        }
+      } catch { /* fall through to local */ }
+      const local = getTradeIn(sessionId);
+      if (!cancelled) setSession(local || null);
+    })();
+    return () => { cancelled = true; };
+  }, [sessionId]);
+
+  if (!session) {
+    return (
+      <div className="text-center py-8 space-y-3">
+        <p className="text-text-muted">Trade-in session not found</p>
+        <Button variant="ghost" onClick={() => navigate('/owner')}>Back</Button>
+      </div>
+    );
+  }
+
+  const deduction = session.deduction;
   const newPriceNum = parseFloat(newPrice) || 0;
   const actualPaymentNum = parseFloat(actualPayment) || 0;
-  const isFormulaValid = newPriceNum - oldDevicePrice === actualPaymentNum;
+  const expected = newPriceNum - deduction;
+  const diff = actualPaymentNum - expected;
+  const isFormulaValid = newPrice !== '' && actualPayment !== '' && newPriceNum - deduction === actualPaymentNum;
   const hasInput = newPrice !== '' && actualPayment !== '';
-
   const handleSubmit = async () => {
     if (!isFormulaValid) {
-      setError('Formula mismatch: New Price - Deduction should equal Actual Payment');
+      setError(`Formula mismatch. Difference: ₹${diff.toLocaleString('en-IN')}`);
       return;
     }
     setError('');
+    setLoading(true);
+    const applyLocal = () => {
+      const local = submitTradeInPrice(sessionId, newPriceNum, actualPaymentNum);
+      if (local.ok) {
+        setSubmitted(true);
+        setSession(local.session);
+        return true;
+      }
+      setError(local.error);
+      return false;
+    };
     try {
       const res = await fetch(`/api/trade-in/${sessionId}/price`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newPrice: newPriceNum, actualPayment: actualPaymentNum, deduction: oldDevicePrice }),
+        body: JSON.stringify({ newPrice: newPriceNum, actualPayment: actualPaymentNum, deduction }),
       });
       if (res.ok) {
-        setSubmitted(true);
+        applyLocal();
       } else {
-        const data = await res.json();
-        setError(data.error || 'Submission failed');
+        const data = await res.json().catch(() => ({}));
+        if (!applyLocal()) {
+          setError((data as { error?: string }).error || 'Submission failed');
+        }
       }
     } catch {
-      setError('Network error');
+      applyLocal();
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (submitted) {
+  if (submitted || session.status === 'awaiting_user_confirm' || session.status === 'confirmed') {
     return (
-      <Card className="text-center py-6">
+      <Card className="text-center py-6" data-testid="tradein-submitted">
         <CardContent className="space-y-4">
           <CheckCircle size={48} className="text-primary-500 mx-auto" />
-          <h3 className="text-h3 font-heading">Trade-in Submitted!</h3>
+          <h3 className="text-h3 font-heading">Price submitted</h3>
+          <Badge variant="warning">{tradeInStatusLabel(session.status === 'pending' ? 'awaiting_user_confirm' : session.status)}</Badge>
           <p className="text-body text-text-secondary">
-            New device price ₹{newPriceNum.toLocaleString('en-IN')} — Deduction ₹{oldDevicePrice.toLocaleString('en-IN')}
+            {session.customerName} · {session.device}
+          </p>
+          <p className="text-body text-text-secondary">
+            New ₹{(session.newPrice ?? newPriceNum).toLocaleString('en-IN')} − Deduction ₹{deduction.toLocaleString('en-IN')}
           </p>
           <p className="text-h4 font-heading text-primary-500">
-            Actual Payment: ₹{actualPaymentNum.toLocaleString('en-IN')}
+            Actual: ₹{(session.actualPayment ?? actualPaymentNum).toLocaleString('en-IN')}
           </p>
-          <Button onClick={() => navigate('/owner')}>Back to Home</Button>
+          <p className="text-caption text-text-muted px-4">
+            Owner step complete. Waiting for the customer to confirm verification in the consumer App — you do not confirm here.
+          </p>
+          <Button data-testid="tradein-back" onClick={() => navigate('/owner')}>Back to Home</Button>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="tradein-entry">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/owner')} className="p-1 hover:bg-surface-high rounded">
+        <button type="button" onClick={() => navigate('/owner')} className="p-1 hover:bg-surface-high rounded">
           <ArrowLeft size={20} className="text-text-secondary" />
         </button>
-        <h2 className="text-h3 font-heading">Trade-in Entry</h2>
+        <div>
+          <h2 className="text-h3 font-heading">Trade-in Entry</h2>
+          <p className="text-caption text-text-muted">{sessionId} · {session.customerName}</p>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <h3 className="text-h4 font-heading">Device Trade-in Value</h3>
+          <h3 className="text-h4 font-heading">Old device deduction</h3>
         </CardHeader>
         <CardContent>
-          <PriceDisplay amount={oldDevicePrice} label="Old Device Deduction" />
-          <p className="text-caption text-text-muted mt-1">This amount will be deducted from the new device price</p>
+          <p className="text-caption text-text-muted mb-2">{session.device}</p>
+          <PriceDisplay amount={deduction} label="Deduction (read-only)" />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <h3 className="text-h4 font-heading">New Device Sale</h3>
+          <h3 className="text-h4 font-heading">New device sale</h3>
         </CardHeader>
         <CardContent className="space-y-4">
           <Input
-            label="New Device Selling Price (₹)"
+            data-testid="tradein-new-price"
+            label="New device selling price (₹)"
             type="number"
             value={newPrice}
-            onChange={(e) => setNewPrice(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPrice(e.target.value)}
             placeholder="e.g. 55000"
           />
 
           <div className="p-3 rounded-md bg-surface-low space-y-1">
             <div className="flex justify-between text-body">
-              <span>New Device Price</span>
+              <span>New device price</span>
               <span>₹{newPriceNum.toLocaleString('en-IN')}</span>
             </div>
             <div className="flex justify-between text-body">
-              <span>Old Device Deduction</span>
-              <span className="text-dobara-error">-₹{oldDevicePrice.toLocaleString('en-IN')}</span>
+              <span>Deduction</span>
+              <span className="text-dobara-error">−₹{deduction.toLocaleString('en-IN')}</span>
             </div>
             <div className="border-t border-border pt-1 flex justify-between text-body font-semibold">
-              <span>Expected Actual Payment</span>
-              <span>₹{(newPriceNum - oldDevicePrice).toLocaleString('en-IN')}</span>
+              <span>Expected actual payment</span>
+              <span>₹{expected.toLocaleString('en-IN')}</span>
             </div>
+            {hasInput && !isFormulaValid && (
+              <div className="flex justify-between text-caption text-dobara-error pt-1">
+                <span>Difference</span>
+                <span>₹{diff.toLocaleString('en-IN')} (entered − expected)</span>
+              </div>
+            )}
           </div>
 
           <Input
-            label="Actual Payment Received (₹)"
+            data-testid="tradein-actual"
+            label="Actual payment received (₹)"
             type="number"
             value={actualPayment}
-            onChange={(e) => setActualPayment(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setActualPayment(e.target.value)}
             placeholder="e.g. 17000"
             error={hasInput && !isFormulaValid ? 'Formula mismatch' : undefined}
           />
 
-          {/* Validation Indicator */}
           {hasInput && (
             <div className={`flex items-center gap-2 p-3 rounded-md ${isFormulaValid ? 'bg-dobara-success-light text-[#064e3b]' : 'bg-dobara-error-light text-[#7f1d1d]'}`}>
               {isFormulaValid ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
               <span className="text-body font-medium">
                 {isFormulaValid
-                  ? '✓ Formula verified: New Price - Deduction = Actual Payment'
-                  : '⚠ Formula mismatch: New Price - Deduction ≠ Actual Payment'}
+                  ? 'Formula verified: New − Deduction = Actual'
+                  : 'Formula mismatch — fix amounts before submit'}
               </span>
             </div>
           )}
@@ -134,10 +206,12 @@ const TradeInEntry: React.FC = () => {
             variant="primary"
             size="lg"
             className="w-full"
+            data-testid="tradein-submit"
+            loading={loading}
             disabled={!isFormulaValid || !hasInput}
             onClick={handleSubmit}
           >
-            Submit Trade-in
+            Submit (await user confirm)
           </Button>
         </CardContent>
       </Card>

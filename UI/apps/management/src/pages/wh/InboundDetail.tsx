@@ -1,108 +1,151 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardContent, Badge, Button, ProgressBar } from '@dobara/ui';
-import { ArrowLeft, Camera, Cpu, Database, Wifi, Battery, Volume2, Smartphone } from 'lucide-react';
-
-const mockSpecs = {
-  processor: 'A15 Bionic (6-core)',
-  ram: '4GB',
-  display: '6.1" OLED, 2532×1170, 60Hz',
-  rearCamera: '12MP Wide + 12MP Ultra Wide',
-  frontCamera: '12MP',
-  battery: '3240mAh, 87% health',
-  os: 'iOS 15 → iOS 18',
-  connectivity: '5G, Wi-Fi 6, Bluetooth 5.0',
-  security: 'Face ID',
-};
-
-const mockHardware = [
-  { name: 'IMEI / Serial', status: 'normal', value: '—' },
-  { name: 'Battery Health', status: 'normal', value: '87%' },
-  { name: 'Screen Touch', status: 'normal', value: 'All zones OK' },
-  { name: 'Sensors', status: 'normal', value: 'All responsive' },
-  { name: 'Storage', status: 'normal', value: '128GB / 82GB free' },
-  { name: 'Camera', status: 'abnormal', value: 'Rear cam blur' },
-  { name: 'Speaker/Mic', status: 'normal', value: 'Both OK' },
-  { name: 'Buttons', status: 'normal', value: 'All responsive' },
-];
+import { Card, CardHeader, CardContent, Badge, Button, Modal } from '@dobara/ui';
+import { ArrowLeft, Camera, Cpu, CheckCircle } from 'lucide-react';
+import { decidePassThrough, getDevice, startRefurbish, statusLabel } from '../../lib/whStore';
 
 const InboundDetail: React.FC = () => {
-  const { imei } = useParams<{ imei: string }>();
+  const { imei = '' } = useParams<{ imei: string }>();
   const navigate = useNavigate();
+  const device = useMemo(() => getDevice(imei), [imei]);
+  const [passOpen, setPassOpen] = useState(false);
+  const [passed, setPassed] = useState(false);
+
+  if (!device) {
+    return (
+      <div className="text-center py-8 space-y-3">
+        <p className="text-text-muted">Device not found. Confirm inbound first.</p>
+        <Button variant="ghost" onClick={() => navigate('/wh/inbound')}>Inbound scan</Button>
+      </div>
+    );
+  }
+
+  if (passed) {
+    return (
+      <Card className="text-center py-6" data-testid="pass-through-done">
+        <CardContent className="space-y-3">
+          <CheckCircle size={48} className="text-primary-500 mx-auto" />
+          <h3 className="text-h3 font-heading">Passed without refurbish</h3>
+          <p className="text-body text-text-secondary">Device moved to in-stock · pending listing path complete.</p>
+          <Button onClick={() => navigate('/wh')}>Back to warehouse</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const canDecide = device.status === 'pending_listing';
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="inbound-detail">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/wh')} className="p-1 hover:bg-surface-high rounded">
+        <button type="button" onClick={() => navigate('/wh')} className="p-1 hover:bg-surface-high rounded">
           <ArrowLeft size={20} className="text-text-secondary" />
         </button>
-        <h2 className="text-h3 font-heading">Device Detail</h2>
+        <div>
+          <h2 className="text-h3 font-heading">Device detail</h2>
+          <p className="text-caption text-text-muted">{statusLabel(device.status)}</p>
+        </div>
       </div>
 
-      {/* Device Info */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <h3 className="text-h4 font-heading">iPhone 13</h3>
-            <Badge variant="accent">Grade A</Badge>
+            <h3 className="text-h4 font-heading">{device.brand} {device.model}</h3>
+            <Badge variant="accent">Grade {device.grade}</Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
-          <p className="text-body font-mono">{imei}</p>
-          <p className="text-body text-text-secondary">Midnight · 128GB</p>
-          <p className="text-caption text-text-muted">From: MobileXchange Andheri, Mumbai</p>
+          <p className="text-body font-mono">{device.imei}</p>
+          <p className="text-body text-text-secondary">{device.color} · {device.storage}</p>
+          <p className="text-caption text-text-muted">From: {device.storeName}</p>
+          <p className="text-caption text-text-muted">Offer: ₹{device.offerPrice.toLocaleString('en-IN')}</p>
         </CardContent>
       </Card>
 
-      {/* Photos Section */}
       <Card>
         <CardHeader>
           <h3 className="text-h4 font-heading flex items-center gap-2">
-            <Camera size={18} /> Device Photos
+            <Camera size={18} /> QC photos (linked)
           </h3>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-2">
-            {['Front', 'Back', 'Left', 'Right', 'Screen On', 'Accessories'].map((label) => (
-              <div key={label} className="aspect-square rounded-md bg-surface-high flex items-center justify-center">
-                <Camera size={20} className="text-text-muted" />
+            {device.photos.map((label) => (
+              <div key={label} className="aspect-square rounded-md bg-surface-high flex flex-col items-center justify-center border border-dashed border-border px-1">
+                <Camera size={16} className="text-text-muted" />
+                <span className="text-[10px] text-text-muted text-center mt-1">{label}</span>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Hardware Results */}
       <Card>
         <CardHeader>
           <h3 className="text-h4 font-heading flex items-center gap-2">
-            <Cpu size={18} /> Hardware Diagnostics
+            <Cpu size={18} /> Hardware diagnostics
           </h3>
         </CardHeader>
         <CardContent className="space-y-2">
-          {mockHardware.map((h) => (
-            <div key={h.name} className="flex items-center justify-between py-1 border-b border-border last:border-0">
+          {device.hardware.map((h) => (
+            <div key={h.id} className="flex items-center justify-between py-1 border-b border-border last:border-0">
               <span className="text-body text-text-secondary">{h.name}</span>
               <div className="flex items-center gap-2">
-                <span className="text-caption text-text-body">{h.value}</span>
-                <Badge variant={h.status === 'normal' ? 'success' : h.status === 'abnormal' ? 'error' : 'warning'}>
-                  {h.status}
-                </Badge>
+                <span className="text-caption text-text-body">{h.note}</span>
+                <Badge variant={h.ok ? 'success' : 'error'}>{h.ok ? 'OK' : 'Fault'}</Badge>
               </div>
             </div>
           ))}
         </CardContent>
       </Card>
 
-      {/* Actions */}
-      <Button
-        variant="primary"
-        size="lg"
-        className="w-full"
-        onClick={() => navigate(`/wh/inbound/${imei}/refurbish`)}
-      >
-        Start Refurbish / Quality Check
-      </Button>
+      {canDecide && (
+        <div className="space-y-2">
+          <p className="text-caption text-text-muted">WH-P0-00 · Choose path after inbound</p>
+          <Button
+            variant="secondary"
+            size="lg"
+            className="w-full"
+            data-testid="pass-through"
+            onClick={() => setPassOpen(true)}
+          >
+            Pass through (no refurbish)
+          </Button>
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full"
+            data-testid="need-refurbish"
+            onClick={() => {
+              startRefurbish(imei);
+              navigate(`/wh/inbound/${imei}/refurbish`);
+            }}
+          >
+            Need refurbish / re-QC
+          </Button>
+        </div>
+      )}
+
+      <Modal open={passOpen} onClose={() => setPassOpen(false)} title="Pass through?" size="sm">
+        <p className="text-body text-text-secondary mb-4">
+          Confirm no refurbish needed. Device will move to in-stock using existing QC data.
+        </p>
+        <div className="flex gap-2">
+          <Button variant="secondary" className="flex-1" onClick={() => setPassOpen(false)}>Cancel</Button>
+          <Button
+            variant="primary"
+            className="flex-1"
+            data-testid="confirm-pass"
+            onClick={() => {
+              decidePassThrough(imei);
+              setPassOpen(false);
+              setPassed(true);
+            }}
+          >
+            Confirm
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };

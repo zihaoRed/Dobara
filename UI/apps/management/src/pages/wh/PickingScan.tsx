@@ -1,117 +1,144 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Button, Input, Badge } from '@dobara/ui';
-import { ArrowLeft, CheckCircle, ScanLine, Package } from 'lucide-react';
-
-const mockItems = [
-  { imei: '350000000000001', scanned: false },
-  { imei: '350000000000003', scanned: false },
-  { imei: '350000000000005', scanned: false },
-  { imei: '350000000000010', scanned: false },
-  { imei: '350000000000020', scanned: false },
-];
+import { ArrowLeft, CheckCircle, ScanLine, Package, AlertCircle } from 'lucide-react';
+import { getPickOrder, scanPickImei, type IPickOrder } from '../../lib/whStore';
 
 const PickingScan: React.FC = () => {
-  const { orderId } = useParams<{ orderId: string }>();
+  const { orderId = '' } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
+  const [order, setOrder] = useState<IPickOrder | undefined>(() => getPickOrder(orderId));
   const [scanInput, setScanInput] = useState('');
-  const [items, setItems] = useState(mockItems);
-  const [completed, setCompleted] = useState(false);
+  const [error, setError] = useState('');
+  const [lastOk, setLastOk] = useState('');
+  const [completed, setCompleted] = useState(order?.status === 'done');
+
+  const lines = order?.lines || [];
+  const scannedCount = lines.filter((i) => i.scanned).length;
+  const totalCount = lines.length;
 
   const handleScan = () => {
-    if (!scanInput.trim()) return;
-    const found = items.find((item) => item.imei === scanInput.trim() && !item.scanned);
-    if (found) {
-      setItems((prev) =>
-        prev.map((i) => (i.imei === found.imei ? { ...i, scanned: true } : i))
-      );
-      setScanInput('');
-      // Check if all scanned
-      const remaining = items.filter((i) => i.imei !== found.imei && !i.scanned).length;
-      if (remaining === 0) {
-        setCompleted(true);
-      }
+    setError('');
+    setLastOk('');
+    const result = scanPickImei(orderId, scanInput);
+    if (!result.ok) {
+      setError(result.error);
+      return;
     }
+    setOrder({ ...result.order });
+    setLastOk(`${result.line.brand} ${result.line.model} · ${result.line.imei}`);
+    setScanInput('');
+    if (result.allDone) setCompleted(true);
   };
 
-  const scannedCount = items.filter((i) => i.scanned).length;
-  const totalCount = items.length;
-  const allScanned = scannedCount === totalCount || completed;
+  if (!order) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-text-muted">Order not found</p>
+        <Button variant="ghost" onClick={() => navigate('/wh/picking')}>Back</Button>
+      </div>
+    );
+  }
 
   if (completed) {
     return (
-      <Card className="text-center py-6">
+      <Card className="text-center py-6" data-testid="picking-complete">
         <CardContent className="space-y-4">
           <CheckCircle size={48} className="text-primary-500 mx-auto" />
-          <h3 className="text-h3 font-heading">Picking Complete!</h3>
+          <h3 className="text-h3 font-heading">Picking complete</h3>
           <p className="text-body text-text-secondary">
-            All {totalCount} devices scanned for order {orderId}
+            All {totalCount} IMEI matched for {orderId}
           </p>
-          <Button onClick={() => navigate('/wh')}>Back to Warehouse</Button>
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full"
+            data-testid="go-print-label"
+            onClick={() => navigate(`/wh/picking/${orderId}/label`)}
+          >
+            Print shipping label
+          </Button>
+          <Button variant="ghost" onClick={() => navigate('/wh/picking')}>Back to list</Button>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="picking-scan">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/wh/picking')} className="p-1 hover:bg-surface-high rounded">
+        <button type="button" onClick={() => navigate('/wh/picking')} className="p-1 hover:bg-surface-high rounded">
           <ArrowLeft size={20} className="text-text-secondary" />
         </button>
-        <h2 className="text-h3 font-heading">Picking Scan</h2>
+        <div>
+          <h2 className="text-h3 font-heading">IMEI verify</h2>
+          <p className="text-caption text-text-muted">{orderId} · {order.channel}</p>
+        </div>
       </div>
 
-      {/* Progress */}
       <Card>
         <CardContent>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-body font-semibold">{orderId}</p>
-            <Badge variant={allScanned ? 'success' : 'warning'}>
-              {scannedCount}/{totalCount} Scanned
-            </Badge>
+            <p className="text-body font-semibold">{order.deviceSummary}</p>
+            <Badge variant="warning">{scannedCount}/{totalCount}</Badge>
           </div>
+          <p className="text-caption text-text-muted mb-2">{order.address}</p>
           <div className="w-full bg-surface-high rounded-full h-2">
             <div
-              className="bg-primary-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${(scannedCount / totalCount) * 100}%` }}
+              className="bg-primary-500 h-2 rounded-full transition-all"
+              style={{ width: `${totalCount ? (scannedCount / totalCount) * 100 : 0}%` }}
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* Scan Input */}
       <Card>
         <CardHeader>
           <h3 className="text-h4 font-heading">Scan IMEI</h3>
         </CardHeader>
         <CardContent className="space-y-3">
           <Input
+            data-testid="pick-imei"
             label="IMEI"
             value={scanInput}
-            onChange={(e) => setScanInput(e.target.value)}
-            placeholder="Scan device IMEI..."
-            onKeyDown={(e) => e.key === 'Enter' && handleScan()}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setScanInput(e.target.value)}
+            placeholder="Scan device IMEI…"
+            onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && handleScan()}
           />
+          <p className="text-caption text-text-muted font-mono">
+            Demo: {lines.map((l) => l.imei).join(', ')}
+          </p>
           <Button
             variant="primary"
             className="w-full"
             icon={<ScanLine size={18} />}
             disabled={!scanInput.trim()}
+            data-testid="pick-scan-btn"
             onClick={handleScan}
           >
-            Scan Device
+            Verify IMEI
           </Button>
+          {error && (
+            <div className="flex gap-2 p-3 rounded-md bg-dobara-error-light text-[#7f1d1d]" data-testid="pick-error">
+              <AlertCircle size={18} className="shrink-0" />
+              <p className="text-caption font-semibold">{error}</p>
+            </div>
+          )}
+          {lastOk && (
+            <div className="flex gap-2 p-3 rounded-md bg-dobara-success-light text-[#064e3b]" data-testid="pick-ok">
+              <CheckCircle size={18} className="shrink-0" />
+              <p className="text-caption font-semibold">Matched: {lastOk}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Device List */}
       <Card>
         <CardHeader>
-          <h3 className="text-h4 font-heading">Devices ({scannedCount}/{totalCount})</h3>
+          <h3 className="text-h4 font-heading">Lines</h3>
         </CardHeader>
         <CardContent className="space-y-1">
-          {items.map((item) => (
+          {lines.map((item) => (
             <div
               key={item.imei}
               className={`flex items-center gap-2 p-2 rounded-md ${
@@ -124,7 +151,7 @@ const PickingScan: React.FC = () => {
                 <Package size={16} className="text-text-muted" />
               )}
               <span className="text-body font-mono">{item.imei}</span>
-              {item.scanned && <span className="text-caption text-dobara-success ml-auto">Scanned ✓</span>}
+              <span className="text-caption text-text-muted ml-auto">{item.model}</span>
             </div>
           ))}
         </CardContent>

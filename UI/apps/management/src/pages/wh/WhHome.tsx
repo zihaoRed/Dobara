@@ -1,59 +1,72 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardContent, Badge, Button } from '@dobara/ui';
-import { ArrowRight, Package, Truck } from 'lucide-react';
-
-const mockPendingInbound = [
-  { imei: '350000000000001', brand: 'Apple', model: 'iPhone 13', grade: 'A', store: 'MobileXchange Andheri', color: 'Midnight' },
-  { imei: '350000000000002', brand: 'Apple', model: 'iPhone 13', grade: 'B', store: 'GadgetMart CP', color: 'Blue' },
-  { imei: '350000000000003', brand: 'Apple', model: 'iPhone 12', grade: 'A', store: 'MobileXchange Andheri', color: 'White' },
-  { imei: '350000000000007', brand: 'Samsung', model: 'Galaxy S22', grade: 'A', store: 'MobileXchange Andheri', color: 'Phantom Black' },
-];
+import { Card, CardHeader, CardContent, Badge } from '@dobara/ui';
+import { ArrowRight, Package, Truck, Printer, Search } from 'lucide-react';
+import { listPendingInbound, listPickOrders } from '../../lib/whStore';
 
 const WhHome: React.FC = () => {
   const navigate = useNavigate();
+  const pending = useMemo(() => listPendingInbound(), []);
+  const openOrders = useMemo(() => listPickOrders(false), []);
+  const b2cFirst = openOrders.filter((o) => o.channel === 'B2C').length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="wh-home">
       <h2 className="text-h3 font-heading">Warehouse Overview</h2>
 
-      {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
-        <Card variant="hover" onClick={() => navigate('/wh/inbound')}>
+        <Card variant="hover" onClick={() => navigate('/wh/inbound')} data-testid="nav-inbound">
           <CardContent className="text-center space-y-2 py-4">
             <div className="p-3 rounded-full bg-primary-50 w-fit mx-auto">
               <Package size={24} className="text-primary-500" />
             </div>
-            <p className="text-body font-semibold">Inbound Scan</p>
-            <p className="text-caption text-text-muted">Receive devices</p>
+            <p className="text-body font-semibold">Inbound</p>
+            <p className="text-caption text-text-muted">{pending.length} awaiting</p>
           </CardContent>
         </Card>
-        <Card variant="hover" onClick={() => navigate('/wh/picking')}>
+        <Card variant="hover" onClick={() => navigate('/wh/picking')} data-testid="nav-picking">
           <CardContent className="text-center space-y-2 py-4">
             <div className="p-3 rounded-full bg-accent-50 w-fit mx-auto">
               <Truck size={24} className="text-accent-500" />
             </div>
             <p className="text-body font-semibold">Picking</p>
-            <p className="text-caption text-text-muted">Outbound orders</p>
+            <p className="text-caption text-text-muted">{openOrders.length} open · {b2cFirst} B2C</p>
+          </CardContent>
+        </Card>
+        <Card variant="hover" onClick={() => navigate('/wh/inventory')} data-testid="nav-inventory">
+          <CardContent className="text-center space-y-2 py-4">
+            <div className="p-3 rounded-full bg-dobara-info-light w-fit mx-auto">
+              <Search size={24} className="text-dobara-info" />
+            </div>
+            <p className="text-body font-semibold">Inventory</p>
+            <p className="text-caption text-text-muted">Query stock</p>
+          </CardContent>
+        </Card>
+        <Card variant="hover" onClick={() => navigate('/wh/picking')} data-testid="nav-labels">
+          <CardContent className="text-center space-y-2 py-4">
+            <div className="p-3 rounded-full bg-surface-high w-fit mx-auto">
+              <Printer size={24} className="text-text-secondary" />
+            </div>
+            <p className="text-body font-semibold">Labels</p>
+            <p className="text-caption text-text-muted">After IMEI scan</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Pending Inbound */}
       <Card>
         <CardHeader>
-          <h3 className="text-h4 font-heading">Pending Inbound ({mockPendingInbound.length})</h3>
+          <h3 className="text-h4 font-heading">Pending inbound ({pending.length})</h3>
         </CardHeader>
         <CardContent className="space-y-2">
-          {mockPendingInbound.map((d) => (
+          {pending.map((d) => (
             <div
               key={d.imei}
-              onClick={() => navigate(`/wh/inbound/${d.imei}`)}
+              onClick={() => navigate(`/wh/inbound?prefill=${d.imei}`)}
               className="flex items-center justify-between p-2 rounded-md bg-surface-low hover:bg-surface-high cursor-pointer transition-colors"
             >
               <div>
                 <p className="text-body font-medium">{d.brand} {d.model}</p>
-                <p className="text-caption text-text-body">{d.imei} · {d.color} · {d.store}</p>
+                <p className="text-caption text-text-body">{d.imei} · {d.color} · {d.storeName}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Badge variant="warning">{d.grade}</Badge>
@@ -61,6 +74,9 @@ const WhHome: React.FC = () => {
               </div>
             </div>
           ))}
+          {pending.length === 0 && (
+            <p className="text-center text-text-muted py-4">No devices awaiting inbound</p>
+          )}
         </CardContent>
       </Card>
     </div>

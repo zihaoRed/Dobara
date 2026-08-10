@@ -1,31 +1,47 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Badge, Button } from '@dobara/ui';
-import { ArrowRight, TrendingUp, Clock, CheckCircle } from 'lucide-react';
+import { ArrowRight, TrendingUp, Clock, CheckCircle, Building2, Bell } from 'lucide-react';
+import { useOwnerStore } from '../../lib/useOwnerStore';
+import { listTradeIns, pendingCount, tradeInStatusLabel, type TTradeInStatus } from '../../lib/tradeInStore';
+import { getRevenueForStore } from '../../lib/revenueStore';
+import { listOwnerNotices } from '../../lib/dbStore';
 
-interface TradeInItem {
-  sessionId: string;
-  customerName: string;
-  device: string;
-  oldDevicePrice: number;
-  status: 'pending' | 'submitted' | 'confirmed';
-  date: string;
+function badgeVariant(status: TTradeInStatus): 'warning' | 'success' | 'info' | 'neutral' {
+  if (status === 'pending') return 'warning';
+  if (status === 'awaiting_user_confirm') return 'info';
+  if (status === 'confirmed') return 'success';
+  return 'neutral';
 }
-
-const mockTradeIns: TradeInItem[] = [
-  { sessionId: 'sess-001', customerName: 'Rahul Sharma', device: 'iPhone 13 128GB', oldDevicePrice: 38000, status: 'pending', date: '2026-07-30' },
-  { sessionId: 'sess-002', customerName: 'Priya Patel', device: 'Galaxy S22 256GB', oldDevicePrice: 31000, status: 'pending', date: '2026-07-29' },
-  { sessionId: 'sess-003', customerName: 'Amit Singh', device: 'OnePlus Nord 2 128GB', oldDevicePrice: 14000, status: 'submitted', date: '2026-07-28' },
-];
 
 const OwnerHome: React.FC = () => {
   const navigate = useNavigate();
+  const { storeId, storeName } = useOwnerStore();
+  const revenue = getRevenueForStore(storeId);
+  const tradeIns = useMemo(() => listTradeIns(storeId), [storeId]);
+  const pending = pendingCount(storeId);
+  const awaiting = tradeIns.filter((t) => t.status === 'awaiting_user_confirm').length;
+  const inbox = tradeIns.filter((t) => t.status === 'pending' || t.status === 'awaiting_user_confirm');
+  const notices = useMemo(() => listOwnerNotices(storeId).slice(0, 5), [storeId]);
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-h3 font-heading">Store Overview</h2>
+    <div className="space-y-4" data-testid="owner-home">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-h3 font-heading">Store Overview</h2>
+          <p className="text-caption text-text-muted">{storeName}</p>
+        </div>
+        {(pending > 0 || awaiting > 0) && (
+          <span
+            className="inline-flex items-center gap-1 rounded-full bg-accent-50 text-accent-800 px-2.5 py-1 text-caption font-semibold"
+            data-testid="tradein-badge"
+          >
+            <Bell size={14} />
+            {pending} pending · {awaiting} awaiting user
+          </span>
+        )}
+      </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
           <CardContent className="flex items-center gap-3">
@@ -33,8 +49,8 @@ const OwnerHome: React.FC = () => {
               <Clock size={20} className="text-accent-500" />
             </div>
             <div>
-              <p className="text-caption text-text-muted">Today Pending</p>
-              <p className="text-h4 font-heading">12</p>
+              <p className="text-caption text-text-muted">Pending entry</p>
+              <p className="text-h4 font-heading" data-testid="kpi-pending">{pending}</p>
             </div>
           </CardContent>
         </Card>
@@ -44,8 +60,8 @@ const OwnerHome: React.FC = () => {
               <CheckCircle size={20} className="text-primary-500" />
             </div>
             <div>
-              <p className="text-caption text-text-muted">This Month</p>
-              <p className="text-h4 font-heading">47</p>
+              <p className="text-caption text-text-muted">This month</p>
+              <p className="text-h4 font-heading">{revenue.monthlyRecycled}</p>
             </div>
           </CardContent>
         </Card>
@@ -55,8 +71,8 @@ const OwnerHome: React.FC = () => {
               <TrendingUp size={20} className="text-dobara-info" />
             </div>
             <div>
-              <p className="text-caption text-text-muted">Revenue</p>
-              <p className="text-h4 font-heading">₹1.8L</p>
+              <p className="text-caption text-text-muted">Deduction</p>
+              <p className="text-h4 font-heading">₹{(revenue.totalDeduction / 100000).toFixed(1)}L</p>
             </div>
           </CardContent>
         </Card>
@@ -67,21 +83,47 @@ const OwnerHome: React.FC = () => {
             </div>
             <div>
               <p className="text-caption text-text-muted">Closed</p>
-              <p className="text-h4 font-heading">39</p>
+              <p className="text-h4 font-heading">{revenue.tradeInCount}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Pending Trade-ins */}
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="secondary" onClick={() => navigate('/owner/revenue')}>Revenue</Button>
+        <Button size="sm" variant="secondary" onClick={() => navigate('/owner/clerks')}>Staff</Button>
+        <Button size="sm" variant="secondary" icon={<Building2 size={14} />} onClick={() => navigate('/owner/b2b')}>
+          B2B Procurement
+        </Button>
+      </div>
+
+      {notices.length > 0 && (
+        <Card data-testid="owner-notices">
+          <CardHeader>
+            <h3 className="text-h4 font-heading">Finance alerts</h3>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {notices.map((n) => (
+              <div key={n.id} className="p-2 rounded-md bg-dobara-warning-light text-[#78350f] text-caption">
+                {n.message}
+                <span className="block text-eyebrow opacity-80 mt-0.5">
+                  {new Date(n.createdAt).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
-          <h3 className="text-h4 font-heading">Pending Trade-ins</h3>
+          <h3 className="text-h4 font-heading">Trade-in inbox</h3>
         </CardHeader>
         <CardContent className="space-y-3">
-          {mockTradeIns.map((item) => (
+          {inbox.map((item) => (
             <div
               key={item.sessionId}
+              data-testid={`tradein-row-${item.sessionId}`}
               onClick={() => navigate(`/owner/trade-in/${item.sessionId}`)}
               className="flex items-center justify-between p-3 rounded-md bg-surface-low hover:bg-surface-high cursor-pointer transition-colors"
             >
@@ -91,16 +133,14 @@ const OwnerHome: React.FC = () => {
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right">
-                  <p className="text-body font-semibold">₹{(item.oldDevicePrice).toLocaleString('en-IN')}</p>
-                  <Badge variant={item.status === 'pending' ? 'warning' : 'success'}>
-                    {item.status}
-                  </Badge>
+                  <p className="text-body font-semibold">₹{item.deduction.toLocaleString('en-IN')}</p>
+                  <Badge variant={badgeVariant(item.status)}>{tradeInStatusLabel(item.status)}</Badge>
                 </div>
                 <ArrowRight size={16} className="text-text-muted" />
               </div>
             </div>
           ))}
-          {mockTradeIns.length === 0 && (
+          {inbox.length === 0 && (
             <p className="text-center text-text-muted py-4">No pending trade-ins</p>
           )}
         </CardContent>

@@ -1,92 +1,85 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Button, Badge } from '@dobara/ui';
-import { ArrowLeft, Download, FileText } from 'lucide-react';
-
-const mockDetails = [
-  { type: 'recycling', description: 'iPhone 13 #350000000000001', amount: 38000, date: '2026-07-15' },
-  { type: 'recycling', description: 'Galaxy S22 #350000000000009', amount: 24000, date: '2026-07-18' },
-  { type: 'recycling', description: 'iPhone 14 #350000000000005', amount: 50000, date: '2026-07-20' },
-  { type: 'recycling', description: 'OnePlus Nord 2 #350000000000012', amount: 18000, date: '2026-07-22' },
-  { type: 'purchase', description: 'B2B Order ORD-001', amount: 180000, date: '2026-07-25' },
-  { type: 'purchase', description: 'B2B Order ORD-004', amount: 95000, date: '2026-07-28' },
-  { type: 'recycling', description: 'iPhone 12 #350000000000003', amount: 29000, date: '2026-07-29' },
-];
-
-const storeNames: Record<string, string> = {
-  'st-mum-1': 'MobileXchange Andheri',
-  'st-del-1': 'GadgetMart CP',
-  'st-blr-1': 'Fonfix Koramangala',
-};
+import { ArrowLeft, Download } from 'lucide-react';
+import { buildReconLines, DB_STORES, downloadText, exportReconCsv } from '../../lib/dbStore';
 
 const ReconciliationDetail: React.FC = () => {
-  const { storeId, period } = useParams<{ storeId: string; period: string }>();
+  const { storeId = '', period = '' } = useParams<{ storeId: string; period: string }>();
   const navigate = useNavigate();
+  const [start, end] = period.includes('_') ? period.split('_') : [period, period];
+  const storeName = DB_STORES.find((s) => s.id === storeId)?.name || storeId;
 
-  const recyclingTotal = mockDetails
-    .filter((d) => d.type === 'recycling')
-    .reduce((sum, d) => sum + d.amount, 0);
-  const purchaseTotal = mockDetails
-    .filter((d) => d.type === 'purchase')
-    .reduce((sum, d) => sum + d.amount, 0);
+  const lines = useMemo(() => buildReconLines(storeId, start, end || start), [storeId, start, end]);
+
+  const recyclingTotal = lines.filter((d) => d.type === 'recycling').reduce((sum, d) => sum + d.amount, 0);
+  const purchaseTotal = lines.filter((d) => d.type === 'purchase').reduce((sum, d) => sum + d.amount, 0);
   const netSettlement = recyclingTotal - purchaseTotal;
 
+  const onExportCsv = () => {
+    const csv = exportReconCsv(storeName, start, end || start, lines);
+    downloadText(`recon_${storeId}_${start}_${end || start}.csv`, csv);
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="recon-detail">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate('/db/reconciliation')} className="p-1 hover:bg-surface-high rounded">
+        <button type="button" onClick={() => navigate('/db/reconciliation')} className="p-1 hover:bg-surface-high rounded">
           <ArrowLeft size={20} className="text-text-secondary" />
         </button>
-        <h2 className="text-h3 font-heading">Reconciliation Detail</h2>
+        <h2 className="text-h3 font-heading">Reconciliation detail</h2>
       </div>
 
-      {/* Header */}
       <Card>
         <CardContent className="space-y-2">
-          <p className="text-body font-semibold">{storeNames[storeId || ''] || storeId}</p>
-          <p className="text-caption text-text-muted">Period: {period}</p>
+          <p className="text-body font-semibold">{storeName}</p>
+          <p className="text-caption text-text-muted">Period: {start} → {end || start}</p>
         </CardContent>
       </Card>
 
-      {/* Summary */}
       <div className="grid grid-cols-2 gap-3">
         <Card>
           <CardContent className="text-center space-y-1">
-            <p className="text-caption text-text-muted">Recycling Total</p>
-            <p className="text-h3 font-heading text-primary-500">₹{recyclingTotal.toLocaleString('en-IN')}</p>
+            <p className="text-caption text-text-muted">Recycling total</p>
+            <p className="text-h3 font-heading text-primary-500" data-testid="recon-recycle">
+              ₹{recyclingTotal.toLocaleString('en-IN')}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="text-center space-y-1">
-            <p className="text-caption text-text-muted">B2B Purchase</p>
-            <p className="text-h3 font-heading text-accent-500">₹{purchaseTotal.toLocaleString('en-IN')}</p>
+            <p className="text-caption text-text-muted">B2B purchase</p>
+            <p className="text-h3 font-heading text-accent-500" data-testid="recon-purchase">
+              ₹{purchaseTotal.toLocaleString('en-IN')}
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Net Settlement */}
       <Card>
         <CardContent className="text-center">
-          <p className="text-caption text-text-muted">Net Settlement</p>
-          <p className={`text-h2 font-heading ${netSettlement >= 0 ? 'text-dobara-success' : 'text-dobara-error'}`}>
-            {netSettlement >= 0 ? '+' : '-'}₹{Math.abs(netSettlement).toLocaleString('en-IN')}
+          <p className="text-caption text-text-muted">Net settlement</p>
+          <p
+            className={`text-h2 font-heading ${netSettlement >= 0 ? 'text-dobara-success' : 'text-dobara-error'}`}
+            data-testid="recon-net"
+          >
+            {netSettlement >= 0 ? '+' : '−'}₹{Math.abs(netSettlement).toLocaleString('en-IN')}
           </p>
         </CardContent>
       </Card>
 
-      {/* Line Items */}
       <Card>
         <CardHeader>
-          <h3 className="text-h4 font-heading">Transaction Details</h3>
+          <h3 className="text-h4 font-heading">Transactions ({lines.length})</h3>
         </CardHeader>
         <CardContent className="space-y-1">
-          {mockDetails.map((d, idx) => (
-            <div key={idx} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-              <div>
-                <p className="text-body">{d.description}</p>
+          {lines.map((d, idx) => (
+            <div key={idx} className="flex items-center justify-between py-2 border-b border-border last:border-0 gap-2">
+              <div className="min-w-0">
+                <p className="text-body truncate">{d.description}</p>
                 <p className="text-caption text-text-muted">{d.date}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <Badge variant={d.type === 'recycling' ? 'success' : 'accent'}>
                   {d.type === 'recycling' ? 'Recycling' : 'Purchase'}
                 </Badge>
@@ -97,30 +90,17 @@ const ReconciliationDetail: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Totals */}
-      <Card>
-        <CardContent className="space-y-2">
-          <div className="flex justify-between py-1 border-b border-border">
-            <span className="text-body text-text-secondary">Recycling Total</span>
-            <span className="text-body font-semibold text-dobara-success">+₹{recyclingTotal.toLocaleString('en-IN')}</span>
-          </div>
-          <div className="flex justify-between py-1 border-b border-border">
-            <span className="text-body text-text-secondary">B2B Purchase Total</span>
-            <span className="text-body font-semibold text-accent-500">-₹{purchaseTotal.toLocaleString('en-IN')}</span>
-          </div>
-          <div className="flex justify-between py-1 font-semibold">
-            <span className="text-body">Net Settlement</span>
-            <span className={`text-body ${netSettlement >= 0 ? 'text-dobara-success' : 'text-dobara-error'}`}>
-              ₹{netSettlement.toLocaleString('en-IN')}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Export */}
-      <Button variant="secondary" size="lg" className="w-full" icon={<Download size={18} />}>
-        Export Statement (CSV)
+      <Button
+        variant="secondary"
+        size="lg"
+        className="w-full"
+        icon={<Download size={18} />}
+        data-testid="export-csv"
+        onClick={onExportCsv}
+      >
+        Export CSV
       </Button>
+      <p className="text-caption text-text-muted text-center">PDF / Excel export — placeholder (CSV available now)</p>
     </div>
   );
 };
