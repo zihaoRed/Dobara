@@ -16,7 +16,6 @@ import {
   Settings,
   RefreshCw,
   UserRound,
-  Building2,
 } from 'lucide-react';
 import { Modal, Button } from '@dobara/ui';
 import { useAuth } from '../lib/AuthContext';
@@ -33,7 +32,6 @@ const ownerNav: NavItem[] = [
   { label: 'Revenue', path: '/owner/revenue', icon: <BarChart3 size={18} /> },
   { label: 'Trade-in History', path: '/owner/trade-in/history', icon: <History size={18} /> },
   { label: 'Staff', path: '/owner/clerks', icon: <Users size={18} /> },
-  { label: 'B2B Procurement', path: '/owner/b2b', icon: <Building2 size={18} /> },
 ];
 
 const whNav: NavItem[] = [

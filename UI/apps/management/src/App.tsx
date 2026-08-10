@@ -32,8 +32,6 @@ import ClerkList from './pages/owner/ClerkList';
 import ClerkAdd from './pages/owner/ClerkAdd';
 import ClerkDetail from './pages/owner/ClerkDetail';
 import RevenueDashboard from './pages/owner/RevenueDashboard';
-import B2BProcurement from './pages/owner/B2BProcurement';
-
 import WhHome from './pages/wh/WhHome';
 import InboundScan from './pages/wh/InboundScan';
 import InboundDetail from './pages/wh/InboundDetail';
@@ -249,7 +247,6 @@ function AppRoutes() {
           <Route path="clerks/add" element={<ClerkAdd />} />
           <Route path="clerks/:clerkId" element={<ClerkDetail />} />
           <Route path="revenue" element={<RevenueDashboard />} />
-          <Route path="b2b" element={<B2BProcurement />} />
         </Route>
 
         <Route path="/wh" element={<ModuleGuard module="wh" />}>

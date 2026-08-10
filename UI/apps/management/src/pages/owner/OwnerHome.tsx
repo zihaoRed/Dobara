@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Badge, Button } from '@dobara/ui';
-import { ArrowRight, TrendingUp, Clock, CheckCircle, Building2, Bell } from 'lucide-react';
+import { ArrowRight, TrendingUp, Clock, CheckCircle, Bell } from 'lucide-react';
 import { useOwnerStore } from '../../lib/useOwnerStore';
 import { listTradeIns, pendingCount, tradeInStatusLabel, type TTradeInStatus } from '../../lib/tradeInStore';
 import { getRevenueForStore } from '../../lib/revenueStore';
@@ -92,9 +92,6 @@ const OwnerHome: React.FC = () => {
       <div className="flex flex-wrap gap-2">
         <Button size="sm" variant="secondary" onClick={() => navigate('/owner/revenue')}>Revenue</Button>
         <Button size="sm" variant="secondary" onClick={() => navigate('/owner/clerks')}>Staff</Button>
-        <Button size="sm" variant="secondary" icon={<Building2 size={14} />} onClick={() => navigate('/owner/b2b')}>
-          B2B Procurement
-        </Button>
       </div>
 
       {notices.length > 0 && (
