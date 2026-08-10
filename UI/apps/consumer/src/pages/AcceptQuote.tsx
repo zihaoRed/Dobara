@@ -92,8 +92,8 @@ export function AcceptQuote() {
       </Card>
 
       {/* Fixed Bottom Buttons */}
-      <div className="fixed bottom-0 left-0 right-0 bg-surface-container border-t border-border p-4 z-30">
-        <div className="max-w-lg mx-auto flex gap-3">
+      <div className="fixed bottom-0 left-0 right-0 px-3 pb-3 z-30">
+        <div className="max-w-lg mx-auto flex gap-3 rounded-2xl border border-border bg-surface-container p-4 shadow-card">
           <Button
             variant="danger"
             size="lg"

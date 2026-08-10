@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Tabs, Badge, GradeBadge, PriceDisplay, Button, SkeletonCard, ProgressBar } from '@dobara/ui';
+import { Card, Tabs, Badge, GradeBadge, PriceDisplay, Button, SkeletonCard, ProgressBar, Modal } from '@dobara/ui';
 import { Camera, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { IDevice, IModel, IBrand } from '@dobara/utils';
+import { imeiLast4 } from '@dobara/utils';
 
 /* ── Demo fallback data ── */
 const DEMO_BRANDS: Record<string, IBrand> = {
@@ -44,6 +45,8 @@ export function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('condition');
   const [mainImage, setMainImage] = useState(0);
+  const [buyLoading, setBuyLoading] = useState(false);
+  const [blockReason, setBlockReason] = useState<'locked' | 'sold' | null>(null);
 
   // Simulated inspection photo angles
   const photoAngles = [
@@ -107,6 +110,39 @@ export function ProductDetail() {
 
   const specs = model.specs || {};
   const brandName = brand?.name || DEMO_BRANDS[device.brandId]?.name || device.brandId;
+
+  const handleBuyNow = async () => {
+    if (!imei) return;
+    setBuyLoading(true);
+    try {
+      const res = await fetch(`/api/devices/${imei}/availability`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'locked') {
+          setBlockReason('locked');
+          return;
+        }
+        if (data.status === 'sold') {
+          setBlockReason('sold');
+          return;
+        }
+        if (data.available) {
+          navigate(`/buy/product/${imei}/order`);
+          return;
+        }
+      }
+      // Demo fallback: allow when MSW unavailable and device looks available
+      if (device.status === 'available' || !device.status) {
+        navigate(`/buy/product/${imei}/order`);
+        return;
+      }
+      setBlockReason(device.status === 'sold' ? 'sold' : 'locked');
+    } catch {
+      navigate(`/buy/product/${imei}/order`);
+    } finally {
+      setBuyLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-lg md:max-w-4xl mx-auto pb-[140px]">
@@ -190,7 +226,7 @@ export function ProductDetail() {
       />
 
       {activeTab === 'condition' && (
-        <div className="space-y-3">
+        <div className="space-y-3" data-testid="condition-tab">
           <Card>
             <h3 className="text-h4 font-heading mb-3">Condition Report</h3>
             <div className="space-y-3">
@@ -198,17 +234,44 @@ export function ProductDetail() {
                 <span className="text-body text-text-secondary">Grade</span>
                 <GradeBadge grade={device.grade} size="md" />
               </div>
-              <ProgressBar
-                value={device.grade === 'A' ? 95 : device.grade === 'B' ? 80 : device.grade === 'C' ? 60 : 40}
-                color={device.grade === 'A' ? 'success' : device.grade === 'B' ? 'primary' : device.grade === 'C' ? 'warning' : 'error'}
-                showLabel
-              />
               <p className="text-caption text-text-muted">
-                {device.grade === 'A' && 'Like-new condition, no visible wear. All functions tested and working perfectly.'}
-                {device.grade === 'B' && 'Excellent condition, minor signs of use. Light scratches possible. All functions operational.'}
-                {device.grade === 'C' && 'Good condition with visible wear. Scratches and minor dents. Core functions tested.'}
-                {device.grade === 'D' && 'Fair condition, heavy use signs. Visible scratches and dents. All functions working.'}
+                {device.grade === 'A' && 'A — Like New (99% new)'}
+                {device.grade === 'B' && 'B — Excellent (minor signs of use)'}
+                {device.grade === 'C' && 'C — Good (visible wear)'}
+                {device.grade === 'D' && 'D — Fair (heavy use)'}
               </p>
+            </div>
+          </Card>
+          <Card>
+            <h3 className="text-h4 font-heading mb-3">Battery Health</h3>
+            <ProgressBar
+              value={device.grade === 'A' ? 92 : device.grade === 'B' ? 84 : device.grade === 'C' ? 76 : 68}
+              color={device.grade === 'A' || device.grade === 'B' ? 'success' : device.grade === 'C' ? 'warning' : 'error'}
+              showLabel
+            />
+            <p className="text-caption text-text-muted mt-2">
+              {device.grade === 'A' || device.grade === 'B' ? 'Good' : device.grade === 'C' ? 'Replace soon' : 'Needs replacement'}
+            </p>
+          </Card>
+          <Card>
+            <h3 className="text-h4 font-heading mb-3">Appearance</h3>
+            <div className="space-y-2 text-caption">
+              <div className="flex justify-between gap-4"><span className="text-text-muted">Screen exterior</span><span className="text-right">Light scratches, covered by film</span></div>
+              <div className="flex justify-between gap-4"><span className="text-text-muted">Screen display</span><span className="text-right">Normal, no dead pixels</span></div>
+              <div className="flex justify-between gap-4"><span className="text-text-muted">Body</span><span className="text-right">Minor edge paint wear (&lt;2)</span></div>
+            </div>
+          </Card>
+          <Card>
+            <h3 className="text-h4 font-heading mb-3">History & Accessories</h3>
+            <div className="flex flex-wrap gap-2 mb-2">
+              <Badge variant="neutral">No repair record</Badge>
+              <Badge variant="success">All functions OK</Badge>
+              <Badge variant="neutral">Charger + cable</Badge>
+              <Badge variant={device.grade === 'A' ? 'success' : 'neutral'}>{device.grade === 'A' ? 'In warranty' : 'Out of warranty'}</Badge>
+            </div>
+            <div className="flex justify-between text-caption mt-2">
+              <span className="text-text-muted">Storage / Color</span>
+              <span>{device.storage} · {device.color}</span>
             </div>
           </Card>
           <Card>
@@ -230,8 +293,9 @@ export function ProductDetail() {
           </Card>
           <Card>
             <h3 className="text-h4 font-heading mb-3">IMEI</h3>
-            <p className="text-mono text-text-secondary">{device.imei}</p>
+            <p className="text-mono text-text-secondary">····{imeiLast4(device.imei)}</p>
           </Card>
+          <p className="text-caption text-text-muted px-1">Price includes tax (GST)</p>
         </div>
       )}
 
@@ -249,15 +313,47 @@ export function ProductDetail() {
         </Card>
       )}
 
-      {/* Fixed Buy Now — sit above TabBar */}
-      <div className="fixed bottom-[64px] left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-border p-4 z-20">
-        <div className="flex items-center justify-between max-w-lg md:max-w-4xl mx-auto">
-          <PriceDisplay amount={device.price} size="md" />
-          <Button variant="primary" size="lg" onClick={() => navigate(`/buy/product/${imei}/order`)}>
+      {/* Fixed Buy Now — no lock here (APP-P0-04 / P0-07) */}
+      <div className="fixed bottom-0 left-0 right-0 px-3 pb-3 z-20">
+        <div className="flex items-center justify-between max-w-lg md:max-w-4xl mx-auto rounded-2xl border border-border bg-white/95 backdrop-blur-sm p-4 shadow-card">
+          <div>
+            <PriceDisplay amount={device.price} size="md" />
+            <p className="text-eyebrow text-text-muted">Incl. tax</p>
+          </div>
+          <Button variant="primary" size="lg" loading={buyLoading} onClick={handleBuyNow} data-testid="buy-now">
             Buy Now
           </Button>
         </div>
       </div>
+
+      <Modal
+        open={!!blockReason}
+        onClose={() => setBlockReason(null)}
+        title={blockReason === 'sold' ? 'Device Sold' : 'Device Locked'}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-body text-text-secondary">
+            {blockReason === 'sold'
+              ? 'This device has already been sold.'
+              : 'This device is currently locked by another user. Please browse similar devices.'}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="secondary" className="flex-1" onClick={() => setBlockReason(null)}>Close</Button>
+            <Button
+              variant="primary"
+              className="flex-1"
+              data-testid="browse-similar"
+              onClick={() => {
+                setBlockReason(null);
+                navigate('/buy');
+              }}
+            >
+              Browse Similar
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

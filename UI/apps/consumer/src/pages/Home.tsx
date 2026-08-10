@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SearchBar, DeviceCard, Button } from '@dobara/ui';
 import {
-  Menu, Bell, ShoppingBag, Check, Star, ChevronRight,
+  Bell, ShoppingBag, Check, Star, ChevronRight,
   ShoppingCart, Tag, ArrowLeftRight, Recycle,
   Zap, Gift, GraduationCap, Users, Shield, RotateCcw,
   Truck, BadgeCheck, Bot, Mail, Gem, Wallet, Sparkles, Smartphone,
@@ -107,10 +107,11 @@ export function Home() {
   return (
     <div className="max-w-lg mx-auto pb-4">
       {/* Top bar */}
-      <header className="flex items-center justify-between px-4 pt-3 pb-2">
-        <button type="button" className="p-2 -ml-1 rounded-full hover:bg-surface-high" aria-label="Menu">
-          <Menu size={22} className="text-text-primary" />
-        </button>
+      <header className="flex items-center justify-between pt-1 pb-2">
+        <div className="flex items-center gap-2" aria-label="Dobara">
+          <PhoenixLogo className="w-8 h-8" />
+          <span className="text-lg font-extrabold tracking-tight text-primary-500">Dobara</span>
+        </div>
         <div className="flex items-center gap-1">
           <button type="button" className="relative p-2 rounded-full hover:bg-surface-high" aria-label="Notifications">
             <Bell size={22} className="text-text-primary" />
@@ -128,7 +129,7 @@ export function Home() {
       </header>
 
       {/* Hero */}
-      <section className="mx-4 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white px-5 pt-6 pb-5 overflow-hidden relative">
+      <section className="rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white px-5 pt-6 pb-5 overflow-hidden relative">
         <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_80%_20%,#C9A227,transparent_50%)]" />
         <div className="relative z-10 text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
@@ -154,7 +155,7 @@ export function Home() {
       </section>
 
       {/* Search */}
-      <div className="px-4 mt-4">
+      <div className="mt-4">
         <SearchBar
           value={search}
           onChange={setSearch}
@@ -175,7 +176,7 @@ export function Home() {
       </div>
 
       {/* Service grid */}
-      <section className="px-4 mt-5 grid grid-cols-2 gap-3">
+      <section className="mt-5 grid grid-cols-2 gap-3">
         {SERVICES.map((s) => {
           const Icon = s.icon;
           return (
@@ -197,7 +198,7 @@ export function Home() {
       </section>
 
       {/* Trust stats */}
-      <section className="mt-5 mx-0 bg-primary-500 text-white py-4 px-2">
+      <section className="mt-5 rounded-2xl bg-primary-500 text-white py-4 px-2">
         <div className="grid grid-cols-4 gap-1 max-w-lg mx-auto">
           {STATS.map((stat) => {
             const Icon = stat.icon;
@@ -213,7 +214,7 @@ export function Home() {
       </section>
 
       {/* Top Brands */}
-      <section className="px-4 mt-6">
+      <section className="mt-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-h4 font-bold text-text-primary">Top Brands</h2>
           <button type="button" onClick={() => navigate('/buy')} className="text-caption font-semibold text-primary-500 flex items-center gap-0.5">
@@ -238,7 +239,7 @@ export function Home() {
       </section>
 
       {/* AI Advisor */}
-      <section className="px-4 mt-5">
+      <section className="mt-5">
         <div className="rounded-2xl bg-gradient-to-r from-primary-500 to-primary-700 text-white p-5 flex gap-4 items-center shadow-card">
           <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center flex-shrink-0">
             <Bot size={36} className="text-accent-100" />
@@ -263,7 +264,7 @@ export function Home() {
       </section>
 
       {/* Today's Best Deals */}
-      <section className="px-4 mt-6">
+      <section className="mt-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-h4 font-bold text-text-primary">Today's Best Deals</h2>
           <button type="button" onClick={() => navigate('/buy')} className="text-caption font-semibold text-primary-500 flex items-center gap-0.5">
@@ -289,7 +290,7 @@ export function Home() {
       </section>
 
       {/* Exciting Offers */}
-      <section className="px-4 mt-6">
+      <section className="mt-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-h4 font-bold text-text-primary">Exciting Offers</h2>
         </div>
@@ -315,7 +316,7 @@ export function Home() {
       </section>
 
       {/* Popular Categories */}
-      <section className="px-4 mt-6">
+      <section className="mt-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-h4 font-bold text-text-primary">Popular Categories</h2>
           <button type="button" onClick={() => navigate('/buy')} className="text-caption font-semibold text-primary-500 flex items-center gap-0.5">
@@ -343,7 +344,7 @@ export function Home() {
       </section>
 
       {/* Testimonials */}
-      <section className="px-4 mt-6">
+      <section className="mt-6">
         <h2 className="text-h4 font-bold text-text-primary mb-3">What Customers Say</h2>
         <div className="flex gap-3 overflow-x-auto pb-2">
           {TESTIMONIALS.map((t) => (
@@ -367,7 +368,7 @@ export function Home() {
       </section>
 
       {/* Trust badges */}
-      <section className="px-4 mt-6 grid grid-cols-4 gap-2">
+      <section className="mt-6 grid grid-cols-4 gap-2">
         {TRUST_ITEMS.map((item) => {
           const Icon = item.icon;
           return (
@@ -380,7 +381,7 @@ export function Home() {
       </section>
 
       {/* Sell CTA */}
-      <section className="px-4 mt-5">
+      <section className="mt-5">
         <div className="rounded-2xl bg-primary-500 text-white p-5 flex items-center justify-between gap-3">
           <div>
             <h3 className="font-bold text-lg">Sell Your Phone</h3>
@@ -393,7 +394,7 @@ export function Home() {
       </section>
 
       {/* Newsletter */}
-      <section className="px-4 mt-5">
+      <section className="mt-5">
         <div className="rounded-2xl bg-surface-low border border-border p-5">
           <div className="flex items-center gap-2 mb-2">
             <Mail size={18} className="text-primary-500" />
@@ -416,7 +417,7 @@ export function Home() {
       </section>
 
       {/* Footer trust ribbon */}
-      <footer className="mt-6 bg-primary-500 text-white py-4 px-4">
+      <footer className="mt-6 mb-2 rounded-2xl bg-primary-500 text-white py-4 px-3">
         <div className="flex justify-around max-w-lg mx-auto">
           {['Certified Devices', 'Secure & Safe', 'AI Powered', 'Trusted Stores'].map((label) => (
             <div key={label} className="text-center px-1">

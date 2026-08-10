@@ -1,9 +1,41 @@
 import { http, HttpResponse, delay } from 'msw';
-import { devices, getAvailableDevices, getDeviceById, getModelById, getBrandById, models, brands, stores, users } from '../data';
+import {
+  devices,
+  getAvailableDevices,
+  getDeviceById,
+  getModelById,
+  getBrandById,
+  models,
+  brands,
+  stores,
+  users,
+  orderStore,
+  recycleOrderStore,
+  addressStore,
+  afterSaleStore,
+  UNSERVICEABLE_PINCODES,
+  type IAddress,
+} from '../data';
+import type { IOrder } from '@dobara/utils';
+import { calcOrderTotal, LOCK_DURATION_SECONDS } from '@dobara/utils';
 
 const simulateDelay = async () => {
   await delay(Math.random() * 400 + 200);
 };
+
+const lockTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function releaseLock(imei: string) {
+  const device = getDeviceById(imei);
+  if (device && device.status === 'locked') {
+    device.status = 'available';
+  }
+  const t = lockTimers.get(imei);
+  if (t) {
+    clearTimeout(t);
+    lockTimers.delete(imei);
+  }
+}
 
 export const handlers = [
   // Devices
@@ -11,28 +43,43 @@ export const handlers = [
     await simulateDelay();
     const url = new URL(request.url);
     const brand = url.searchParams.get('brand');
+    const modelId = url.searchParams.get('model');
     const grade = url.searchParams.get('grade');
+    const storage = url.searchParams.get('storage');
+    const color = url.searchParams.get('color');
     const minPrice = url.searchParams.get('minPrice');
     const maxPrice = url.searchParams.get('maxPrice');
     const city = url.searchParams.get('city');
     const search = url.searchParams.get('search')?.toLowerCase();
+    const sort = url.searchParams.get('sort') || 'default';
 
     let filtered = getAvailableDevices();
 
     if (brand) filtered = filtered.filter((d) => d.brandId === brand);
+    if (modelId) filtered = filtered.filter((d) => d.modelId === modelId);
     if (grade) filtered = filtered.filter((d) => d.grade === grade);
+    if (storage) filtered = filtered.filter((d) => d.storage === storage);
+    if (color) filtered = filtered.filter((d) => d.color.toLowerCase() === color.toLowerCase());
     if (minPrice) filtered = filtered.filter((d) => d.price >= Number(minPrice));
     if (maxPrice) filtered = filtered.filter((d) => d.price <= Number(maxPrice));
     if (city) filtered = filtered.filter((d) => d.city === city);
     if (search) {
+      const terms = search.split(/\s+/).filter(Boolean);
       filtered = filtered.filter((d) => {
         const model = getModelById(d.modelId);
         const brandObj = getBrandById(d.brandId);
-        return `${brandObj?.name} ${model?.name}`.toLowerCase().includes(search);
+        const hay = `${brandObj?.name} ${model?.name} ${d.storage} ${d.color}`.toLowerCase();
+        return terms.every((t) => hay.includes(t));
       });
     }
 
-    return HttpResponse.json({ devices: filtered });
+    const gradeRank: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
+    if (sort === 'price_asc') filtered = [...filtered].sort((a, b) => a.price - b.price);
+    else if (sort === 'price_desc') filtered = [...filtered].sort((a, b) => b.price - a.price);
+    else if (sort === 'grade') filtered = [...filtered].sort((a, b) => gradeRank[a.grade] - gradeRank[b.grade]);
+    else if (sort === 'newest') filtered = [...filtered].reverse();
+
+    return HttpResponse.json({ devices: filtered, total: filtered.length });
   }),
 
   http.get('/api/devices/:imei', async ({ params }) => {
@@ -44,27 +91,174 @@ export const handlers = [
     return HttpResponse.json({ device, model, brand });
   }),
 
-  http.post('/api/devices/:imei/lock', async ({ params }) => {
+  /** Availability check only — does NOT lock (APP-P0-04) */
+  http.get('/api/devices/:imei/availability', async ({ params }) => {
     await simulateDelay();
     const device = getDeviceById(String(params.imei));
     if (!device) return new HttpResponse(null, { status: 404 });
+    return HttpResponse.json({
+      imei: device.imei,
+      status: device.status,
+      available: device.status === 'available',
+    });
+  }),
+
+  http.post('/api/devices/:imei/lock', async ({ params }) => {
+    await simulateDelay();
+    const imei = String(params.imei);
+    const device = getDeviceById(imei);
+    if (!device) return new HttpResponse(null, { status: 404 });
     if (device.status === 'locked') {
-      return HttpResponse.json({ error: 'Device already locked' }, { status: 409 });
+      return HttpResponse.json({ error: 'Device already locked', code: 'locked' }, { status: 409 });
     }
     if (device.status === 'sold') {
-      return HttpResponse.json({ error: 'Device already sold' }, { status: 409 });
+      return HttpResponse.json({ error: 'Device already sold', code: 'sold' }, { status: 409 });
+    }
+    if (device.status !== 'available') {
+      return HttpResponse.json({ error: 'Device not available', code: device.status }, { status: 409 });
     }
     device.status = 'locked';
-    return HttpResponse.json({ success: true, expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString() });
+    const expiresAt = new Date(Date.now() + LOCK_DURATION_SECONDS * 1000).toISOString();
+    if (lockTimers.has(imei)) clearTimeout(lockTimers.get(imei)!);
+    lockTimers.set(
+      imei,
+      setTimeout(() => {
+        const d = getDeviceById(imei);
+        if (d && d.status === 'locked') d.status = 'available';
+        lockTimers.delete(imei);
+        const pending = orderStore.find((o) => o.deviceImei === imei && o.status === 'pending_payment');
+        if (pending) pending.status = 'cancelled';
+      }, LOCK_DURATION_SECONDS * 1000),
+    );
+    return HttpResponse.json({ success: true, expiresAt });
   }),
 
   http.delete('/api/devices/:imei/lock', async ({ params }) => {
     await simulateDelay();
-    const device = getDeviceById(String(params.imei));
-    if (device && device.status === 'locked') {
-      device.status = 'available';
-    }
+    releaseLock(String(params.imei));
     return HttpResponse.json({ success: true });
+  }),
+
+  http.get('/api/pincode/:pincode/serviceability', async ({ params }) => {
+    await simulateDelay();
+    const pincode = String(params.pincode);
+    if (!/^\d{6}$/.test(pincode)) {
+      return HttpResponse.json({ serviceable: false, error: 'Invalid pincode' }, { status: 400 });
+    }
+    const serviceable = !UNSERVICEABLE_PINCODES.has(pincode);
+    return HttpResponse.json({
+      pincode,
+      serviceable,
+      etaStandard: serviceable ? '3-5 business days' : null,
+      etaExpress: serviceable ? '1-2 business days' : null,
+      message: serviceable
+        ? 'Delivery available to this pincode'
+        : 'This area is not serviceable. Please change your address.',
+    });
+  }),
+
+  http.get('/api/addresses', async () => {
+    await simulateDelay();
+    return HttpResponse.json({ addresses: addressStore });
+  }),
+
+  http.post('/api/addresses', async ({ request }) => {
+    await simulateDelay();
+    const body = (await request.json()) as Omit<IAddress, 'id'>;
+    if (addressStore.length >= 20) {
+      return HttpResponse.json({ error: 'Address limit reached (20)' }, { status: 400 });
+    }
+    const addr: IAddress = { ...body, id: `addr-${Date.now()}`, isDefault: addressStore.length === 0 || !!body.isDefault };
+    if (addr.isDefault) addressStore.forEach((a) => { a.isDefault = false; });
+    addressStore.push(addr);
+    return HttpResponse.json({ address: addr });
+  }),
+
+  http.put('/api/addresses/:id', async ({ params, request }) => {
+    await simulateDelay();
+    const idx = addressStore.findIndex((a) => a.id === String(params.id));
+    if (idx < 0) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+    const body = (await request.json()) as Partial<IAddress>;
+    if (body.isDefault) addressStore.forEach((a) => { a.isDefault = false; });
+    addressStore[idx] = { ...addressStore[idx], ...body, id: addressStore[idx].id };
+    return HttpResponse.json({ address: addressStore[idx] });
+  }),
+
+  http.delete('/api/addresses/:id', async ({ params }) => {
+    await simulateDelay();
+    const idx = addressStore.findIndex((a) => a.id === String(params.id));
+    if (idx < 0) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+    const wasDefault = addressStore[idx].isDefault;
+    addressStore.splice(idx, 1);
+    if (wasDefault && addressStore.length) addressStore[0].isDefault = true;
+    return HttpResponse.json({ success: true });
+  }),
+
+  http.get('/api/search/suggest', async ({ request }) => {
+    await simulateDelay();
+    const q = new URL(request.url).searchParams.get('q')?.toLowerCase() || '';
+    const hot = ['iPhone 14', 'iPhone 13', 'Galaxy S22', 'OnePlus Nord', 'Xiaomi 14'];
+    if (!q) {
+      return HttpResponse.json({ suggestions: hot, history: ['iPhone 13', 'Samsung'] });
+    }
+    const suggestions: string[] = [];
+    brands.forEach((b) => {
+      if (b.name.toLowerCase().includes(q) || q.includes(b.name.toLowerCase().slice(0, 2))) {
+        suggestions.push(b.name);
+      }
+    });
+    models.forEach((m) => {
+      const brand = getBrandById(m.brandId);
+      const label = `${brand?.name || ''} ${m.name}`.trim();
+      if (label.toLowerCase().includes(q) || m.name.toLowerCase().includes(q)) {
+        suggestions.push(label);
+      }
+    });
+    return HttpResponse.json({ suggestions: [...new Set(suggestions)].slice(0, 10), history: [] });
+  }),
+
+  // After-sales
+  http.get('/api/after-sales', async () => {
+    await simulateDelay();
+    return HttpResponse.json({ tickets: afterSaleStore });
+  }),
+
+  http.get('/api/after-sales/:id', async ({ params }) => {
+    await simulateDelay();
+    const ticket = afterSaleStore.find((t) => t.id === String(params.id));
+    if (!ticket) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+    return HttpResponse.json({ ticket });
+  }),
+
+  http.post('/api/after-sales', async ({ request }) => {
+    await simulateDelay();
+    const body = (await request.json()) as {
+      orderId: string;
+      type: string;
+      reason: string;
+      description?: string;
+      logistics: string;
+      photos?: string[];
+    };
+    const order = orderStore.find((o) => o.id === body.orderId);
+    if (!order) return HttpResponse.json({ error: 'Order not found' }, { status: 404 });
+    if (!['paid', 'shipped', 'completed'].includes(order.status)) {
+      return HttpResponse.json({ error: 'Order not eligible for after-sales' }, { status: 400 });
+    }
+    const ticket = {
+      id: `AS-${Date.now().toString().slice(-8)}`,
+      orderId: body.orderId,
+      type: body.type,
+      reason: body.reason,
+      description: body.description || '',
+      logistics: body.logistics,
+      photos: body.photos || [],
+      status: 'pending_review',
+      createdAt: new Date().toISOString(),
+    };
+    afterSaleStore.unshift(ticket);
+    order.status = 'return_requested';
+    return HttpResponse.json({ ticket });
   }),
 
   // Brands & Models
@@ -161,8 +355,38 @@ export const handlers = [
         ],
         grade: 'A' as const,
         price: 42000,
+        batteryHealth: 87,
         expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       },
+    });
+  }),
+
+  http.post('/api/sessions/:sessionId/quote/accept', async ({ params }) => {
+    await simulateDelay();
+    const sessionId = String(params.sessionId);
+    const rcy = recycleOrderStore.find((o) => o.sessionId === sessionId);
+    if (rcy && (rcy.status === 'pending_confirm' || rcy.status === 'inspecting')) {
+      rcy.status = 'completed';
+    }
+    return HttpResponse.json({
+      success: true,
+      sessionId,
+      status: 'pending_verification',
+      message: 'Quote accepted. Verification code sent to store owner.',
+    });
+  }),
+
+  http.post('/api/sessions/:sessionId/quote/reject', async ({ params }) => {
+    await simulateDelay();
+    const sessionId = String(params.sessionId);
+    const rcy = recycleOrderStore.find((o) => o.sessionId === sessionId);
+    if (rcy && (rcy.status === 'pending_confirm' || rcy.status === 'inspecting')) {
+      rcy.status = 'rejected';
+    }
+    return HttpResponse.json({
+      success: true,
+      sessionId,
+      status: 'rejected',
     });
   }),
 
@@ -194,25 +418,166 @@ export const handlers = [
     return HttpResponse.json({ success: true });
   }),
 
-  // Orders
-  http.post('/api/orders', async () => {
+  // Orders — lock happens on submit (APP-P0-07)
+  http.get('/api/orders', async () => {
     await simulateDelay();
+    const sorted = [...orderStore].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    return HttpResponse.json({ orders: sorted });
+  }),
+
+  http.get('/api/recycle-orders', async () => {
+    await simulateDelay();
+    const sorted = [...recycleOrderStore].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    return HttpResponse.json({ orders: sorted });
+  }),
+
+  http.post('/api/orders', async ({ request }) => {
+    await simulateDelay();
+    const body = (await request.json()) as {
+      deviceImei: string;
+      deliveryMethod?: 'standard' | 'express';
+      paymentMethod?: string;
+      addressId?: string;
+      pincode?: string;
+    };
+    const device = getDeviceById(body.deviceImei);
+    if (!device) return HttpResponse.json({ error: 'Device not found' }, { status: 404 });
+
+    if (body.pincode && UNSERVICEABLE_PINCODES.has(body.pincode)) {
+      return HttpResponse.json(
+        { error: 'This area is not serviceable. Please change your address.', code: 'unserviceable' },
+        { status: 400 },
+      );
+    }
+
+    if (device.status === 'locked') {
+      return HttpResponse.json({ error: 'Device already locked', code: 'locked' }, { status: 409 });
+    }
+    if (device.status === 'sold') {
+      return HttpResponse.json({ error: 'Device already sold', code: 'sold' }, { status: 409 });
+    }
+    if (device.status !== 'available') {
+      return HttpResponse.json({ error: 'Device not available', code: device.status }, { status: 409 });
+    }
+
+    // Lock on submit
+    device.status = 'locked';
+    const expiresAt = new Date(Date.now() + LOCK_DURATION_SECONDS * 1000).toISOString();
+    const imei = device.imei;
+    if (lockTimers.has(imei)) clearTimeout(lockTimers.get(imei)!);
+    lockTimers.set(
+      imei,
+      setTimeout(() => {
+        const d = getDeviceById(imei);
+        if (d && d.status === 'locked') d.status = 'available';
+        lockTimers.delete(imei);
+        const pending = orderStore.find((o) => o.deviceImei === imei && o.status === 'pending_payment');
+        if (pending) pending.status = 'cancelled';
+      }, LOCK_DURATION_SECONDS * 1000),
+    );
+
+    const delivery = body.deliveryMethod || 'standard';
+    const totals = calcOrderTotal(device.price, delivery);
     const orderId = `ORD-${Date.now().toString().slice(-8)}`;
-    return HttpResponse.json({ orderId, status: 'pending_payment' });
+    const order: IOrder = {
+      id: orderId,
+      userId: 'u-1',
+      deviceImei: device.imei,
+      amount: totals.total,
+      status: 'pending_payment',
+      isEnterprise: false,
+      isCredit: false,
+      createdAt: new Date().toISOString(),
+      expiresAt,
+      paymentMethod: body.paymentMethod || 'upi',
+    };
+    orderStore.unshift(order);
+    return HttpResponse.json({
+      orderId,
+      order,
+      status: 'pending_payment',
+      expiresAt,
+      breakdown: totals,
+    });
   }),
 
   http.get('/api/orders/:orderId', async ({ params }) => {
     await simulateDelay();
+    const order = orderStore.find((o) => o.id === String(params.orderId));
+    if (order) return HttpResponse.json({ order });
+    // Newly created checkout orders may not be in seed data yet
     return HttpResponse.json({
       order: {
         id: String(params.orderId),
-        amount: 42000,
+        userId: 'u-1',
+        amount: 49660,
         status: 'paid',
         deviceImei: '350000000000001',
+        isEnterprise: false,
+        isCredit: false,
         createdAt: new Date().toISOString(),
-        trackingNumber: 'TRK' + Math.random().toString(36).substring(2, 10).toUpperCase(),
+        paymentMethod: 'upi',
+        brand: 'Apple',
+        model: 'iPhone 13',
+        grade: 'A',
+        storage: '128GB',
+        color: 'Midnight',
       },
     });
+  }),
+
+  http.post('/api/orders/:orderId/pay', async ({ params, request }) => {
+    await simulateDelay();
+    const body = (await request.json().catch(() => ({}))) as { result?: 'success' | 'fail' | 'cancel' };
+    const order = orderStore.find((o) => o.id === String(params.orderId));
+    if (!order) return HttpResponse.json({ error: 'Order not found' }, { status: 404 });
+    if (order.status !== 'pending_payment') {
+      return HttpResponse.json({ error: 'Order not payable', status: order.status }, { status: 400 });
+    }
+    const result = body.result || 'success';
+    if (result === 'fail') {
+      return HttpResponse.json({ success: false, error: 'UPI payment failed', code: 'payment_failed' }, { status: 402 });
+    }
+    if (result === 'cancel') {
+      return HttpResponse.json({ success: false, error: 'Payment cancelled', code: 'payment_cancelled' }, { status: 400 });
+    }
+    order.status = 'paid';
+    const device = getDeviceById(order.deviceImei);
+    if (device) device.status = 'sold';
+    releaseLock(order.deviceImei);
+    order.trackingNumber = undefined;
+    return HttpResponse.json({ success: true, order });
+  }),
+
+  http.post('/api/orders/:orderId/cancel', async ({ params }) => {
+    await simulateDelay();
+    const order = orderStore.find((o) => o.id === String(params.orderId));
+    if (!order) return HttpResponse.json({ error: 'Order not found' }, { status: 404 });
+    if (order.status === 'pending_payment' || order.status === 'paid') {
+      const prev = order.status;
+      order.status = 'cancelled';
+      const device = getDeviceById(order.deviceImei);
+      if (device && (device.status === 'locked' || (prev === 'paid' && device.status === 'sold'))) {
+        device.status = 'available';
+      }
+      releaseLock(order.deviceImei);
+      return HttpResponse.json({
+        success: true,
+        order,
+        refund: prev === 'paid' ? { status: 'processing', eta: '5-7 business days' } : null,
+      });
+    }
+    if (order.status === 'shipped') {
+      return HttpResponse.json(
+        { error: 'Order is already shipping. Refuse delivery or use after-sales.', code: 'shipping' },
+        { status: 400 },
+      );
+    }
+    return HttpResponse.json({ error: 'Order cannot be cancelled', code: order.status }, { status: 400 });
   }),
 
   // Finance

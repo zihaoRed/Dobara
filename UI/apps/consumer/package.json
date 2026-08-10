@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:e2e": "python e2e/checkout_flow.py",
+    "test:e2e:remaining": "python e2e/remaining_features.py",
+    "test:e2e:status": "python e2e/multi_status_data.py",
+    "test:e2e:all": "python e2e/checkout_flow.py && python e2e/remaining_features.py && python e2e/multi_status_data.py"
   },
   "dependencies": {
     "@dobara/ui": "workspace:*",

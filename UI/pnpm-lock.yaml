@@ -249,6 +249,9 @@ importers:
 
   packages/shared-mock:
     dependencies:
+      '@dobara/utils':
+        specifier: workspace:*
+        version: link:../shared-utils
       msw:
         specifier: ^2.3.0
         version: 2.15.0(@types/node@26.1.2)(typescript@5.9.3)

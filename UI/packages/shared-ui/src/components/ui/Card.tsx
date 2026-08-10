@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface CardProps {
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'hover' | 'flat';
   className?: string;
   children: React.ReactNode;
@@ -13,11 +13,12 @@ const variantClasses = {
   flat: 'bg-surface-low',
 };
 
-export const Card: React.FC<CardProps> = ({ variant = 'default', className = '', children, onClick }) => {
+export const Card: React.FC<CardProps> = ({ variant = 'default', className = '', children, onClick, ...rest }) => {
   return (
     <div
       className={`rounded-lg p-4 ${variantClasses[variant]} ${className}`}
       onClick={onClick}
+      {...rest}
     >
       {children}
     </div>

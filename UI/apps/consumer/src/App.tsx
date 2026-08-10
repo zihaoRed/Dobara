@@ -7,16 +7,22 @@ import { Home } from './pages/Home';
 import { MallHome } from './pages/MallHome';
 import { ProductDetail } from './pages/ProductDetail';
 import { OrderConfirm } from './pages/OrderConfirm';
+import { Payment } from './pages/Payment';
 import { OrderSuccess } from './pages/OrderSuccess';
 import { OrderList } from './pages/OrderList';
 import { OrderDetail } from './pages/OrderDetail';
 import { Appointment } from './pages/Appointment';
 import { AppointmentSuccess } from './pages/AppointmentSuccess';
 import { InspectionReport } from './pages/InspectionReport';
-import { AcceptQuote } from './pages/AcceptQuote';
+import { QuoteAccepted } from './pages/QuoteAccepted';
 import { Profile } from './pages/Profile';
 import { H5Preview } from './pages/H5Preview';
 import { RecycleHome } from './pages/RecycleHome';
+import { AddressList } from './pages/AddressList';
+import { AfterSaleList } from './pages/AfterSaleList';
+import { AfterSaleApply } from './pages/AfterSaleApply';
+import { AfterSaleDetail } from './pages/AfterSaleDetail';
+import { HelpCenter } from './pages/HelpCenter';
 
 /* ── Auth helpers ── */
 const AUTH_KEY = 'dobara_user';
@@ -63,9 +69,9 @@ function TabBar() {
     ?? '/home';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 safe-bottom">
-      <div className="bg-white/95 backdrop-blur-xl border-t border-border shadow-[0_-2px_12px_rgba(6,68,57,0.06)]">
-        <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 px-3 pb-3 safe-bottom pointer-events-none">
+      <div className="pointer-events-auto bg-white/95 backdrop-blur-xl border border-border rounded-2xl shadow-[0_-2px_12px_rgba(6,68,57,0.08)] max-w-lg mx-auto">
+        <div className="flex items-center justify-around h-14">
           {TABS.map((tab) => (
             <button
               key={tab.key}
@@ -98,7 +104,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
-      <main className={`flex-1 ${showTabs ? 'pb-16' : ''}`}>{children}</main>
+      {/* Global page gutter — keep content off screen edges on every route */}
+      <main className={`flex-1 w-full px-4 pt-4 ${showTabs ? 'pb-24' : 'pb-6'}`}>
+        {children}
+      </main>
       {showTabs && <TabBar />}
     </div>
   );
@@ -130,6 +139,8 @@ export function App() {
           <Route path="/buy/product/:imei" element={<RequireAuth><ProductDetail /></RequireAuth>} />
           <Route path="/home/product/:imei/order" element={<RequireAuth><OrderConfirm /></RequireAuth>} />
           <Route path="/buy/product/:imei/order" element={<RequireAuth><OrderConfirm /></RequireAuth>} />
+          <Route path="/buy/order/pay/:orderId" element={<RequireAuth><Payment /></RequireAuth>} />
+          <Route path="/home/order/pay/:orderId" element={<RequireAuth><Payment /></RequireAuth>} />
           <Route path="/home/order/success/:orderId" element={<RequireAuth><OrderSuccess /></RequireAuth>} />
           <Route path="/buy/order/success/:orderId" element={<RequireAuth><OrderSuccess /></RequireAuth>} />
 
@@ -138,19 +149,25 @@ export function App() {
           <Route path="/sell/appointment" element={<RequireAuth><Appointment /></RequireAuth>} />
           <Route path="/sell/appointment/success" element={<RequireAuth><AppointmentSuccess /></RequireAuth>} />
           <Route path="/sell/report/:sessionId" element={<RequireAuth><InspectionReport /></RequireAuth>} />
-          <Route path="/sell/report/:sessionId/accept" element={<RequireAuth><AcceptQuote /></RequireAuth>} />
+          <Route path="/sell/report/:sessionId/accepted" element={<RequireAuth><QuoteAccepted /></RequireAuth>} />
+          <Route path="/sell/report/:sessionId/accept" element={<RequireAuth><InspectionReport /></RequireAuth>} />
 
           {/* Legacy recycle redirects */}
           <Route path="/recycle" element={<Navigate to="/sell" replace />} />
           <Route path="/recycle/appointment" element={<Navigate to="/sell/appointment" replace />} />
           <Route path="/recycle/appointment/success" element={<Navigate to="/sell/appointment/success" replace />} />
           <Route path="/recycle/report/:sessionId" element={<RequireAuth><InspectionReport /></RequireAuth>} />
-          <Route path="/recycle/report/:sessionId/accept" element={<RequireAuth><AcceptQuote /></RequireAuth>} />
+          <Route path="/recycle/report/:sessionId/accept" element={<RequireAuth><InspectionReport /></RequireAuth>} />
 
           {/* Account */}
           <Route path="/account" element={<RequireAuth><Profile /></RequireAuth>} />
           <Route path="/account/orders" element={<RequireAuth><OrderList /></RequireAuth>} />
           <Route path="/account/orders/:orderId" element={<RequireAuth><OrderDetail /></RequireAuth>} />
+          <Route path="/account/orders/:orderId/after-sale" element={<RequireAuth><AfterSaleApply /></RequireAuth>} />
+          <Route path="/account/addresses" element={<RequireAuth><AddressList /></RequireAuth>} />
+          <Route path="/account/after-sales" element={<RequireAuth><AfterSaleList /></RequireAuth>} />
+          <Route path="/account/after-sales/:ticketId" element={<RequireAuth><AfterSaleDetail /></RequireAuth>} />
+          <Route path="/account/help" element={<RequireAuth><HelpCenter /></RequireAuth>} />
           <Route path="/account/h5-preview" element={<RequireAuth><H5Preview /></RequireAuth>} />
 
           {/* Legacy profile redirects */}

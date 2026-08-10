@@ -150,6 +150,25 @@ export interface IOrder {
   expiresAt?: string;
   paymentMethod?: string;
   trackingNumber?: string;
+  /** Display helpers for consumer list/detail */
+  brand?: string;
+  model?: string;
+  grade?: TGrade;
+  storage?: string;
+  color?: string;
+}
+
+export type TRecycleStatus = 'inspecting' | 'pending_confirm' | 'completed' | 'rejected';
+
+export interface IRecycleOrder {
+  id: string;
+  sessionId: string;
+  brand: string;
+  model: string;
+  amount: number;
+  status: TRecycleStatus;
+  createdAt: string;
+  grade?: TGrade;
 }
 
 export interface ITradeIn {

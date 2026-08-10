@@ -9,6 +9,7 @@
     "./browser": "./src/browser.ts"
   },
   "dependencies": {
+    "@dobara/utils": "workspace:*",
     "msw": "^2.3.0"
   }
 }

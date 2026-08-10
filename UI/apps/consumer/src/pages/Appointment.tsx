@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Badge } from '@dobara/ui';
-import { ArrowRight, Smartphone, Info } from 'lucide-react';
-import type { IBrand, IModel } from '@dobara/utils';
+import { ArrowRight, Smartphone, Info, MapPin, Clock } from 'lucide-react';
+import type { IBrand, IModel, IStore } from '@dobara/utils';
 
 const CONDITIONS = [
   { key: 'bodyCondition', label: 'Body Condition', options: ['Like New', 'Minor Scratches', 'Visible Scratches', 'Dents & Scratches'] },
@@ -27,32 +27,41 @@ const DEMO_BRANDS: IBrand[] = [
   { id: 'nothing', name: 'Nothing' },
 ];
 
+const emptySpecs = { processor: '', ram: '', display: '', rearCamera: '', frontCamera: '', battery: '', os: '', dimensions: '', connectivity: '', security: '', waterproof: '', simSlot: '' };
 const DEMO_MODELS: IModel[] = [
-  { id: 'iphone15pm', brandId: 'apple', name: 'iPhone 15 Pro Max', releaseYear: 2023, colors: ['Natural Titanium', 'Blue Titanium', 'White Titanium', 'Black Titanium'], storageOptions: ['256GB', '512GB', '1TB'] },
-  { id: 'iphone15pro', brandId: 'apple', name: 'iPhone 15 Pro', releaseYear: 2023, colors: ['Natural Titanium', 'Blue Titanium', 'White Titanium', 'Black Titanium'], storageOptions: ['128GB', '256GB', '512GB', '1TB'] },
-  { id: 'iphone15', brandId: 'apple', name: 'iPhone 15', releaseYear: 2023, colors: ['Black', 'Blue', 'Green', 'Yellow', 'Pink'], storageOptions: ['128GB', '256GB', '512GB'] },
-  { id: 'iphone14', brandId: 'apple', name: 'iPhone 14', releaseYear: 2022, colors: ['Midnight', 'Starlight', 'Blue', 'Purple', 'Red'], storageOptions: ['128GB', '256GB', '512GB'] },
-  { id: 'iphone14pro', brandId: 'apple', name: 'iPhone 14 Pro', releaseYear: 2022, colors: ['Deep Purple', 'Gold', 'Silver', 'Space Black'], storageOptions: ['128GB', '256GB', '512GB', '1TB'] },
-  { id: 'iphone13', brandId: 'apple', name: 'iPhone 13', releaseYear: 2021, colors: ['Midnight', 'Starlight', 'Blue', 'Pink', 'Red'], storageOptions: ['128GB', '256GB', '512GB'] },
-  { id: 'iphone12', brandId: 'apple', name: 'iPhone 12', releaseYear: 2020, colors: ['Black', 'White', 'Blue', 'Green', 'Red'], storageOptions: ['64GB', '128GB', '256GB'] },
-  { id: 'galaxys24u', brandId: 'samsung', name: 'Galaxy S24 Ultra', releaseYear: 2024, colors: ['Titanium Gray', 'Titanium Black', 'Titanium Violet', 'Titanium Yellow'], storageOptions: ['256GB', '512GB', '1TB'] },
-  { id: 'galaxys24', brandId: 'samsung', name: 'Galaxy S24', releaseYear: 2024, colors: ['Onyx Black', 'Marble Gray', 'Cobalt Violet', 'Amber Yellow'], storageOptions: ['128GB', '256GB'] },
-  { id: 'galaxys23', brandId: 'samsung', name: 'Galaxy S23', releaseYear: 2023, colors: ['Phantom Black', 'Cream', 'Green', 'Lavender'], storageOptions: ['128GB', '256GB'] },
-  { id: 'galaxys23u', brandId: 'samsung', name: 'Galaxy S23 Ultra', releaseYear: 2023, colors: ['Phantom Black', 'Cream', 'Green', 'Lavender'], storageOptions: ['256GB', '512GB', '1TB'] },
-  { id: 'galaxys22', brandId: 'samsung', name: 'Galaxy S22', releaseYear: 2022, colors: ['Phantom Black', 'Phantom White', 'Green', 'Burgundy'], storageOptions: ['128GB', '256GB'] },
-  { id: 'galaxyzflip5', brandId: 'samsung', name: 'Galaxy Z Flip 5', releaseYear: 2023, colors: ['Mint', 'Graphite', 'Cream', 'Lavender'], storageOptions: ['256GB', '512GB'] },
-  { id: 'pixel8pro', brandId: 'google', name: 'Pixel 8 Pro', releaseYear: 2023, colors: ['Obsidian', 'Porcelain', 'Bay'], storageOptions: ['128GB', '256GB', '512GB', '1TB'] },
-  { id: 'pixel8', brandId: 'google', name: 'Pixel 8', releaseYear: 2023, colors: ['Obsidian', 'Hazel', 'Rose'], storageOptions: ['128GB', '256GB'] },
-  { id: 'pixel7pro', brandId: 'google', name: 'Pixel 7 Pro', releaseYear: 2022, colors: ['Obsidian', 'Snow', 'Hazel'], storageOptions: ['128GB', '256GB'] },
-  { id: 'oneplus12', brandId: 'oneplus', name: 'OnePlus 12', releaseYear: 2024, colors: ['Flowy Emerald', 'Silky Black'], storageOptions: ['256GB', '512GB'] },
-  { id: 'oneplus11', brandId: 'oneplus', name: 'OnePlus 11', releaseYear: 2023, colors: ['Titan Black', 'Eternal Green'], storageOptions: ['128GB', '256GB'] },
-  { id: 'nord3', brandId: 'oneplus', name: 'Nord 3', releaseYear: 2023, colors: ['Misty Green', 'Tempest Gray'], storageOptions: ['128GB', '256GB'] },
-  { id: 'mi14', brandId: 'xiaomi', name: 'Xiaomi 14', releaseYear: 2024, colors: ['Black', 'White', 'Jade Green'], storageOptions: ['256GB', '512GB'] },
-  { id: 'mi13pro', brandId: 'xiaomi', name: 'Xiaomi 13 Pro', releaseYear: 2023, colors: ['Ceramic White', 'Ceramic Black'], storageOptions: ['128GB', '256GB', '512GB'] },
-  { id: 'findx6', brandId: 'oppo', name: 'Find X6 Pro', releaseYear: 2023, colors: ['Black', 'Green', 'Brown'], storageOptions: ['256GB', '512GB'] },
-  { id: 'reno11', brandId: 'oppo', name: 'Reno 11', releaseYear: 2024, colors: ['Wave Green', 'Rock Grey'], storageOptions: ['128GB', '256GB'] },
-  { id: 'x100', brandId: 'vivo', name: 'X100 Pro', releaseYear: 2024, colors: ['Startrail Blue', 'Asteroid Black'], storageOptions: ['256GB', '512GB'] },
-  { id: 'phone2', brandId: 'nothing', name: 'Phone (2)', releaseYear: 2023, colors: ['White', 'Dark Gray'], storageOptions: ['128GB', '256GB', '512GB'] },
+  { id: 'iphone15pm', brandId: 'apple', name: 'iPhone 15 Pro Max', releaseYear: 2023, colors: ['Natural Titanium', 'Blue Titanium', 'White Titanium', 'Black Titanium'], storageOptions: ['256GB', '512GB', '1TB'], specs: emptySpecs },
+  { id: 'iphone15pro', brandId: 'apple', name: 'iPhone 15 Pro', releaseYear: 2023, colors: ['Natural Titanium', 'Blue Titanium', 'White Titanium', 'Black Titanium'], storageOptions: ['128GB', '256GB', '512GB', '1TB'], specs: emptySpecs },
+  { id: 'iphone15', brandId: 'apple', name: 'iPhone 15', releaseYear: 2023, colors: ['Black', 'Blue', 'Green', 'Yellow', 'Pink'], storageOptions: ['128GB', '256GB', '512GB'], specs: emptySpecs },
+  { id: 'iphone14', brandId: 'apple', name: 'iPhone 14', releaseYear: 2022, colors: ['Midnight', 'Starlight', 'Blue', 'Purple', 'Red'], storageOptions: ['128GB', '256GB', '512GB'], specs: emptySpecs },
+  { id: 'iphone14pro', brandId: 'apple', name: 'iPhone 14 Pro', releaseYear: 2022, colors: ['Deep Purple', 'Gold', 'Silver', 'Space Black'], storageOptions: ['128GB', '256GB', '512GB', '1TB'], specs: emptySpecs },
+  { id: 'iphone13', brandId: 'apple', name: 'iPhone 13', releaseYear: 2021, colors: ['Midnight', 'Starlight', 'Blue', 'Pink', 'Red'], storageOptions: ['128GB', '256GB', '512GB'], specs: emptySpecs },
+  { id: 'iphone12', brandId: 'apple', name: 'iPhone 12', releaseYear: 2020, colors: ['Black', 'White', 'Blue', 'Green', 'Red'], storageOptions: ['64GB', '128GB', '256GB'], specs: emptySpecs },
+  { id: 'galaxys24u', brandId: 'samsung', name: 'Galaxy S24 Ultra', releaseYear: 2024, colors: ['Titanium Gray', 'Titanium Black', 'Titanium Violet', 'Titanium Yellow'], storageOptions: ['256GB', '512GB', '1TB'], specs: emptySpecs },
+  { id: 'galaxys24', brandId: 'samsung', name: 'Galaxy S24', releaseYear: 2024, colors: ['Onyx Black', 'Marble Gray', 'Cobalt Violet', 'Amber Yellow'], storageOptions: ['128GB', '256GB'], specs: emptySpecs },
+  { id: 'galaxys23', brandId: 'samsung', name: 'Galaxy S23', releaseYear: 2023, colors: ['Phantom Black', 'Cream', 'Green', 'Lavender'], storageOptions: ['128GB', '256GB'], specs: emptySpecs },
+  { id: 'galaxys23u', brandId: 'samsung', name: 'Galaxy S23 Ultra', releaseYear: 2023, colors: ['Phantom Black', 'Cream', 'Green', 'Lavender'], storageOptions: ['256GB', '512GB', '1TB'], specs: emptySpecs },
+  { id: 'galaxys22', brandId: 'samsung', name: 'Galaxy S22', releaseYear: 2022, colors: ['Phantom Black', 'Phantom White', 'Green', 'Burgundy'], storageOptions: ['128GB', '256GB'], specs: emptySpecs },
+  { id: 'galaxyzflip5', brandId: 'samsung', name: 'Galaxy Z Flip 5', releaseYear: 2023, colors: ['Mint', 'Graphite', 'Cream', 'Lavender'], storageOptions: ['256GB', '512GB'], specs: emptySpecs },
+  { id: 'pixel8pro', brandId: 'google', name: 'Pixel 8 Pro', releaseYear: 2023, colors: ['Obsidian', 'Porcelain', 'Bay'], storageOptions: ['128GB', '256GB', '512GB', '1TB'], specs: emptySpecs },
+  { id: 'pixel8', brandId: 'google', name: 'Pixel 8', releaseYear: 2023, colors: ['Obsidian', 'Hazel', 'Rose'], storageOptions: ['128GB', '256GB'], specs: emptySpecs },
+  { id: 'pixel7pro', brandId: 'google', name: 'Pixel 7 Pro', releaseYear: 2022, colors: ['Obsidian', 'Snow', 'Hazel'], storageOptions: ['128GB', '256GB'], specs: emptySpecs },
+  { id: 'oneplus12', brandId: 'oneplus', name: 'OnePlus 12', releaseYear: 2024, colors: ['Flowy Emerald', 'Silky Black'], storageOptions: ['256GB', '512GB'], specs: emptySpecs },
+  { id: 'oneplus11', brandId: 'oneplus', name: 'OnePlus 11', releaseYear: 2023, colors: ['Titan Black', 'Eternal Green'], storageOptions: ['128GB', '256GB'], specs: emptySpecs },
+  { id: 'nord3', brandId: 'oneplus', name: 'Nord 3', releaseYear: 2023, colors: ['Misty Green', 'Tempest Gray'], storageOptions: ['128GB', '256GB'], specs: emptySpecs },
+  { id: 'mi14', brandId: 'xiaomi', name: 'Xiaomi 14', releaseYear: 2024, colors: ['Black', 'White', 'Jade Green'], storageOptions: ['256GB', '512GB'], specs: emptySpecs },
+  { id: 'mi13pro', brandId: 'xiaomi', name: 'Xiaomi 13 Pro', releaseYear: 2023, colors: ['Ceramic White', 'Ceramic Black'], storageOptions: ['128GB', '256GB', '512GB'], specs: emptySpecs },
+  { id: 'findx6', brandId: 'oppo', name: 'Find X6 Pro', releaseYear: 2023, colors: ['Black', 'Green', 'Brown'], storageOptions: ['256GB', '512GB'], specs: emptySpecs },
+  { id: 'reno11', brandId: 'oppo', name: 'Reno 11', releaseYear: 2024, colors: ['Wave Green', 'Rock Grey'], storageOptions: ['128GB', '256GB'], specs: emptySpecs },
+  { id: 'x100', brandId: 'vivo', name: 'X100 Pro', releaseYear: 2024, colors: ['Startrail Blue', 'Asteroid Black'], storageOptions: ['256GB', '512GB'], specs: emptySpecs },
+  { id: 'phone2', brandId: 'nothing', name: 'Phone (2)', releaseYear: 2023, colors: ['White', 'Dark Gray'], storageOptions: ['128GB', '256GB', '512GB'], specs: emptySpecs },
+];
+
+const TIME_SLOTS = ['09:00–10:00', '10:00–11:00', '11:00–12:00', '12:00–13:00', '15:00–16:00', '16:00–17:00', '17:00–18:00'];
+
+const DEMO_STORES: IStore[] = [
+  { id: 'st-mum-1', name: 'MobileXchange Andheri', city: 'Mumbai', address: 'Andheri West, Mumbai 400058', phone: '+91-9876543201' },
+  { id: 'st-del-1', name: 'GadgetMart CP', city: 'Delhi', address: 'Connaught Place, New Delhi 110001', phone: '+91-9876543202' },
+  { id: 'st-blr-1', name: 'FonFix Koramangala', city: 'Bangalore', address: 'Koramangala 5th Block, Bangalore 560095', phone: '+91-9876543203' },
 ];
 
 export function Appointment() {
@@ -60,6 +69,7 @@ export function Appointment() {
   const [step, setStep] = useState(1);
   const [brands, setBrands] = useState<IBrand[]>([]);
   const [models, setModels] = useState<IModel[]>([]);
+  const [stores, setStores] = useState<IStore[]>([]);
   const [selBrand, setSelBrand] = useState('');
   const [selModel, setSelModel] = useState('');
   const [selColor, setSelColor] = useState('');
@@ -72,15 +82,33 @@ export function Appointment() {
   const [selDisplay, setSelDisplay] = useState('');
   const [selRepairs, setSelRepairs] = useState<string[]>([]);
   const [selIssues, setSelIssues] = useState<string[]>([]);
-  const [estimate, setEstimate] = useState<{ min: number; max: number } | null>(null);
+  const [estimate, setEstimate] = useState<number | null>(null);
+  const [city, setCity] = useState('Mumbai');
+  const [selStore, setSelStore] = useState('');
+  const [selDate, setSelDate] = useState('');
+  const [selSlot, setSelSlot] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const nextDays = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() + i + 1);
+      return d.toISOString().slice(0, 10);
+    });
+  }, []);
 
   useEffect(() => {
     fetch('/api/brands')
       .then((r) => r.json())
       .then((d) => setBrands(d.brands))
       .catch(() => setBrands(DEMO_BRANDS));
+    fetch('/api/stores')
+      .then((r) => r.json())
+      .then((d) => setStores(d.stores || DEMO_STORES))
+      .catch(() => setStores(DEMO_STORES));
   }, []);
+
+  const cityStores = stores.filter((s) => s.city === city);
 
   useEffect(() => {
     if (!selBrand) {
@@ -97,21 +125,46 @@ export function Appointment() {
   const selectedModel = models.find((m) => m.id === selModel);
 
   const calculateEstimate = () => {
-    const basePrice = selectedModel ? 25000 : 20000;
-    const gradeScore = [selBodyCondition, selScreenCondition, selDisplay].filter((c) => c !== '').length;
-    const min = basePrice - 8000 + gradeScore * 2000;
-    const max = basePrice + gradeScore * 3000;
-    setEstimate({ min, max });
+    // Single estimated offer from self-reported condition (demo rule engine).
+    // Final recycle price is confirmed after in-store inspection.
+    let price = selectedModel ? 28000 : 22000;
+    const bodyOpts = CONDITIONS[0].options;
+    const screenOpts = CONDITIONS[1].options;
+    const displayOpts = CONDITIONS[2].options;
+    price -= Math.max(0, bodyOpts.indexOf(selBodyCondition)) * 2500;
+    price -= Math.max(0, screenOpts.indexOf(selScreenCondition)) * 2000;
+    price -= Math.max(0, displayOpts.indexOf(selDisplay)) * 3000;
+    price -= Math.max(0, BATTERY_OPTIONS.indexOf(selBattery)) * 1500;
+    price -= Math.max(0, USAGE_OPTIONS.indexOf(selUsage)) * 800;
+    if (selWarranty === 'No') price -= 1500;
+    const realRepairs = selRepairs.filter((r) => r !== 'Never repaired');
+    price -= realRepairs.length * 1000;
+    const realIssues = selIssues.filter((i) => i !== 'All working');
+    price -= realIssues.length * 800;
+    setEstimate(Math.max(3000, Math.round(price / 100) * 100));
+    setSelDate(nextDays[0] || '');
     setStep(3);
   };
 
   const handleSubmit = async () => {
     setSubmitting(true);
+    const store = stores.find((s) => s.id === selStore);
+    const brandName = brands.find((b) => b.id === selBrand)?.name;
+    const successState = {
+      storeName: store?.name,
+      storeAddress: store?.address,
+      storePhone: store?.phone,
+      date: selDate,
+      slot: selSlot,
+      brand: brandName,
+      model: selectedModel?.name,
+      estimatePrice: estimate ?? undefined,
+    };
     try {
       await fetch('/api/sessions', { method: 'POST' });
-      navigate('/sell/appointment/success');
+      navigate('/sell/appointment/success', { state: successState });
     } catch {
-      navigate('/sell/appointment/success');
+      navigate('/sell/appointment/success', { state: successState });
     } finally {
       setSubmitting(false);
     }
@@ -132,8 +185,8 @@ export function Appointment() {
       </Button>
       <h1 className="text-h3 font-heading">Book Inspection</h1>
 
-      {/* Step indicators */}
-      <div className="flex items-center gap-2 mb-4">
+      {/* Step indicators: device → condition → store/slot */}
+      <div className="flex items-center gap-2 mb-4" data-testid="appointment-steps">
         {[1, 2, 3].map((s) => (
           <React.Fragment key={s}>
             <div
@@ -384,37 +437,113 @@ export function Appointment() {
         </Card>
       )}
 
-      {/* Step 3: Estimate & Book */}
+      {/* Step 3: Estimate + Store + Slot */}
       {step === 3 && estimate && (
-        <Card>
-          <h2 className="text-h4 font-heading mb-4">Your Estimate</h2>
+        <div className="space-y-4" data-testid="appointment-step3">
+          <Card>
+            <h2 className="text-h4 font-heading mb-4">Your Estimate</h2>
+            <div className="bg-primary-50 rounded-xl p-4 text-center" data-testid="estimate-price">
+              <p className="text-caption text-primary-700 mb-1">Estimated Offer</p>
+              <p className="text-h2 font-heading text-primary-500">
+                ₹{new Intl.NumberFormat('en-IN').format(estimate)}
+              </p>
+              <p className="text-caption text-text-muted mt-1">
+                Based on your answers. Final price after in-store inspection.
+              </p>
+            </div>
+          </Card>
 
-          <div className="bg-primary-50 rounded-xl p-4 mb-4 text-center">
-            <p className="text-caption text-primary-700 mb-1">Estimated Value Range</p>
-            <p className="text-h2 font-heading text-primary-500">
-              ₹{new Intl.NumberFormat('en-IN').format(estimate.min)} – ₹{new Intl.NumberFormat('en-IN').format(estimate.max)}
-            </p>
-            <p className="text-caption text-text-muted mt-1">
-              Final price determined after physical inspection
-            </p>
-          </div>
+          <Card>
+            <h3 className="text-h4 font-heading mb-3 flex items-center gap-2"><MapPin size={18} /> Store</h3>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {['Mumbai', 'Delhi', 'Bangalore'].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => { setCity(c); setSelStore(''); }}
+                  className={`px-3 py-1 rounded-full text-caption font-medium border ${
+                    city === c ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-border'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+            <div className="space-y-2">
+              {cityStores.map((s, idx) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  data-testid={`store-${s.id}`}
+                  onClick={() => setSelStore(s.id)}
+                  className={`w-full text-left rounded-lg border p-3 ${
+                    selStore === s.id ? 'border-primary-500 bg-primary-50' : 'border-border'
+                  }`}
+                >
+                  <p className="text-body font-semibold">{s.name}</p>
+                  <p className="text-caption text-text-muted">{s.address}</p>
+                  <p className="text-eyebrow text-primary-600 mt-1">{(idx + 1) * 1.2 + 0.8} km away</p>
+                </button>
+              ))}
+              {cityStores.length === 0 && <p className="text-caption text-text-muted">No stores in this city.</p>}
+            </div>
+          </Card>
 
-          <div className="flex items-start gap-2 p-3 bg-dobara-info-light rounded-lg mb-4">
+          <Card>
+            <h3 className="text-h4 font-heading mb-3 flex items-center gap-2"><Clock size={18} /> Visit slot</h3>
+            <p className="text-caption text-text-muted mb-2">Next 7 days</p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {nextDays.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setSelDate(d)}
+                  className={`px-3 py-1.5 rounded-md text-caption border ${
+                    selDate === d ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-border'
+                  }`}
+                >
+                  {d.slice(5)}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {TIME_SLOTS.map((slot) => (
+                <button
+                  key={slot}
+                  type="button"
+                  data-testid={`slot-${slot}`}
+                  onClick={() => setSelSlot(slot)}
+                  className={`px-3 py-1.5 rounded-md text-caption border ${
+                    selSlot === slot ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-border'
+                  }`}
+                >
+                  {slot}
+                </button>
+              ))}
+            </div>
+          </Card>
+
+          <div className="flex items-start gap-2 p-3 bg-dobara-info-light rounded-lg">
             <Info size={16} className="text-dobara-info shrink-0 mt-0.5" />
             <p className="text-caption text-[#1e3a8a]">
-              Visit your nearest Dobara partner store for a free physical inspection. The final offer will be based on the actual condition.
+              At the store, share your phone number for OTP verification. No appointment code needed.
             </p>
           </div>
 
           <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setStep(2)} className="flex-1">
-              Back
-            </Button>
-            <Button variant="primary" loading={submitting} onClick={handleSubmit} className="flex-1">
+            <Button variant="secondary" onClick={() => setStep(2)} className="flex-1">Back</Button>
+            <Button
+              variant="primary"
+              loading={submitting}
+              onClick={handleSubmit}
+              className="flex-1"
+              disabled={!selStore || !selDate || !selSlot}
+              data-testid="book-appointment"
+            >
               Book Appointment
             </Button>
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );

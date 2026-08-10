@@ -8,7 +8,7 @@ export function RecycleHome() {
   const [sessionId, setSessionId] = useState('');
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-5">
+    <div className="max-w-lg mx-auto py-5">
       <div className="rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white p-5 mb-5 relative overflow-hidden">
         <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_90%_10%,#C9A227,transparent_45%)]" />
         <div className="relative z-10">

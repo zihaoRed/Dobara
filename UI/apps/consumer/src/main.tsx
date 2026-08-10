@@ -22,7 +22,11 @@ const startMSW = async () => {
   try {
     const { worker } = await import('@dobara/mock/browser');
     await Promise.race([
-      worker.start({ onUnhandledRequest: 'bypass' }),
+      worker.start({
+        onUnhandledRequest: 'bypass',
+        // Vite base is /consumer/ — SW must be under the same scope
+        serviceWorker: { url: `${import.meta.env.BASE_URL}mockServiceWorker.js` },
+      }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
     ]);
   } catch { /* MSW unavailable, continue without it */ }

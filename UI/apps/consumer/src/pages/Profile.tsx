@@ -5,13 +5,16 @@ import { useTranslation } from 'react-i18next';
 import {
   User, Phone, Shield, Globe, Moon, Sun,
   ShoppingBag, ExternalLink, RefreshCw, LogOut, ChevronRight,
+  MapPin, HeadphonesIcon, LifeBuoy,
 } from 'lucide-react';
 import { getUser, clearUser } from '../App';
+import { maskPhone } from '@dobara/utils';
 
 export function Profile() {
   const { i18n } = useTranslation();
   const navigate = useNavigate();
   const user = getUser() || { phone: 'N/A', name: 'User' };
+  const displayPhone = user.phone === 'N/A' ? user.phone : maskPhone(user.phone);
   const [darkMode, setDarkMode] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark');
 
   const toggleDarkMode = () => {
@@ -26,13 +29,16 @@ export function Profile() {
   };
 
   const menuItems = [
-    { icon: <ShoppingBag size={20} />, label: 'My Orders', desc: 'View your purchase & recycling orders', onClick: () => navigate('/account/orders'), highlight: true },
+    { icon: <ShoppingBag size={20} />, label: 'My Orders', desc: 'Purchase & recycling orders', onClick: () => navigate('/account/orders'), highlight: true },
+    { icon: <MapPin size={20} />, label: 'Addresses', desc: 'Manage delivery addresses', onClick: () => navigate('/account/addresses') },
+    { icon: <LifeBuoy size={20} />, label: 'After-Sales', desc: 'Returns, exchanges & refunds', onClick: () => navigate('/account/after-sales') },
+    { icon: <HeadphonesIcon size={20} />, label: 'Help Center', desc: 'FAQ & contact support', onClick: () => navigate('/account/help') },
     { icon: <RefreshCw size={20} />, label: 'Sell / Recycle', desc: 'Get a quote for your old phone', onClick: () => navigate('/sell') },
-    { icon: <ExternalLink size={20} />, label: 'H5 Inspection Preview', desc: 'View standalone H5 report page', onClick: () => navigate('/account/h5-preview') },
+    { icon: <ExternalLink size={20} />, label: 'H5 Inspection Preview', desc: 'Standalone H5 report page', onClick: () => navigate('/account/h5-preview') },
   ];
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-5 space-y-4">
+    <div className="max-w-lg mx-auto py-5 space-y-4" data-testid="account-home">
       <h1 className="text-h3 font-bold text-text-primary">Account</h1>
 
       <Card className="!rounded-xl">
@@ -43,7 +49,7 @@ export function Profile() {
           <div>
             <h2 className="text-h4 font-bold text-text-primary">{user.name}</h2>
             <p className="text-caption text-text-muted flex items-center gap-1">
-              <Phone size={14} /> {user.phone}
+              <Phone size={14} /> {displayPhone}
             </p>
           </div>
         </div>
@@ -112,7 +118,7 @@ export function Profile() {
             <Shield size={20} className="text-text-muted" />
             <div>
               <p className="text-body text-text-primary">Account ID</p>
-              <p className="text-mono text-caption text-text-muted">{user.phone}</p>
+              <p className="text-mono text-caption text-text-muted">{displayPhone}</p>
             </div>
           </div>
         </div>
@@ -128,7 +134,7 @@ export function Profile() {
         Sign Out
       </Button>
 
-      <p className="text-eyebrow text-text-muted text-center pb-4">Dobara · Demo v0.1</p>
+      <p className="text-eyebrow text-text-muted text-center pb-4">Dobara · Demo v0.2</p>
     </div>
   );
 }
