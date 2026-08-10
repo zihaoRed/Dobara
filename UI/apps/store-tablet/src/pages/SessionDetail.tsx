@@ -1,21 +1,26 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button, Card, CardHeader, CardContent, Stepper } from '@dobara/ui';
-import { ArrowLeft, User, Store, Clock } from 'lucide-react';
+import { ArrowLeft, User, Store, Clock, Calendar } from 'lucide-react';
+import { markStepComplete, saveProgress } from '../lib/sessionProgress';
 
 const steps = [
   { key: 'photo', label: 'Photos' },
   { key: 'video', label: 'Video' },
+  { key: 'decision', label: 'Decision' },
+  { key: 'inspect', label: 'Inspect' },
   { key: 'hardware', label: 'Hardware' },
   { key: 'invoice', label: 'Invoice' },
   { key: 'report', label: 'Report' },
 ];
 
 export default function SessionDetail() {
-  const { sessionId } = useParams<{ sessionId: string }>();
+  const { sessionId = '' } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
-  const [session, setSession] = useState<any>(null);
-  const [user, setUser] = useState<any>(null);
+  const location = useLocation();
+  const phoneFromState = (location.state as { phone?: string } | null)?.phone;
+  const [session, setSession] = useState<{ status: string; createdAt: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; phone: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,22 +35,24 @@ export default function SessionDetail() {
         setSession(sessionData.session);
         setUser(userData.user);
       } catch {
-        // Demo fallback
         setSession({ status: 'inspection', createdAt: new Date().toISOString() });
-        setUser({ name: 'Rahul Sharma', phone: '+91 98765 43201' });
+        setUser({
+          name: 'Rahul Sharma',
+          phone: phoneFromState ? `+91 ${phoneFromState}` : '+91 98765 43201',
+        });
       } finally {
         setLoading(false);
+        saveProgress({ sessionId, currentStep: 'session', completedIndex: -1, phone: phoneFromState });
       }
     }
     load();
-  }, [sessionId]);
+  }, [sessionId, phoneFromState]);
 
   if (loading) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-surface-high rounded w-1/3" />
-          <div className="h-4 bg-surface-high rounded w-2/3" />
           <div className="h-20 bg-surface-high rounded" />
         </div>
       </div>
@@ -53,7 +60,7 @@ export default function SessionDetail() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-6" data-testid="session-detail">
       <div className="flex items-center gap-3 mb-2">
         <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
           <ArrowLeft size={16} />
@@ -64,7 +71,7 @@ export default function SessionDetail() {
 
       <Stepper steps={steps} current={0} className="mb-6" />
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-2 gap-4 mb-4">
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -73,17 +80,10 @@ export default function SessionDetail() {
             </div>
           </CardHeader>
           <CardContent>
-            {user ? (
-              <div>
-                <p className="text-lead font-semibold text-text-primary">{user.name}</p>
-                <p className="text-body text-text-body">{user.phone}</p>
-              </div>
-            ) : (
-              <p className="text-body text-text-muted">Loading...</p>
-            )}
+            <p className="text-lead font-semibold text-text-primary">{user?.name}</p>
+            <p className="text-body text-text-body">{user?.phone}</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -92,13 +92,29 @@ export default function SessionDetail() {
             </div>
           </CardHeader>
           <CardContent>
-            <p className="text-lead font-semibold text-text-primary">
-              MobileXchange Andheri
-            </p>
+            <p className="text-lead font-semibold text-text-primary">MobileXchange Andheri</p>
             <p className="text-body text-text-body">Mumbai</p>
           </CardContent>
         </Card>
       </div>
+
+      {/* TAB-P1-02 simplified appointment card */}
+      <Card className="mb-6" data-testid="appointment-card">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Calendar size={18} className="text-text-muted" />
+            <span className="text-eyebrow text-text-muted uppercase">Appointment (auto-loaded)</span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-2 text-body">
+            <div><span className="text-text-muted">Device: </span><span className="font-medium">Apple iPhone 13 · 128GB · Midnight</span></div>
+            <div><span className="text-text-muted">Slot: </span><span className="font-medium">Today · 15:00–16:00</span></div>
+            <div><span className="text-text-muted">Self-estimate: </span><span className="font-medium text-primary-600">₹28,000</span></div>
+            <div><span className="text-text-muted">Notes: </span><span className="font-medium">Minor scratches claimed</span></div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="mb-6">
         <CardHeader>
@@ -111,11 +127,11 @@ export default function SessionDetail() {
           <div className="grid grid-cols-2 gap-3 text-body">
             <div>
               <span className="text-text-muted">Status: </span>
-              <span className="text-text-primary font-medium capitalize">{session?.status}</span>
+              <span className="font-medium capitalize">{session?.status}</span>
             </div>
             <div>
               <span className="text-text-muted">Created: </span>
-              <span className="text-text-primary font-medium">
+              <span className="font-medium">
                 {session?.createdAt ? new Date(session.createdAt).toLocaleString() : '-'}
               </span>
             </div>
@@ -123,11 +139,15 @@ export default function SessionDetail() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-center gap-4">
+      <div className="flex justify-center">
         <Button
           size="lg"
           variant="primary"
-          onClick={() => navigate(`/session/${sessionId}/photo`)}
+          data-testid="start-inspection"
+          onClick={() => {
+            markStepComplete(sessionId, 'session');
+            navigate(`/session/${sessionId}/photo`);
+          }}
         >
           Start Inspection
         </Button>

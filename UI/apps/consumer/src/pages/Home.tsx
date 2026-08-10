@@ -108,10 +108,15 @@ export function Home() {
     <div className="max-w-lg mx-auto pb-4">
       {/* Top bar */}
       <header className="flex items-center justify-between pt-1 pb-2">
-        <div className="flex items-center gap-2" aria-label="Dobara">
+        <a
+          href="/"
+          className="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity"
+          aria-label="Back to Dobara module selection"
+          title="Back to module selection"
+        >
           <PhoenixLogo className="w-8 h-8" />
           <span className="text-lg font-extrabold tracking-tight text-primary-500">Dobara</span>
-        </div>
+        </a>
         <div className="flex items-center gap-1">
           <button type="button" className="relative p-2 rounded-full hover:bg-surface-high" aria-label="Notifications">
             <Bell size={22} className="text-text-primary" />
