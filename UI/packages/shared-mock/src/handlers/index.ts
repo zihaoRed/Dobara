@@ -450,11 +450,27 @@ export const handlers = [
 
   http.post('/api/ops/review/:imei/approve', async ({ params, request }) => {
     await simulateDelay();
-    const body = await request.json() as { adjustments?: { grade?: string; deductions?: { reason: string; amount: number }[] } };
+    const body = await request.json() as {
+      mainImage?: string;
+      adjustments?: {
+        grade?: string;
+        gradeAfter?: string;
+        deductionCodes?: string[];
+        deductions?: { reason: string; amount: number }[];
+        reason?: string;
+        recycleAfter?: number;
+        mallAfter?: number;
+      };
+    };
+    // Grade is system-computed from deductions — clients may send gradeAfter for demo sync only
     const device = getDeviceById(String(params.imei));
     if (device) {
       device.status = 'available';
-      if (body.adjustments?.grade) device.grade = body.adjustments.grade as 'A' | 'B' | 'C' | 'D';
+      const nextGrade = body.adjustments?.gradeAfter || body.adjustments?.grade;
+      if (nextGrade) device.grade = nextGrade as 'A' | 'B' | 'C' | 'D';
+      if (body.adjustments?.recycleAfter != null) device.originalPrice = body.adjustments.recycleAfter;
+      if (body.adjustments?.mallAfter != null) device.price = body.adjustments.mallAfter;
+      if (body.mainImage) device.mainImage = body.mainImage;
     }
     return HttpResponse.json({ success: true });
   }),

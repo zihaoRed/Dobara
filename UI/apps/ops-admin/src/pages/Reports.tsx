@@ -1,83 +1,155 @@
-import React from 'react';
-import { Card, CardHeader, CardContent, Badge, Tabs, ProgressBar } from '@dobara/ui';
-import { BarChart3 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Card, CardContent, CardHeader, Button, Tabs, Badge } from '@dobara/ui';
+import { Download } from 'lucide-react';
+import { DataTable } from '../components/DataTable';
+
+type TabKey = 'recycle' | 'sales' | 'inventory';
+
+interface MetricRow {
+  id: string;
+  metric: string;
+  value: string;
+  note: string;
+}
+
+const TAB_DATA: Record<TabKey, { kpis: { label: string; value: string }[]; rows: MetricRow[] }> = {
+  recycle: {
+    kpis: [
+      { label: 'Recycle orders (MTD)', value: '186' },
+      { label: 'Accepted quotes', value: '152' },
+      { label: 'Avg recycle price', value: '₹ 24,800' },
+      { label: 'Verified / completed', value: '141' },
+    ],
+    rows: [
+      { id: 'r1', metric: 'Appointments booked', value: '210', note: 'Store + app' },
+      { id: 'r2', metric: 'OTP check-ins', value: '198', note: '94% of bookings' },
+      { id: 'r3', metric: 'Quotes issued', value: '175', note: 'After inspection' },
+      { id: 'r4', metric: 'Quote accept rate', value: '87%', note: 'User accepted' },
+      { id: 'r5', metric: 'Avg days to warehouse', value: '2.4', note: 'DB transit' },
+      { id: 'r6', metric: 'Grade A share', value: '31%', note: 'Of accepted' },
+    ],
+  },
+  sales: {
+    kpis: [
+      { label: 'Mall GMV (MTD)', value: '₹ 42.6L' },
+      { label: 'Orders paid', value: '96' },
+      { label: 'Avg order value', value: '₹ 44,400' },
+      { label: 'B2B share', value: '28%' },
+    ],
+    rows: [
+      { id: 's1', metric: 'C2C / mall orders', value: '69', note: 'Consumer app' },
+      { id: 's2', metric: 'B2B bulk orders', value: '27', note: 'Store enterprise' },
+      { id: 's3', metric: 'Shipped', value: '88', note: 'Warehouse outbound' },
+      { id: 's4', metric: 'Return rate', value: '3.1%', note: 'Within window' },
+      { id: 's5', metric: 'Credit settlements due', value: '₹ 6.2L', note: 'B2B pending' },
+      { id: 's6', metric: 'Top category', value: 'iPhone 13/14', note: 'By units' },
+    ],
+  },
+  inventory: {
+    kpis: [
+      { label: 'In warehouse', value: '312' },
+      { label: 'Available for sale', value: '248' },
+      { label: 'Pending review', value: '18' },
+      { label: 'Stale (>30d)', value: '22' },
+    ],
+    rows: [
+      { id: 'i1', metric: 'Pending storage', value: '14', note: 'Inbound queue' },
+      { id: 'i2', metric: 'Refurbish in progress', value: '9', note: 'WH decision' },
+      { id: 'i3', metric: 'Locked (checkout)', value: '11', note: 'TTL cart locks' },
+      { id: 'i4', metric: 'Sold awaiting ship', value: '7', note: 'Paid' },
+      { id: 'i5', metric: 'WH-MH-0001 stock', value: '168', note: 'Mumbai WH' },
+      { id: 'i6', metric: 'WH-DL-0001 stock', value: '144', note: 'Delhi WH' },
+    ],
+  },
+};
+
+function exportTabCsv(tab: TabKey) {
+  const data = TAB_DATA[tab];
+  const lines = [
+    'section,label,value',
+    ...data.kpis.map((k) => `kpi,"${k.label}","${k.value}"`),
+    ...data.rows.map((r) => `metric,"${r.metric}","${r.value}"`),
+  ];
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `reports-${tab}-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const Reports: React.FC = () => {
+  const [tab, setTab] = useState<TabKey>('recycle');
+  const data = useMemo(() => TAB_DATA[tab], [tab]);
+
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-h2 font-heading text-text-primary">Data Reports</h1>
-        <p className="text-body text-text-muted mt-1">Analytics and operational performance metrics</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-h2 font-heading text-text-primary">Data Reports</h1>
+          <p className="text-body text-text-muted mt-1">
+            Recycle · Sales · Inventory (static demo metrics)
+          </p>
+        </div>
+        <Button variant="secondary" icon={<Download size={18} />} onClick={() => exportTabCsv(tab)}>
+          Export CSV
+        </Button>
       </div>
 
-      {/* KPI Cards */}
+      <Tabs
+        tabs={[
+          { key: 'recycle', label: 'Recycle' },
+          { key: 'sales', label: 'Sales' },
+          { key: 'inventory', label: 'Inventory' },
+        ]}
+        activeTab={tab}
+        onChange={(k) => setTab(k as TabKey)}
+        className="mb-6"
+      />
+
       <div className="grid grid-cols-4 gap-4 mb-6">
-        {[
-          { label: 'Total Devices', value: '245', change: '+12%' },
-          { label: 'Avg Review Time', value: '4.2 min', change: '-8%' },
-          { label: 'Approval Rate', value: '92%', change: '+3%' },
-          { label: 'Avg Price', value: '₹ 28,500', change: '+5%' },
-        ].map((kpi) => (
+        {data.kpis.map((kpi) => (
           <Card key={kpi.label} variant="default">
             <div className="text-caption text-text-muted">{kpi.label}</div>
             <div className="text-h2 font-heading text-text-primary mt-1">{kpi.value}</div>
-            <Badge variant={kpi.change.startsWith('+') ? 'success' : 'info'} className="mt-2">{kpi.change} vs last month</Badge>
           </Card>
         ))}
       </div>
 
-      {/* Review Performance */}
-      <Card variant="default" className="mb-4">
-        <CardHeader><h3 className="text-h4 font-heading text-text-primary">Review Performance</h3></CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div>
-              <div className="flex justify-between text-caption text-text-muted mb-1">
-                <span>Approval Rate</span><span>92%</span>
-              </div>
-              <ProgressBar value={92} color="success" />
-            </div>
-            <div>
-              <div className="flex justify-between text-caption text-text-muted mb-1">
-                <span>Direct List Rate</span><span>68%</span>
-              </div>
-              <ProgressBar value={68} color="primary" />
-            </div>
-            <div>
-              <div className="flex justify-between text-caption text-text-muted mb-1">
-                <span>Adjust & List Rate</span><span>24%</span>
-              </div>
-              <ProgressBar value={24} color="warning" />
-            </div>
-            <div>
-              <div className="flex justify-between text-caption text-text-muted mb-1">
-                <span>Rejection Rate</span><span>8%</span>
-              </div>
-              <ProgressBar value={8} color="error" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Grade Distribution */}
       <Card variant="default">
-        <CardHeader><h3 className="text-h4 font-heading text-text-primary">Grade Distribution</h3></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-4 gap-4">
-            {[
-              { grade: 'A', count: 85, pct: 35, color: 'success' as const },
-              { grade: 'B', count: 72, pct: 29, color: 'primary' as const },
-              { grade: 'C', count: 55, pct: 22, color: 'warning' as const },
-              { grade: 'D', count: 33, pct: 14, color: 'error' as const },
-            ].map((g) => (
-              <div key={g.grade} className="p-4 bg-surface-low rounded-md">
-                <div className="text-caption text-text-muted">Grade {g.grade}</div>
-                <div className="text-h3 font-heading text-text-primary mt-1">{g.count}</div>
-                <ProgressBar value={g.pct} color={g.color} size="sm" className="mt-2" />
-                <div className="text-caption text-text-muted mt-1">{g.pct}% of total</div>
-              </div>
-            ))}
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <h3 className="text-h4 font-heading text-text-primary">
+              {tab === 'recycle' && 'Recycle funnel metrics'}
+              {tab === 'sales' && 'Sales performance metrics'}
+              {tab === 'inventory' && 'Inventory snapshot metrics'}
+            </h3>
+            <Badge variant="neutral">Demo · no rejection rate</Badge>
           </div>
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            data={data.rows}
+            keyField="id"
+            columns={[
+              {
+                key: 'metric',
+                header: 'Metric',
+                render: (r) => <span className="font-semibold text-text-primary">{r.metric}</span>,
+              },
+              {
+                key: 'value',
+                header: 'Value',
+                render: (r) => <span className="text-text-secondary">{r.value}</span>,
+              },
+              {
+                key: 'note',
+                header: 'Note',
+                render: (r) => <span className="text-caption text-text-muted">{r.note}</span>,
+              },
+            ]}
+          />
         </CardContent>
       </Card>
     </div>

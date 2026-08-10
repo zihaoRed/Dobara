@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
-export type RoleType = 'ops' | 'admin' | 'store_owner' | 'wh_manager' | 'finance';
+/** Ops admin only: ROLE-OPS / ROLE-SA (demo labels). */
+export type RoleType = 'ops' | 'admin';
 
 interface RoleState {
   currentRole: RoleType;
