@@ -75,7 +75,7 @@ export default function ClerkLogin() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full px-6" data-testid="clerk-login">
+    <div className="flex flex-col items-center justify-center min-h-full px-4 sm:px-6 py-6" data-testid="clerk-login">
       <Card className="w-full max-w-[420px] space-y-4">
         <div className="text-center">
           <h1 className="text-h3 font-extrabold text-primary-500">Dobara Tablet</h1>

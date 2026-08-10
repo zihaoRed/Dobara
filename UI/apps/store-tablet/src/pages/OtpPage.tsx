@@ -94,7 +94,7 @@ export default function OtpPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full px-6" data-testid="customer-otp-page">
+    <div className="flex flex-col items-center justify-center min-h-full px-4 sm:px-6 py-6" data-testid="customer-otp-page">
       <div className="w-full max-w-[400px] mb-4">
         <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
           <ArrowLeft size={16} /> Back

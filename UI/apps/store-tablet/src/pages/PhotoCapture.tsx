@@ -41,19 +41,19 @@ export default function PhotoCapture() {
   };
 
   return (
-    <div className="p-6" data-testid="photo-capture">
+    <div className="p-4 sm:p-6" data-testid="photo-capture">
       <h1 className="text-h3 font-heading text-text-primary mb-2">Photo Capture</h1>
       <p className="text-body text-text-body mb-4">
         Capture angles in order. Current: <b>{PHOTO_ANGLES[currentIndex]}</b> ({currentIndex + 1}/10)
       </p>
 
-      <div className="grid grid-cols-[1fr_280px] gap-4 mb-4">
-        <Card className="relative aspect-[4/3] overflow-hidden p-0 bg-surface-high flex items-center justify-center">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] lg:grid-cols-[1fr_280px] gap-4 mb-4">
+        <Card className="relative aspect-[4/3] max-h-[min(480px,55dvh)] w-full mx-auto overflow-hidden p-0 bg-surface-high flex items-center justify-center">
           {photos[currentIndex] ? (
             <img src={photos[currentIndex]!} alt={PHOTO_ANGLES[currentIndex]} className="w-full h-full object-cover" />
           ) : (
             <div className="text-center px-6">
-              <div className="mx-auto mb-3 w-40 h-56 border-2 border-dashed border-primary-400 rounded-2xl opacity-70" />
+              <div className="mx-auto mb-3 w-32 h-44 sm:w-40 sm:h-56 border-2 border-dashed border-primary-400 rounded-2xl opacity-70" />
               <p className="text-caption text-primary-700 font-semibold">Overlay guide · {PHOTO_ANGLES[currentIndex]}</p>
               <p className="text-eyebrow text-text-muted mt-1">Align device to the silhouette, then capture</p>
             </div>
@@ -72,9 +72,9 @@ export default function PhotoCapture() {
           <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
         </Card>
 
-        <div>
+        <div className="min-w-0">
           <p className="text-eyebrow text-text-muted mb-2">Gallery</p>
-          <div className="grid grid-cols-2 gap-2 max-h-[360px] overflow-y-auto">
+          <div className="grid grid-cols-5 md:grid-cols-2 gap-2 max-h-[min(360px,40dvh)] md:max-h-[min(420px,55dvh)] overflow-y-auto">
             {PHOTO_ANGLES.map((angle, i) => {
               const locked = i > (nextRequired === -1 ? 9 : nextRequired);
               return (

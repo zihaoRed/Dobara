@@ -75,7 +75,7 @@ function SideNav() {
   if (!sessionId) return null;
 
   return (
-    <nav className="w-[188px] shrink-0 bg-surface-low border-r border-border p-3 flex flex-col gap-1" data-testid="side-nav">
+    <nav className="w-[160px] sm:w-[188px] shrink-0 bg-surface-low border-r border-border p-2 sm:p-3 flex flex-col gap-1 overflow-y-auto min-h-0" data-testid="side-nav">
       <h3 className="text-eyebrow text-text-muted uppercase tracking-wider px-2 mb-1">
         Inspection Flow
       </h3>
@@ -131,21 +131,23 @@ function TopBar() {
   const unread = 2;
 
   return (
-    <header className="h-[48px] bg-surface-container border-b border-border flex items-center justify-between px-4 shrink-0">
-      <div className="flex items-center gap-3">
-        <a href="/" className="text-lead font-heading font-bold text-primary-600 hover:text-primary-500 transition-colors no-underline">
+    <header className="min-h-[48px] bg-surface-container border-b border-border flex items-center justify-between gap-2 px-3 sm:px-4 py-1.5 shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <a href="/" className="text-lead font-heading font-bold text-primary-600 hover:text-primary-500 transition-colors no-underline shrink-0">
           Dobara
         </a>
         <Badge variant="accent" size="sm">Demo Mode</Badge>
         {clerk && (
-          <span className="text-caption text-text-muted hidden sm:inline">
+          <span className="text-caption text-text-muted hidden md:inline truncate">
             {clerk.name} · ···{clerk.phone.slice(-4)}
           </span>
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         <Button variant="ghost" size="sm" onClick={() => navigate('/notifications')} data-testid="nav-notifications">
-          Notifications{unread > 0 ? ` (${unread})` : ''}
+          <span className="hidden sm:inline">Notifications</span>
+          <span className="sm:hidden">Alerts</span>
+          {unread > 0 ? ` (${unread})` : ''}
         </Button>
         <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
           Home
@@ -226,16 +228,19 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const [resumeChecked, setResumeChecked] = useState(location.pathname !== '/');
 
   return (
-    <div className="w-[1024px] h-[768px] mx-auto flex flex-col overflow-hidden bg-surface shadow-overlay">
-      <TopBar />
-      <div className="flex-1 flex overflow-hidden">
-        {showSideNav && <SideNav />}
-        <main className="flex-1 overflow-y-auto relative">
-          {location.pathname === '/' && getClerk() && !resumeChecked && (
-            <ResumePrompt onDone={() => setResumeChecked(true)} />
-          )}
-          {children}
-        </main>
+    <div className="h-[100dvh] min-h-0 bg-surface-high flex justify-center overflow-hidden">
+      {/* Tablet-first shell: fills browser viewport, caps width at tablet canvas */}
+      <div className="w-full max-w-[1024px] h-full min-h-0 flex flex-col overflow-hidden bg-surface shadow-overlay">
+        <TopBar />
+        <div className="flex-1 flex min-h-0 overflow-hidden">
+          {showSideNav && <SideNav />}
+          <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative">
+            {location.pathname === '/' && getClerk() && !resumeChecked && (
+              <ResumePrompt onDone={() => setResumeChecked(true)} />
+            )}
+            {children}
+          </main>
+        </div>
       </div>
     </div>
   );
