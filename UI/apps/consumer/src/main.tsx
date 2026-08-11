@@ -34,6 +34,10 @@ const startMSW = async () => {
 
 async function bootstrap() {
   try {
+    const { ensureLatestBuild, startLatestBuildPolling } = await import('./lib/ensureLatest');
+    await ensureLatestBuild();
+    startLatestBuildPolling();
+
     await startMSW();
 
     const i18next = (await import('i18next')).default;
