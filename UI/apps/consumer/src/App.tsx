@@ -23,6 +23,10 @@ import { AfterSaleList } from './pages/AfterSaleList';
 import { AfterSaleApply } from './pages/AfterSaleApply';
 import { AfterSaleDetail } from './pages/AfterSaleDetail';
 import { HelpCenter } from './pages/HelpCenter';
+import { RedeemConfirm } from './pages/RedeemConfirm';
+import { EnterpriseHome } from './pages/EnterpriseHome';
+import { EnterpriseCart } from './pages/EnterpriseCart';
+import { isEnterpriseMode } from './lib/enterpriseMode';
 
 /* ── Auth helpers ── */
 const AUTH_KEY = 'dobara_user';
@@ -68,6 +72,14 @@ function TabBar() {
     ?? (location.pathname.startsWith('/account') || location.pathname.startsWith('/profile') ? '/account' : null)
     ?? '/home';
 
+  const goTab = (key: string) => {
+    if (key === '/buy' && isEnterpriseMode()) {
+      navigate('/buy/enterprise');
+      return;
+    }
+    navigate(key);
+  };
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 px-3 pb-3 safe-bottom pointer-events-none">
       <div className="pointer-events-auto bg-white/95 backdrop-blur-xl border border-border rounded-2xl shadow-[0_-2px_12px_rgba(6,68,57,0.08)] max-w-lg mx-auto">
@@ -75,7 +87,7 @@ function TabBar() {
           {TABS.map((tab) => (
             <button
               key={tab.key}
-              onClick={() => navigate(tab.key)}
+              onClick={() => goTab(tab.key)}
               className={`flex flex-col items-center justify-center gap-0.5 w-full h-full transition-all duration-200 ${
                 active === tab.key
                   ? 'text-primary-500'
@@ -95,10 +107,16 @@ function TabBar() {
 /* ── App Layout ── */
 const TAB_PATHS = ['/home', '/buy', '/sell', '/account'];
 
+function BuyEntry() {
+  if (isEnterpriseMode()) return <Navigate to="/buy/enterprise" replace />;
+  return <MallHome />;
+}
+
 function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const showTabs =
     TAB_PATHS.some((p) => location.pathname === p) ||
+    location.pathname === '/buy/enterprise' ||
     location.pathname === '/recycle' ||
     location.pathname === '/profile';
 
@@ -133,8 +151,11 @@ export function App() {
           {/* Home — marketing landing */}
           <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
 
-          {/* Buy — product catalog (former MallHome) */}
-          <Route path="/buy" element={<RequireAuth><MallHome /></RequireAuth>} />
+          {/* Buy — product catalog + enterprise B2B */}
+          <Route path="/buy" element={<RequireAuth><BuyEntry /></RequireAuth>} />
+          <Route path="/buy/enterprise" element={<RequireAuth><EnterpriseHome /></RequireAuth>} />
+          <Route path="/buy/enterprise/cart" element={<RequireAuth><EnterpriseCart /></RequireAuth>} />
+          <Route path="/buy/enterprise/checkout" element={<RequireAuth><EnterpriseCart /></RequireAuth>} />
           <Route path="/home/product/:imei" element={<RequireAuth><ProductDetail /></RequireAuth>} />
           <Route path="/buy/product/:imei" element={<RequireAuth><ProductDetail /></RequireAuth>} />
           <Route path="/home/product/:imei/order" element={<RequireAuth><OrderConfirm /></RequireAuth>} />
@@ -144,13 +165,14 @@ export function App() {
           <Route path="/home/order/success/:orderId" element={<RequireAuth><OrderSuccess /></RequireAuth>} />
           <Route path="/buy/order/success/:orderId" element={<RequireAuth><OrderSuccess /></RequireAuth>} />
 
-          {/* Sell — recycle / trade-in */}
+          {/* Sell — Exchange / trade-in */}
           <Route path="/sell" element={<RequireAuth><RecycleHome /></RequireAuth>} />
           <Route path="/sell/appointment" element={<RequireAuth><Appointment /></RequireAuth>} />
           <Route path="/sell/appointment/success" element={<RequireAuth><AppointmentSuccess /></RequireAuth>} />
           <Route path="/sell/report/:sessionId" element={<RequireAuth><InspectionReport /></RequireAuth>} />
           <Route path="/sell/report/:sessionId/accepted" element={<RequireAuth><QuoteAccepted /></RequireAuth>} />
           <Route path="/sell/report/:sessionId/accept" element={<RequireAuth><InspectionReport /></RequireAuth>} />
+          <Route path="/sell/redeem/:sessionId" element={<RequireAuth><RedeemConfirm /></RequireAuth>} />
 
           {/* Legacy recycle redirects */}
           <Route path="/recycle" element={<Navigate to="/sell" replace />} />

@@ -1,5 +1,13 @@
 /** OWN-P0-01 — trade-in sessions for store owner (demo) */
 
+import {
+  upsertTradeIn,
+  confirmTradeInRedeem,
+  listTradeInsBus,
+  patchRecycleBySession,
+  upsertRecycleOrder,
+} from '@dobara/mock';
+
 export type TTradeInStatus = 'pending' | 'awaiting_user_confirm' | 'confirmed' | 'submitted';
 
 export interface ITradeInSession {
@@ -14,6 +22,9 @@ export interface ITradeInSession {
   newPrice?: number;
   actualPayment?: number;
   newDeviceHint?: string;
+  brand?: string;
+  model?: string;
+  imei?: string;
 }
 
 const KEY = 'dobara_mgmt_tradeins';
@@ -92,12 +103,38 @@ function save(list: ITradeInSession[]) {
   localStorage.setItem(KEY, JSON.stringify(list));
 }
 
+function syncRecycleAwaiting(session: ITradeInSession) {
+  const patched = patchRecycleBySession(session.sessionId, {
+    status: 'awaiting_redeem',
+    amount: session.deduction,
+  });
+  if (patched) return;
+  const parts = session.device.split(' ');
+  upsertRecycleOrder({
+    id: `RCY-${session.sessionId.slice(-8).toUpperCase()}`,
+    sessionId: session.sessionId,
+    brand: session.brand || parts[0] || 'Device',
+    model: session.model || parts.slice(1).join(' ') || session.device,
+    amount: session.deduction,
+    status: 'awaiting_redeem',
+    createdAt: new Date().toISOString(),
+  });
+}
+
 export function listTradeIns(storeId: string): ITradeInSession[] {
-  return load().filter((t) => t.storeId === storeId);
+  const map = new Map<string, ITradeInSession>();
+  for (const t of load().filter((x) => x.storeId === storeId)) map.set(t.sessionId, t);
+  for (const t of listTradeInsBus(storeId)) {
+    map.set(t.sessionId, { ...map.get(t.sessionId), ...t } as ITradeInSession);
+  }
+  return [...map.values()];
 }
 
 export function getTradeIn(sessionId: string): ITradeInSession | undefined {
-  return load().find((t) => t.sessionId === sessionId);
+  const local = load().find((t) => t.sessionId === sessionId);
+  const bus = listTradeInsBus().find((t) => t.sessionId === sessionId);
+  if (!local && !bus) return undefined;
+  return { ...local, ...bus } as ITradeInSession;
 }
 
 export function submitTradeInPrice(
@@ -123,7 +160,33 @@ export function submitTradeInPrice(
   };
   list[idx] = next;
   save(list);
+  upsertTradeIn({ ...next });
+  syncRecycleAwaiting(next);
   return { ok: true, session: next };
+}
+
+/** Demo / cross-end: mark confirmed + queue WH inbound via demoBus */
+export function confirmTradeInLocal(sessionId: string): ITradeInSession | null {
+  const list = load();
+  const idx = list.findIndex((t) => t.sessionId === sessionId);
+  const fromBus = confirmTradeInRedeem(sessionId);
+  if (idx >= 0) {
+    const next: ITradeInSession = {
+      ...list[idx],
+      ...(fromBus || {}),
+      status: 'confirmed',
+    };
+    list[idx] = next;
+    save(list);
+    return next;
+  }
+  if (fromBus) {
+    const next: ITradeInSession = { ...fromBus, status: 'confirmed' };
+    list.unshift(next);
+    save(list);
+    return next;
+  }
+  return null;
 }
 
 export function tradeInStatusLabel(status: TTradeInStatus): string {

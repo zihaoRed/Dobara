@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, Tabs, StatusBadge, Button, EmptyState, SkeletonCard, GradeBadge, Badge } from '@dobara/ui';
-import { IndianRupee } from 'lucide-react';
+import { IndianRupee, MapPin, Clock } from 'lucide-react';
 import type { IOrder, IRecycleOrder, TRecycleStatus } from '@dobara/utils';
 import { imeiLast4 } from '@dobara/utils';
 
@@ -18,8 +18,26 @@ const DEMO_BUY_ORDERS: IOrder[] = [
 ];
 
 const DEMO_RECYCLE: IRecycleOrder[] = [
+  {
+    id: 'RCY-APPT',
+    sessionId: 'sess-appt-01',
+    brand: 'Apple',
+    model: 'iPhone 14',
+    amount: 0,
+    status: 'appointment_pending',
+    createdAt: new Date(Date.now() - 3600000).toISOString(),
+    storeName: 'MobileXchange Andheri',
+    storeId: 'st-mum-1',
+    appointmentDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+    appointmentSlot: '10:00–11:00',
+    estimateMin: 28000,
+    estimateMax: 34000,
+    color: 'Midnight',
+    storage: '128GB',
+  },
   { id: 'RCY-INSPECT', sessionId: 'sess-inspect-01', brand: 'Apple', model: 'iPhone 13', amount: 0, status: 'inspecting', createdAt: new Date(Date.now() - 7200000).toISOString() },
   { id: 'RCY-CONFIRM', sessionId: 'sess-confirm-01', brand: 'Samsung', model: 'Galaxy S22', amount: 28000, status: 'pending_confirm', createdAt: new Date(Date.now() - 18000000).toISOString(), grade: 'B' },
+  { id: 'RCY-REDEEM', sessionId: 'sess-003', brand: 'OnePlus', model: 'Nord 2', amount: 14000, status: 'awaiting_redeem', createdAt: new Date(Date.now() - 28800000).toISOString(), grade: 'B' },
   { id: 'RCY-DONE', sessionId: 'sess-done-01', brand: 'Apple', model: 'iPhone 12', amount: 22000, status: 'completed', createdAt: new Date(Date.now() - 6 * 86400000).toISOString(), grade: 'A' },
   { id: 'RCY-REJECT', sessionId: 'sess-reject-01', brand: 'Xiaomi', model: 'Mi 11', amount: 15000, status: 'rejected', createdAt: new Date(Date.now() - 4 * 86400000).toISOString(), grade: 'C' },
 ];
@@ -37,8 +55,10 @@ const BUY_FILTERS = [
 
 const SELL_FILTERS = [
   { key: 'all', label: 'All' },
+  { key: 'appointment_pending', label: 'Scheduled' },
   { key: 'inspecting', label: 'Inspecting' },
   { key: 'pending_confirm', label: 'Pending confirm' },
+  { key: 'awaiting_redeem', label: 'Awaiting confirm' },
   { key: 'completed', label: 'Completed' },
   { key: 'rejected', label: 'Rejected' },
 ];
@@ -58,16 +78,40 @@ function buyBadge(status: string): 'pending' | 'in_progress' | 'completed' | 'ca
 
 function sellBadge(status: TRecycleStatus): 'pending' | 'in_progress' | 'completed' | 'cancelled' {
   switch (status) {
+    case 'appointment_pending': return 'pending';
     case 'inspecting': return 'in_progress';
     case 'pending_confirm': return 'pending';
+    case 'awaiting_redeem': return 'in_progress';
     case 'completed': return 'completed';
     case 'rejected': return 'cancelled';
     default: return 'pending';
   }
 }
 
+function sellStatusLabel(status: TRecycleStatus): string {
+  switch (status) {
+    case 'appointment_pending': return 'Scheduled';
+    case 'awaiting_redeem': return 'Awaiting confirm';
+    case 'pending_confirm': return 'Pending confirm';
+    default:
+      return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
+
 function statusLabel(status: string) {
   return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function estimateLabel(order: IRecycleOrder): string | null {
+  if (order.estimateMin != null && order.estimateMax != null) {
+    if (order.estimateMin === order.estimateMax) {
+      return `₹${order.estimateMin.toLocaleString('en-IN')}`;
+    }
+    return `₹${order.estimateMin.toLocaleString('en-IN')} – ₹${order.estimateMax.toLocaleString('en-IN')}`;
+  }
+  if (order.estimateMin != null) return `₹${order.estimateMin.toLocaleString('en-IN')}`;
+  if (order.estimateMax != null) return `₹${order.estimateMax.toLocaleString('en-IN')}`;
+  return null;
 }
 
 export function OrderList() {
@@ -109,6 +153,27 @@ export function OrderList() {
   const sellOrders = recycleOrders.filter((o) => statusFilter === 'all' || o.status === statusFilter);
   const filters = activeTab === 'buy' ? BUY_FILTERS : SELL_FILTERS;
 
+  const onSellCardClick = (order: IRecycleOrder) => {
+    if (order.status === 'appointment_pending') {
+      const est = estimateLabel(order);
+      const parts = [
+        order.storeName && `Store: ${order.storeName}`,
+        order.appointmentDate && `Date: ${order.appointmentDate}`,
+        order.appointmentSlot && `Slot: ${order.appointmentSlot}`,
+        est && `Estimate: ${est}`,
+      ].filter(Boolean);
+      setToast(parts.length ? parts.join(' · ') : 'Appointment scheduled — visit the store with your phone number.');
+      return;
+    }
+    if (order.status === 'awaiting_redeem') {
+      navigate(`/sell/redeem/${order.sessionId}`);
+      return;
+    }
+    if (order.status === 'pending_confirm' || order.status === 'inspecting') {
+      navigate(`/sell/report/${order.sessionId}`);
+    }
+  };
+
   return (
     <div className="max-w-lg mx-auto pb-8" data-testid="order-list">
       <Button variant="ghost" size="sm" onClick={() => navigate('/account')} className="mb-3">← Back</Button>
@@ -143,6 +208,7 @@ export function OrderList() {
             className={`px-3 py-1 rounded-full text-caption font-medium ${
               statusFilter === f.key ? 'bg-primary-500 text-white' : 'bg-surface-high text-text-secondary'
             }`}
+            data-testid={`filter-${f.key}`}
           >
             {f.label}
           </button>
@@ -178,6 +244,7 @@ export function OrderList() {
                     </p>
                     <p className="text-caption text-text-muted">
                       {order.id} · {new Date(order.createdAt).toLocaleDateString('en-IN')}
+                      {order.isEnterprise ? ' · Enterprise' : ''}
                     </p>
                   </div>
                   <StatusBadge status={buyBadge(order.status)} customLabel={statusLabel(order.status)} />
@@ -212,36 +279,57 @@ export function OrderList() {
         />
       ) : (
         <div className="space-y-3" data-testid="sell-order-list">
-          {sellOrders.map((order) => (
-            <Card
-              key={order.id}
-              variant="hover"
-              onClick={() => {
-                if (order.status === 'pending_confirm' || order.status === 'inspecting') {
-                  navigate(`/sell/report/${order.sessionId}`);
-                }
-              }}
-              data-testid={`recycle-card-${order.id}`}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <p className="text-body font-semibold">{order.brand} {order.model}</p>
-                  <p className="text-caption text-text-muted">
-                    {order.id} · {new Date(order.createdAt).toLocaleDateString('en-IN')}
-                  </p>
+          {sellOrders.map((order) => {
+            const est = estimateLabel(order);
+            return (
+              <Card
+                key={order.id}
+                variant="hover"
+                onClick={() => onSellCardClick(order)}
+                data-testid={`recycle-card-${order.id}`}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="text-body font-semibold">{order.brand} {order.model}</p>
+                    <p className="text-caption text-text-muted">
+                      {order.id} · {new Date(order.createdAt).toLocaleDateString('en-IN')}
+                    </p>
+                  </div>
+                  <StatusBadge status={sellBadge(order.status)} customLabel={sellStatusLabel(order.status)} />
                 </div>
-                <StatusBadge status={sellBadge(order.status)} customLabel={statusLabel(order.status)} />
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-caption text-text-muted">
-                  {order.grade ? `Grade ${order.grade}` : 'Awaiting grade'}
-                </span>
-                <span className="text-body font-bold text-text-primary">
-                  {order.amount > 0 ? `₹${order.amount.toLocaleString('en-IN')}` : '—'}
-                </span>
-              </div>
-            </Card>
-          ))}
+
+                {order.status === 'appointment_pending' && (
+                  <div className="mb-2 space-y-1 rounded-lg bg-surface-low p-2" data-testid={`appointment-meta-${order.id}`}>
+                    {order.storeName && (
+                      <p className="text-caption text-text-secondary flex items-center gap-1">
+                        <MapPin size={12} /> {order.storeName}
+                      </p>
+                    )}
+                    {(order.appointmentDate || order.appointmentSlot) && (
+                      <p className="text-caption text-text-secondary flex items-center gap-1">
+                        <Clock size={12} />
+                        {[order.appointmentDate, order.appointmentSlot].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
+                    {est && (
+                      <p className="text-caption font-semibold text-primary-600">Estimate {est}</p>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center">
+                  <span className="text-caption text-text-muted">
+                    {order.grade ? `Grade ${order.grade}` : order.status === 'appointment_pending' ? 'Visit scheduled' : 'Awaiting grade'}
+                  </span>
+                  <span className="text-body font-bold text-text-primary">
+                    {order.amount > 0
+                      ? `₹${order.amount.toLocaleString('en-IN')}`
+                      : est || '—'}
+                  </span>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

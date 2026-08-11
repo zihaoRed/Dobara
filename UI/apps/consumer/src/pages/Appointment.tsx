@@ -150,6 +150,19 @@ export function Appointment() {
     setSubmitting(true);
     const store = stores.find((s) => s.id === selStore);
     const brandName = brands.find((b) => b.id === selBrand)?.name;
+    const estimateVal = estimate ?? 0;
+    const body = {
+      brand: brandName,
+      model: selectedModel?.name,
+      color: selColor,
+      storage: selStorage,
+      storeId: selStore,
+      storeName: store?.name,
+      appointmentDate: selDate,
+      appointmentSlot: selSlot,
+      estimateMin: estimateVal,
+      estimateMax: estimateVal,
+    };
     const successState = {
       storeName: store?.name,
       storeAddress: store?.address,
@@ -159,11 +172,19 @@ export function Appointment() {
       brand: brandName,
       model: selectedModel?.name,
       estimatePrice: estimate ?? undefined,
+      sessionId: undefined as string | undefined,
     };
     try {
-      await fetch('/api/sessions', { method: 'POST' });
+      const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      successState.sessionId = data.sessionId || `sess-${Date.now()}`;
       navigate('/sell/appointment/success', { state: successState });
     } catch {
+      successState.sessionId = `sess-${Date.now()}`;
       navigate('/sell/appointment/success', { state: successState });
     } finally {
       setSubmitting(false);

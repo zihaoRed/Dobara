@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button } from '@dobara/ui';
 import { useTranslation } from 'react-i18next';
 import {
   User, Phone, Shield, Globe, Moon, Sun,
   ShoppingBag, ExternalLink, ArrowLeftRight, LogOut, ChevronRight,
-  MapPin, HeadphonesIcon, LifeBuoy,
+  MapPin, HeadphonesIcon, LifeBuoy, Building2,
 } from 'lucide-react';
 import { getUser, clearUser } from '../App';
 import { maskPhone } from '@dobara/utils';
+import { isEnterpriseMode, setEnterpriseMode } from '../lib/enterpriseMode';
 
 export function Profile() {
   const { i18n } = useTranslation();
@@ -16,6 +17,20 @@ export function Profile() {
   const user = getUser() || { phone: 'N/A', name: 'User' };
   const displayPhone = user.phone === 'N/A' ? user.phone : maskPhone(user.phone);
   const [darkMode, setDarkMode] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark');
+  const [enterprise, setEnterprise] = useState(isEnterpriseMode);
+
+  useEffect(() => {
+    const sync = () => setEnterprise(isEnterpriseMode());
+    window.addEventListener('dobara-enterprise-mode', sync);
+    return () => window.removeEventListener('dobara-enterprise-mode', sync);
+  }, []);
+
+  const setShoppingMode = (mode: 'individual' | 'enterprise') => {
+    const next = mode === 'enterprise';
+    setEnterpriseMode(next);
+    setEnterprise(next);
+    navigate(next ? '/buy/enterprise' : '/buy');
+  };
 
   const toggleDarkMode = () => {
     const next = !darkMode;
@@ -74,6 +89,39 @@ export function Profile() {
             <ChevronRight size={18} className="text-text-muted shrink-0" />
           </button>
         ))}
+      </Card>
+
+      <Card className="!rounded-xl" data-testid="shopping-mode-card">
+        <h3 className="text-body font-bold text-text-primary mb-3">Shopping mode</h3>
+        <p className="text-caption text-text-muted mb-3">Individual retail or Enterprise bulk procurement (ROLE-ENT demo)</p>
+        <div className="grid grid-cols-2 gap-2" data-testid="shopping-mode-switch">
+          <button
+            type="button"
+            onClick={() => setShoppingMode('individual')}
+            data-testid="mode-individual"
+            className={`rounded-lg border px-3 py-3 text-left transition-colors ${
+              !enterprise ? 'border-primary-500 bg-primary-50' : 'border-border hover:bg-surface-low'
+            }`}
+          >
+            <ShoppingBag size={18} className={!enterprise ? 'text-primary-500' : 'text-text-muted'} />
+            <p className={`text-caption font-semibold mt-1 ${!enterprise ? 'text-primary-700' : 'text-text-primary'}`}>
+              Individual
+            </p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShoppingMode('enterprise')}
+            data-testid="mode-enterprise"
+            className={`rounded-lg border px-3 py-3 text-left transition-colors ${
+              enterprise ? 'border-primary-500 bg-primary-50' : 'border-border hover:bg-surface-low'
+            }`}
+          >
+            <Building2 size={18} className={enterprise ? 'text-primary-500' : 'text-text-muted'} />
+            <p className={`text-caption font-semibold mt-1 ${enterprise ? 'text-primary-700' : 'text-text-primary'}`}>
+              Enterprise (Bulk)
+            </p>
+          </button>
+        </div>
       </Card>
 
       <Card className="!rounded-xl">

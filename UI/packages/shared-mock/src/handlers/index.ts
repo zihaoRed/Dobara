@@ -16,8 +16,20 @@ import {
   UNSERVICEABLE_PINCODES,
   type IAddress,
 } from '../data';
-import type { IOrder } from '@dobara/utils';
+import type { IOrder, IRecycleOrder } from '@dobara/utils';
 import { calcOrderTotal, LOCK_DURATION_SECONDS } from '@dobara/utils';
+import {
+  confirmTradeInRedeem,
+  getTradeInBus,
+  listRecycleOrdersMerged,
+  listReviewQueue,
+  listTradeInsBus,
+  pushPickOrder,
+  removeFromReviewQueue,
+  upsertRecycleOrder,
+  upsertTradeIn,
+  pushReviewDevice,
+} from '../demoBus';
 
 const simulateDelay = async () => {
   await delay(Math.random() * 400 + 200);
@@ -312,11 +324,43 @@ export const handlers = [
     return HttpResponse.json({ error: 'Invalid OTP' }, { status: 400 });
   }),
 
-  // Sessions
-  http.post('/api/sessions', async () => {
+  // Sessions — create appointment → Exchange order (appointment_pending)
+  http.post('/api/sessions', async ({ request }) => {
     await simulateDelay();
+    const body = (await request.json().catch(() => ({}))) as {
+      brand?: string;
+      model?: string;
+      color?: string;
+      storage?: string;
+      storeId?: string;
+      storeName?: string;
+      appointmentDate?: string;
+      appointmentSlot?: string;
+      estimateMin?: number;
+      estimateMax?: number;
+      phone?: string;
+    };
     const sessionId = `sess-${Date.now()}`;
-    return HttpResponse.json({ sessionId, status: 'inspection' });
+    const order: IRecycleOrder = {
+      id: `RCY-${sessionId.slice(-8).toUpperCase()}`,
+      sessionId,
+      brand: body.brand || 'Unknown',
+      model: body.model || 'Device',
+      amount: 0,
+      status: 'appointment_pending',
+      createdAt: new Date().toISOString(),
+      storeId: body.storeId,
+      storeName: body.storeName,
+      appointmentDate: body.appointmentDate,
+      appointmentSlot: body.appointmentSlot,
+      estimateMin: body.estimateMin,
+      estimateMax: body.estimateMax,
+      color: body.color,
+      storage: body.storage,
+    };
+    recycleOrderStore.unshift(order);
+    upsertRecycleOrder(order);
+    return HttpResponse.json({ sessionId, status: 'appointment_pending', order });
   }),
 
   http.get('/api/sessions/:sessionId', async ({ params }) => {
@@ -366,13 +410,29 @@ export const handlers = [
     const sessionId = String(params.sessionId);
     const rcy = recycleOrderStore.find((o) => o.sessionId === sessionId);
     if (rcy && (rcy.status === 'pending_confirm' || rcy.status === 'inspecting')) {
-      rcy.status = 'completed';
+      rcy.status = 'pending_confirm';
+      upsertRecycleOrder({ ...rcy });
     }
+    const deviceLabel = rcy ? `${rcy.brand} ${rcy.model}` : 'Trade-in device';
+    const deduction = rcy?.amount || 28000;
+    upsertTradeIn({
+      sessionId,
+      storeId: rcy?.storeId || 'ST-MH-0001',
+      customerName: 'Rahul Sharma',
+      customerPhone: '9876543210',
+      device: deviceLabel,
+      brand: rcy?.brand,
+      model: rcy?.model,
+      deduction,
+      status: 'pending',
+      date: new Date().toISOString().slice(0, 10),
+      newDeviceHint: 'New device at store',
+    });
     return HttpResponse.json({
       success: true,
       sessionId,
-      status: 'pending_verification',
-      message: 'Quote accepted. Verification code sent to store owner.',
+      status: 'pending_owner_price',
+      message: 'Quote accepted. Store owner will enter new-device price for you to confirm.',
     });
   }),
 
@@ -390,7 +450,7 @@ export const handlers = [
     });
   }),
 
-  // Trade-in (OWN-P0-01) — in-memory demo sessions
+  // Trade-in (OWN-P0-01) — seed + demoBus merge
   ...(() => {
     type TTrade = {
       sessionId: string;
@@ -404,24 +464,37 @@ export const handlers = [
       newPrice?: number;
       actualPayment?: number;
       newDeviceHint?: string;
+      brand?: string;
+      model?: string;
+      imei?: string;
     };
     const tradeIns: TTrade[] = [
       { sessionId: 'sess-001', storeId: 'ST-MH-0001', customerName: 'Rahul Sharma', customerPhone: '9876501001', device: 'iPhone 13 128GB', deduction: 38000, status: 'pending', date: '2026-08-10', newDeviceHint: 'iPhone 15' },
       { sessionId: 'sess-002', storeId: 'ST-MH-0001', customerName: 'Priya Patel', customerPhone: '9876501002', device: 'Galaxy S22 256GB', deduction: 31000, status: 'pending', date: '2026-08-09', newDeviceHint: 'Galaxy S24' },
-      { sessionId: 'sess-003', storeId: 'ST-MH-0001', customerName: 'Amit Singh', customerPhone: '9876501003', device: 'OnePlus Nord 2 128GB', deduction: 14000, status: 'awaiting_user_confirm', date: '2026-08-08', newPrice: 28000, actualPayment: 14000, newDeviceHint: 'OnePlus 12R' },
+      { sessionId: 'sess-003', storeId: 'ST-MH-0001', customerName: 'Amit Singh', customerPhone: '9876501003', device: 'OnePlus Nord 2 128GB', deduction: 14000, status: 'awaiting_user_confirm', date: '2026-08-08', newPrice: 28000, actualPayment: 14000, newDeviceHint: 'OnePlus 12R', brand: 'OnePlus', model: 'Nord 2' },
       { sessionId: 'sess-004', storeId: 'ST-MH-0001', customerName: 'Sneha Reddy', customerPhone: '9876501004', device: 'Xiaomi 11 Lite', deduction: 12000, status: 'confirmed', date: '2026-08-05', newPrice: 32000, actualPayment: 20000, newDeviceHint: 'Xiaomi 14' },
       { sessionId: 'sess-101', storeId: 'ST-KA-0002', customerName: 'Arjun Nair', customerPhone: '9876502001', device: 'iPhone 12 64GB', deduction: 22000, status: 'pending', date: '2026-08-10' },
     ];
+    for (const t of tradeIns) upsertTradeIn(t);
+
+    function mergedTradeIns(storeId?: string | null) {
+      const map = new Map<string, TTrade>();
+      for (const t of tradeIns) map.set(t.sessionId, t);
+      for (const t of listTradeInsBus()) map.set(t.sessionId, { ...map.get(t.sessionId), ...t } as TTrade);
+      const list = [...map.values()];
+      return storeId ? list.filter((t) => t.storeId === storeId) : list;
+    }
+
     return [
       http.get('/api/trade-in', async ({ request }) => {
         await simulateDelay();
         const storeId = new URL(request.url).searchParams.get('storeId');
-        const list = storeId ? tradeIns.filter((t) => t.storeId === storeId) : tradeIns;
-        return HttpResponse.json({ sessions: list });
+        return HttpResponse.json({ sessions: mergedTradeIns(storeId) });
       }),
       http.get('/api/trade-in/:sessionId', async ({ params }) => {
         await simulateDelay();
-        const t = tradeIns.find((x) => x.sessionId === String(params.sessionId));
+        const sid = String(params.sessionId);
+        const t = mergedTradeIns().find((x) => x.sessionId === sid) || getTradeInBus(sid);
         if (!t) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
         return HttpResponse.json(t);
       }),
@@ -431,21 +504,72 @@ export const handlers = [
         if (body.newPrice - body.deduction !== body.actualPayment) {
           return HttpResponse.json({ error: 'Formula mismatch' }, { status: 400 });
         }
-        const t = tradeIns.find((x) => x.sessionId === String(params.sessionId));
+        const sid = String(params.sessionId);
+        let t = tradeIns.find((x) => x.sessionId === sid);
+        if (!t) {
+          const fromBus = getTradeInBus(sid);
+          if (fromBus) {
+            t = { ...fromBus };
+            tradeIns.push(t);
+          }
+        }
         if (!t) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
         t.newPrice = body.newPrice;
         t.actualPayment = body.actualPayment;
         t.status = 'awaiting_user_confirm';
+        upsertTradeIn(t);
+        const rcy = recycleOrderStore.find((o) => o.sessionId === sid);
+        if (rcy) {
+          rcy.status = 'awaiting_redeem';
+          rcy.amount = t.deduction;
+          upsertRecycleOrder({ ...rcy });
+        } else {
+          upsertRecycleOrder({
+            id: `RCY-${sid.slice(-8).toUpperCase()}`,
+            sessionId: sid,
+            brand: t.brand || 'Device',
+            model: t.model || t.device,
+            amount: t.deduction,
+            status: 'awaiting_redeem',
+            createdAt: new Date().toISOString(),
+          });
+        }
         return HttpResponse.json({ success: true, session: t });
+      }),
+      http.post('/api/trade-in/:sessionId/confirm', async ({ params }) => {
+        await simulateDelay();
+        const sid = String(params.sessionId);
+        const mem = tradeIns.find((x) => x.sessionId === sid);
+        if (mem) {
+          mem.status = 'confirmed';
+          upsertTradeIn(mem);
+        }
+        const confirmed = confirmTradeInRedeem(sid) || mem;
+        if (!confirmed && !mem) {
+          return HttpResponse.json({ error: 'Not awaiting confirm' }, { status: 400 });
+        }
+        const rcy = recycleOrderStore.find((o) => o.sessionId === sid);
+        if (rcy) {
+          rcy.status = 'completed';
+          upsertRecycleOrder({ ...rcy });
+        }
+        return HttpResponse.json({
+          success: true,
+          session: confirmed || mem,
+          inboundQueued: true,
+        });
       }),
     ];
   })(),
 
-  // Ops Review
+  // Ops Review — merge demoBus review queue (WH → ops bridge)
   http.get('/api/ops/review', async () => {
     await simulateDelay();
     const pendingReview = devices.filter((d) => d.status === 'pending_review');
-    return HttpResponse.json({ devices: pendingReview });
+    const fromBus = listReviewQueue();
+    const map = new Map(pendingReview.map((d) => [d.imei, d]));
+    for (const d of fromBus) map.set(d.imei, d);
+    return HttpResponse.json({ devices: [...map.values()] });
   }),
 
   http.post('/api/ops/review/:imei/approve', async ({ params, request }) => {
@@ -462,8 +586,15 @@ export const handlers = [
         mallAfter?: number;
       };
     };
-    // Grade is system-computed from deductions — clients may send gradeAfter for demo sync only
-    const device = getDeviceById(String(params.imei));
+    const imei = String(params.imei);
+    let device = getDeviceById(imei);
+    if (!device) {
+      const fromBus = listReviewQueue().find((d) => d.imei === imei);
+      if (fromBus) {
+        devices.push({ ...fromBus });
+        device = getDeviceById(imei);
+      }
+    }
     if (device) {
       device.status = 'available';
       const nextGrade = body.adjustments?.gradeAfter || body.adjustments?.grade;
@@ -472,7 +603,45 @@ export const handlers = [
       if (body.adjustments?.mallAfter != null) device.price = body.adjustments.mallAfter;
       if (body.mainImage) device.mainImage = body.mainImage;
     }
+    removeFromReviewQueue(imei);
     return HttpResponse.json({ success: true });
+  }),
+
+  /** WH submits device to ops review queue */
+  http.post('/api/ops/review/submit', async ({ request }) => {
+    await simulateDelay();
+    const body = (await request.json()) as {
+      imei: string;
+      brandId: string;
+      modelId: string;
+      grade: 'A' | 'B' | 'C' | 'D';
+      color: string;
+      storage: string;
+      price: number;
+      originalPrice: number;
+      city?: string;
+      warehouseId?: string;
+      mainImage?: string;
+    };
+    const device = {
+      imei: body.imei,
+      brandId: body.brandId,
+      modelId: body.modelId,
+      grade: body.grade,
+      color: body.color,
+      storage: body.storage,
+      status: 'pending_review' as const,
+      price: body.price,
+      originalPrice: body.originalPrice,
+      city: body.city || 'Mumbai',
+      warehouseId: body.warehouseId || 'wh-mum',
+      mainImage: body.mainImage,
+    };
+    const existing = getDeviceById(body.imei);
+    if (existing) Object.assign(existing, device);
+    else devices.push(device);
+    pushReviewDevice(device);
+    return HttpResponse.json({ success: true, device });
   }),
 
   // Orders — lock happens on submit (APP-P0-07)
@@ -486,9 +655,7 @@ export const handlers = [
 
   http.get('/api/recycle-orders', async () => {
     await simulateDelay();
-    const sorted = [...recycleOrderStore].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+    const sorted = listRecycleOrdersMerged(recycleOrderStore);
     return HttpResponse.json({ orders: sorted });
   }),
 
@@ -500,6 +667,8 @@ export const handlers = [
       paymentMethod?: string;
       addressId?: string;
       pincode?: string;
+      isEnterprise?: boolean;
+      isCredit?: boolean;
     };
     const device = getDeviceById(body.deviceImei);
     if (!device) return HttpResponse.json({ error: 'Device not found' }, { status: 404 });
@@ -521,21 +690,26 @@ export const handlers = [
       return HttpResponse.json({ error: 'Device not available', code: device.status }, { status: 409 });
     }
 
-    // Lock on submit
-    device.status = 'locked';
+    const isEnterprise = !!body.isEnterprise;
+    const isCredit = !!body.isCredit && isEnterprise;
+
+    // Lock on submit (credit enterprise skips payment lock timer pressure in demo)
+    device.status = isCredit ? 'sold' : 'locked';
     const expiresAt = new Date(Date.now() + LOCK_DURATION_SECONDS * 1000).toISOString();
     const imei = device.imei;
-    if (lockTimers.has(imei)) clearTimeout(lockTimers.get(imei)!);
-    lockTimers.set(
-      imei,
-      setTimeout(() => {
-        const d = getDeviceById(imei);
-        if (d && d.status === 'locked') d.status = 'available';
-        lockTimers.delete(imei);
-        const pending = orderStore.find((o) => o.deviceImei === imei && o.status === 'pending_payment');
-        if (pending) pending.status = 'cancelled';
-      }, LOCK_DURATION_SECONDS * 1000),
-    );
+    if (!isCredit) {
+      if (lockTimers.has(imei)) clearTimeout(lockTimers.get(imei)!);
+      lockTimers.set(
+        imei,
+        setTimeout(() => {
+          const d = getDeviceById(imei);
+          if (d && d.status === 'locked') d.status = 'available';
+          lockTimers.delete(imei);
+          const pending = orderStore.find((o) => o.deviceImei === imei && o.status === 'pending_payment');
+          if (pending) pending.status = 'cancelled';
+        }, LOCK_DURATION_SECONDS * 1000),
+      );
+    }
 
     const delivery = body.deliveryMethod || 'standard';
     const totals = calcOrderTotal(device.price, delivery);
@@ -545,19 +719,24 @@ export const handlers = [
       userId: 'u-1',
       deviceImei: device.imei,
       amount: totals.total,
-      status: 'pending_payment',
-      isEnterprise: false,
-      isCredit: false,
+      status: isCredit ? 'paid' : 'pending_payment',
+      isEnterprise,
+      isCredit,
       createdAt: new Date().toISOString(),
-      expiresAt,
-      paymentMethod: body.paymentMethod || 'upi',
+      expiresAt: isCredit ? undefined : expiresAt,
+      paymentMethod: body.paymentMethod || (isCredit ? 'credit' : 'upi'),
+      brand: getBrandById(device.brandId)?.name,
+      model: getModelById(device.modelId)?.name,
+      grade: device.grade,
+      storage: device.storage,
+      color: device.color,
     };
     orderStore.unshift(order);
     return HttpResponse.json({
       orderId,
       order,
-      status: 'pending_payment',
-      expiresAt,
+      status: order.status,
+      expiresAt: order.expiresAt,
       breakdown: totals,
     });
   }),
@@ -607,7 +786,25 @@ export const handlers = [
     if (device) device.status = 'sold';
     releaseLock(order.deviceImei);
     order.trackingNumber = undefined;
-    return HttpResponse.json({ success: true, order });
+    const paidAt = new Date().toISOString();
+    const sla = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    const brand = order.brand || getBrandById(device?.brandId || '')?.name || 'Device';
+    const model = order.model || getModelById(device?.modelId || '')?.name || '';
+    pushPickOrder({
+      orderId: order.id,
+      channel: order.isEnterprise ? 'B2B' : 'B2C',
+      deviceSummary: `${brand} ${model}`.trim(),
+      imei: order.deviceImei,
+      quantity: 1,
+      address: order.isEnterprise ? 'Enterprise bulk delivery' : 'Customer address (demo)',
+      courier: 'Delhivery',
+      paidAt,
+      slaDeadline: sla,
+      status: 'ready',
+      createdAt: paidAt,
+      isEnterprise: order.isEnterprise,
+    });
+    return HttpResponse.json({ success: true, order, outboundQueued: true });
   }),
 
   http.post('/api/orders/:orderId/cancel', async ({ params }) => {

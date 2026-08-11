@@ -14,6 +14,7 @@ interface AppointmentState {
   brand?: string;
   model?: string;
   estimatePrice?: number;
+  sessionId?: string;
 }
 
 export function AppointmentSuccess() {
@@ -36,6 +37,11 @@ export function AppointmentSuccess() {
         <p className="text-body text-text-secondary mb-4">
           No appointment code needed. At the store, just tell the staff your phone number for OTP verification.
         </p>
+        {state.sessionId && (
+          <p className="text-mono text-caption text-text-muted mb-3" data-testid="appointment-session-id">
+            Session {state.sessionId}
+          </p>
+        )}
         <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 text-left">
           <p className="text-caption text-primary-700 font-semibold mb-1 flex items-center gap-1">
             <Phone size={14} /> Check-in with phone number

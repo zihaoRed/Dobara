@@ -172,8 +172,25 @@ export const orderStore: IOrder[] = [
   },
 ];
 
-/** Recycling / trade-in records for Sell tab */
+/** Exchange / trade-in records for Sell tab + Orders Exchange */
 export const recycleOrderStore: IRecycleOrder[] = [
+  {
+    id: 'RCY-APPT',
+    sessionId: 'sess-appt-01',
+    brand: 'Apple',
+    model: 'iPhone 14',
+    amount: 0,
+    status: 'appointment_pending',
+    createdAt: daysAgo(0, 1),
+    storeName: 'MobileXchange Andheri',
+    storeId: 'st-mum-1',
+    appointmentDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+    appointmentSlot: '10:00–11:00',
+    estimateMin: 28000,
+    estimateMax: 34000,
+    color: 'Midnight',
+    storage: '128GB',
+  },
   {
     id: 'RCY-INSPECT',
     sessionId: 'sess-inspect-01',
@@ -191,6 +208,16 @@ export const recycleOrderStore: IRecycleOrder[] = [
     amount: 28000,
     status: 'pending_confirm',
     createdAt: daysAgo(0, 5),
+    grade: 'B',
+  },
+  {
+    id: 'RCY-REDEEM',
+    sessionId: 'sess-003',
+    brand: 'OnePlus',
+    model: 'Nord 2',
+    amount: 14000,
+    status: 'awaiting_redeem',
+    createdAt: daysAgo(0, 8),
     grade: 'B',
   },
   {

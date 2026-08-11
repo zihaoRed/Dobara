@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Button, Input, PriceDisplay, Badge } from '@dobara/ui';
 import { ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import {
+  confirmTradeInLocal,
   getTradeIn,
   submitTradeInPrice,
   tradeInStatusLabel,
@@ -18,6 +19,8 @@ const TradeInEntry: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState('');
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +100,18 @@ const TradeInEntry: React.FC = () => {
     }
   };
 
+  const handleSimulateUserConfirm = async () => {
+    setConfirming(true);
+    setToast('');
+    try {
+      await fetch(`/api/trade-in/${sessionId}/confirm`, { method: 'POST' });
+    } catch { /* local confirm still runs */ }
+    const next = confirmTradeInLocal(sessionId);
+    if (next) setSession(next);
+    setToast('Inbound queued for warehouse');
+    setConfirming(false);
+  };
+
   if (submitted || session.status === 'awaiting_user_confirm' || session.status === 'confirmed') {
     const waitingUser = session.status !== 'confirmed';
     const statusLabel = tradeInStatusLabel(
@@ -131,6 +146,22 @@ const TradeInEntry: React.FC = () => {
             </div>
           ) : (
             <p className="text-caption text-text-muted px-4">Customer already confirmed this trade-in.</p>
+          )}
+          {toast && (
+            <p className="text-caption text-primary-700 bg-primary-50 rounded-md px-3 py-2 mx-4" data-testid="tradein-inbound-toast">
+              {toast}
+            </p>
+          )}
+          {waitingUser && (
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={confirming}
+              data-testid="tradein-sim-user-confirm"
+              onClick={handleSimulateUserConfirm}
+            >
+              Simulate user confirmed (demo)
+            </Button>
           )}
           <Button data-testid="tradein-back" onClick={() => navigate('/owner')}>Back to Home</Button>
         </CardContent>

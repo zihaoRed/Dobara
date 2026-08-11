@@ -1,10 +1,21 @@
 /** WH-P0 — warehouse inbound / refurbish / picking / inventory (demo localStorage) */
 
+import {
+  listInbound,
+  consumeInbound,
+  listPickOrdersBus,
+  pushReviewDevice,
+  type IDemoInbound,
+  type IDemoPickOrder,
+} from '@dobara/mock';
+import type { IDevice } from '@dobara/utils';
+
 export type TDeviceLifecycle =
   | 'inspecting'
   | 'quote_pending'
   | 'verified_complete' // can inbound
   | 'pending_listing' // after inbound
+  | 'pending_ops_review' // submitted to ops — not mall yet
   | 'in_stock'
   | 'shipped'
   | 'rejected';
@@ -444,11 +455,140 @@ function saveStock(list: IWhDevice[]) {
   localStorage.setItem(STOCK_KEY, JSON.stringify(list));
 }
 
+function inboundToWhDevice(item: IDemoInbound): IWhDevice {
+  return {
+    imei: item.imei,
+    sessionId: item.sessionId,
+    brand: item.brand,
+    model: item.model,
+    color: item.color,
+    storage: item.storage,
+    grade: item.grade,
+    offerPrice: item.offerPrice,
+    storeName: item.storeId,
+    warehouseId: 'WH-MH-0001',
+    status: 'verified_complete',
+    photos: ['Front', 'Back', 'Left', 'Right', 'Screen On'],
+    hardware: DEFAULT_HW(),
+    appearance: DEFAULT_APPEARANCE(),
+  };
+}
+
+/** Merge demoBus inbound into local WH devices (persist new bus items). */
+function mergeInboundFromBus(): IWhDevice[] {
+  const list = loadDevices();
+  let dirty = false;
+  for (const item of listInbound()) {
+    if (!list.some((d) => d.imei === item.imei)) {
+      list.unshift(inboundToWhDevice(item));
+      dirty = true;
+    }
+  }
+  if (dirty) saveDevices(list);
+  return list;
+}
+
+function toOpsIds(brand: string, model: string): { brandId: string; modelId: string } {
+  const m = `${brand} ${model}`.toLowerCase();
+  let brandId = 'apple';
+  if (m.includes('samsung') || m.includes('galaxy')) brandId = 'samsung';
+  else if (m.includes('xiaomi') || /\bmi\b/.test(m)) brandId = 'xiaomi';
+  else if (m.includes('oneplus')) brandId = 'oneplus';
+  else if (m.includes('oppo')) brandId = 'oppo';
+  else if (m.includes('apple') || m.includes('iphone')) brandId = 'apple';
+
+  let modelId = 'iphone13';
+  if (m.includes('iphone 14') || m.includes('iphone14')) modelId = 'iphone14';
+  else if (m.includes('iphone 13') || m.includes('iphone13')) modelId = 'iphone13';
+  else if (m.includes('iphone 12') || m.includes('iphone12')) modelId = 'iphone12';
+  else if (m.includes('galaxy s22') || m.includes('galaxys22') || /\bs22\b/.test(m)) modelId = 'galaxys22';
+  else if (m.includes('galaxy s21') || m.includes('galaxys21') || /\bs21\b/.test(m)) modelId = 'galaxys21';
+  else if (m.includes('mi 11') || m.includes('mi11')) modelId = 'mi11';
+  else if (m.includes('nord')) modelId = 'nord2';
+  else if (m.includes('reno')) modelId = 'reno6';
+  return { brandId, modelId };
+}
+
+/** Submit to ops review queue — device must NOT appear in mall until ops approves. */
+function submitDeviceToOps(device: IWhDevice) {
+  const { brandId, modelId } = toOpsIds(device.brand, device.model);
+  const mallPrice = Math.round(device.offerPrice * 1.35);
+  const payload: IDevice = {
+    imei: device.imei,
+    brandId,
+    modelId,
+    grade: device.grade,
+    color: device.color,
+    storage: device.storage,
+    status: 'pending_review',
+    price: mallPrice,
+    originalPrice: device.offerPrice,
+    city: 'Mumbai',
+    warehouseId: device.warehouseId || 'wh-mum',
+  };
+  pushReviewDevice(payload);
+  void fetch('/api/ops/review/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      imei: payload.imei,
+      brandId: payload.brandId,
+      modelId: payload.modelId,
+      grade: payload.grade,
+      color: payload.color,
+      storage: payload.storage,
+      price: payload.price,
+      originalPrice: payload.originalPrice,
+      city: payload.city,
+      warehouseId: payload.warehouseId,
+    }),
+  }).catch(() => { /* demoBus already has the device */ });
+}
+
+function busPickToOrder(b: IDemoPickOrder): IPickOrder {
+  const parts = b.deviceSummary.split(/\s+/);
+  const brand = parts[0] || 'Device';
+  const model = parts.slice(1).join(' ') || b.deviceSummary;
+  const lines: IPickLine[] = [
+    { imei: b.imei, brand, model, scanned: b.status === 'done' },
+  ];
+  return {
+    orderId: b.orderId,
+    channel: b.channel,
+    deviceSummary: b.deviceSummary,
+    quantity: b.quantity,
+    address: b.address,
+    city: 'Mumbai',
+    status: b.status,
+    lines,
+    paidAt: b.paidAt,
+    slaDeadline: b.slaDeadline,
+    courier: b.courier,
+    shelfCode: 'BUS-01',
+    recipientPhone: '9876500000',
+    items: syncItems(lines),
+  };
+}
+
+function mergePickOrdersFromBus(): IPickOrder[] {
+  const list = loadOrders();
+  let dirty = false;
+  for (const b of listPickOrdersBus()) {
+    if (!list.some((o) => o.orderId === b.orderId)) {
+      list.unshift(busPickToOrder(b));
+      dirty = true;
+    }
+  }
+  if (dirty) saveOrders(list);
+  return list;
+}
+
 export function listPendingInbound(): IWhDevice[] {
-  return loadDevices().filter((d) => d.status === 'verified_complete');
+  return mergeInboundFromBus().filter((d) => d.status === 'verified_complete');
 }
 
 export function getDevice(imei: string): IWhDevice | undefined {
+  mergeInboundFromBus();
   return loadDevices().find((d) => d.imei === imei)
     || loadStock().find((d) => d.imei === imei);
 }
@@ -458,7 +598,7 @@ export function lookupForInbound(code: string): {
 } | { ok: false; error: string } {
   const q = code.trim();
   if (!q) return { ok: false, error: 'Enter IMEI or session ID' };
-  const list = loadDevices();
+  const list = mergeInboundFromBus();
   const device = list.find(
     (d) => d.imei === q || d.sessionId === q || d.imei.endsWith(q),
   );
@@ -471,8 +611,10 @@ export function lookupForInbound(code: string): {
         ? 'Verification not complete — device still in inspection.'
         : device.status === 'quote_pending'
           ? 'Customer quote not verified yet — cannot inbound.'
-          : device.status === 'pending_listing' || device.status === 'in_stock'
-            ? 'Already inbound / in stock.'
+          : device.status === 'pending_listing'
+            || device.status === 'pending_ops_review'
+            || device.status === 'in_stock'
+            ? 'Already inbound / in stock / awaiting ops.'
             : device.status === 'shipped'
               ? 'Device already shipped.'
               : `Status "${device.status}" is not eligible for inbound.`;
@@ -482,7 +624,7 @@ export function lookupForInbound(code: string): {
 }
 
 export function confirmInbound(imei: string): { ok: true; device: IWhDevice } | { ok: false; error: string } {
-  const list = loadDevices();
+  const list = mergeInboundFromBus();
   const idx = list.findIndex((d) => d.imei === imei);
   if (idx < 0) return { ok: false, error: 'Not found' };
   if (list[idx].status !== 'verified_complete') {
@@ -495,6 +637,7 @@ export function confirmInbound(imei: string): { ok: true; device: IWhDevice } | 
     refurbDecision: null,
   };
   saveDevices(list);
+  consumeInbound(imei);
   return { ok: true, device: list[idx] };
 }
 
@@ -502,14 +645,15 @@ export function decidePassThrough(imei: string): IWhDevice | null {
   const list = loadDevices();
   const idx = list.findIndex((d) => d.imei === imei);
   if (idx < 0) return null;
-  list[idx] = { ...list[idx], refurbDecision: 'pass', status: 'pending_listing' };
-  // Move to stock as pending listing → in_stock for demo
-  const stock = loadStock();
-  const moved = { ...list[idx], status: 'in_stock' as const };
-  saveStock([...stock.filter((s) => s.imei !== imei), moved]);
-  list.splice(idx, 1);
+  const next: IWhDevice = {
+    ...list[idx],
+    refurbDecision: 'pass',
+    status: 'pending_ops_review',
+  };
+  list[idx] = next;
   saveDevices(list);
-  return moved;
+  submitDeviceToOps(next);
+  return next;
 }
 
 export function startRefurbish(imei: string): IWhDevice | null {
@@ -557,13 +701,12 @@ export function completeRefurbish(imei: string): IWhDevice | null {
     ...list[idx],
     grade: priced.grade,
     offerPrice: priced.offerPrice,
-    status: 'in_stock',
+    status: 'pending_ops_review',
     refurbDecision: 'refurbish',
   };
-  const stock = loadStock();
-  saveStock([...stock.filter((s) => s.imei !== imei), next]);
-  list.splice(idx, 1);
+  list[idx] = next;
   saveDevices(list);
+  submitDeviceToOps(next);
   return next;
 }
 
@@ -602,12 +745,12 @@ export function isOrderLocked(
 }
 
 export function listCouriers(): string[] {
-  const set = new Set(loadOrders().map((o) => o.courier).filter(Boolean));
+  const set = new Set(mergePickOrdersFromBus().map((o) => o.courier).filter(Boolean));
   return [...set].sort();
 }
 
 export function listPickOrders(includeDone = false): IPickOrder[] {
-  const list = loadOrders();
+  const list = mergePickOrdersFromBus();
   const open = list.filter((o) => includeDone || o.status !== 'done');
   // Default: SLA urgency (soonest / overdue first)
   return [...open].sort((a, b) => {
@@ -619,7 +762,7 @@ export function listPickOrders(includeDone = false): IPickOrder[] {
 }
 
 export function getPickOrder(orderId: string): IPickOrder | undefined {
-  return loadOrders().find((o) => o.orderId === orderId);
+  return mergePickOrdersFromBus().find((o) => o.orderId === orderId);
 }
 
 export function searchPickOrders(
@@ -656,7 +799,7 @@ export type TScanResult =
 
 export function scanPickImei(orderId: string, imeiRaw: string): TScanResult {
   const imei = imeiRaw.trim();
-  const list = loadOrders();
+  const list = mergePickOrdersFromBus();
   const idx = list.findIndex((o) => o.orderId === orderId);
   if (idx < 0) return { ok: false, error: 'Order not found', code: 'order' };
   const order = list[idx];
@@ -762,6 +905,7 @@ export function statusLabel(s: TDeviceLifecycle): string {
     quote_pending: 'Quote pending',
     verified_complete: 'Verified — ready inbound',
     pending_listing: 'Pending listing',
+    pending_ops_review: 'Awaiting ops review',
     in_stock: 'In stock',
     shipped: 'Shipped',
     rejected: 'Rejected',

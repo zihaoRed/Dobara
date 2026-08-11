@@ -26,7 +26,9 @@ const InboundDetail: React.FC = () => {
         <CardContent className="space-y-3">
           <CheckCircle size={48} className="text-primary-500 mx-auto" />
           <h3 className="text-h3 font-heading">Passed without refurbish</h3>
-          <p className="text-body text-text-secondary">Device moved to in-stock · pending listing path complete.</p>
+          <p className="text-body text-text-secondary">
+            Submitted to ops review — not listed in mall until ops approves.
+          </p>
           <Button onClick={() => navigate('/wh')}>Back to warehouse</Button>
         </CardContent>
       </Card>
@@ -128,7 +130,7 @@ const InboundDetail: React.FC = () => {
 
       <Modal open={passOpen} onClose={() => setPassOpen(false)} title="Pass through?" size="sm">
         <p className="text-body text-text-secondary mb-4">
-          Confirm no refurbish needed. Device will move to in-stock using existing QC data.
+          Confirm no refurbish needed. Device will be submitted to ops review (not mall yet).
         </p>
         <div className="flex gap-2">
           <Button variant="secondary" className="flex-1" onClick={() => setPassOpen(false)}>Cancel</Button>

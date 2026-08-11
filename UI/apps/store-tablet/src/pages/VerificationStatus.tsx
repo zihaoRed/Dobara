@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Card } from '@dobara/ui';
 import { CheckCircle, Clock, UserCheck, ArrowLeft, Truck, XCircle } from 'lucide-react';
@@ -32,6 +32,29 @@ export default function VerificationStatus() {
   const navigate = useNavigate();
   const [status, setStatus] = useState<TStatus>('pending_checkout');
   const [handedToDb, setHandedToDb] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/trade-in/${sessionId}`);
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { status?: string };
+        if (cancelled) return;
+        if (data.status === 'confirmed') {
+          setStatus('verified');
+        } else if (data.status === 'awaiting_user_confirm') {
+          setStatus((prev) => (prev === 'verified' || prev === 'failed' ? prev : 'pending_checkout'));
+        }
+      } catch { /* demo fallback buttons remain */ }
+    };
+    void poll();
+    const id = window.setInterval(poll, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [sessionId]);
 
   const activeIdx = status === 'failed' ? -1 : STEPS.findIndex((s) => s.key === status);
 

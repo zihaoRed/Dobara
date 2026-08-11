@@ -47,6 +47,7 @@ const RefurbishUpload: React.FC = () => {
           <h3 className="text-h3 font-heading">Refurbish saved</h3>
           <p className="text-body text-text-secondary">
             Overwrote QC · <Badge variant="accent">Grade {result.grade}</Badge>
+            {' '}· submitted to ops review
           </p>
           <p className="text-h4 font-heading text-primary-600">
             Recalculated offer ₹{result.offerPrice.toLocaleString('en-IN')}

@@ -158,7 +158,14 @@ export interface IOrder {
   color?: string;
 }
 
-export type TRecycleStatus = 'inspecting' | 'pending_confirm' | 'completed' | 'rejected';
+/** Exchange order lifecycle (consumer Sell / Orders Exchange tab) */
+export type TRecycleStatus =
+  | 'appointment_pending' // booked, awaiting store visit / OTP
+  | 'inspecting'
+  | 'pending_confirm' // quote ready — accept/reject
+  | 'awaiting_redeem' // owner entered new-device price — user must confirm
+  | 'completed'
+  | 'rejected';
 
 export interface IRecycleOrder {
   id: string;
@@ -169,6 +176,15 @@ export interface IRecycleOrder {
   status: TRecycleStatus;
   createdAt: string;
   grade?: TGrade;
+  /** Appointment meta (when status is appointment_pending) */
+  storeName?: string;
+  storeId?: string;
+  appointmentDate?: string;
+  appointmentSlot?: string;
+  estimateMin?: number;
+  estimateMax?: number;
+  color?: string;
+  storage?: string;
 }
 
 export interface ITradeIn {
@@ -176,5 +192,5 @@ export interface ITradeIn {
   oldDevicePrice: number;
   newDevicePrice: number;
   actualPayment: number;
-  status: 'pending' | 'submitted' | 'confirmed';
+  status: 'pending' | 'awaiting_user_confirm' | 'submitted' | 'confirmed';
 }
