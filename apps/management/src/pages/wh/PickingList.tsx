@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Badge, Button } from '@dobara/ui';
-import { ArrowRight, Box, MapPin } from 'lucide-react';
+import { ArrowRight, Box, MapPin, ArrowLeft } from 'lucide-react';
 
 const mockOrders = [
   { orderId: 'ORD-001', device: 'iPhone 13', quantity: 5, destination: 'MobileXchange Andheri', status: 'ready' },
@@ -14,7 +14,12 @@ const PickingList: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-h3 font-heading">Pending Picking</h2>
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate('/wh')} className="p-1 hover:bg-surface-high rounded">
+          <ArrowLeft size={20} className="text-text-secondary" />
+        </button>
+        <h2 className="text-h3 font-heading">Pending Picking</h2>
+      </div>
 
       {mockOrders.map((order) => (
         <Card

@@ -4,12 +4,12 @@ import { Card, Button } from '@dobara/ui';
 import { useTranslation } from 'react-i18next';
 import {
   User, Phone, Shield, Globe, Moon, Sun,
-  ShoppingBag, ExternalLink, RefreshCw, LogOut, ChevronRight,
+  ShoppingBag, ExternalLink, ArrowLeftRight, LogOut, ChevronRight,
 } from 'lucide-react';
 import { getUser, clearUser } from '../App';
 
 export function Profile() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const navigate = useNavigate();
   const user = getUser() || { phone: 'N/A', name: 'User' };
   const [darkMode, setDarkMode] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark');
@@ -26,21 +26,22 @@ export function Profile() {
   };
 
   const menuItems = [
-    { icon: <ShoppingBag size={20} />, label: 'My Orders', desc: 'View your purchase & recycling orders', onClick: () => navigate('/profile/orders') },
-    { icon: <RefreshCw size={20} />, label: 'Start Recycling', desc: 'Get a quote for your old phone', onClick: () => navigate('/recycle/appointment') },
-    { icon: <ExternalLink size={20} />, label: 'H5 Inspection Preview', desc: 'View standalone H5 report page', onClick: () => navigate('/profile/h5-preview') },
+    { icon: <ShoppingBag size={20} />, label: 'My Orders', desc: 'View your purchase & exchange orders', onClick: () => navigate('/account/orders'), highlight: true },
+    { icon: <ArrowLeftRight size={20} />, label: 'Exchange', desc: 'Upgrade your phone with trade-in bonus', onClick: () => navigate('/sell') },
+    { icon: <ExternalLink size={20} />, label: 'H5 Inspection Preview', desc: 'View standalone H5 report page', onClick: () => navigate('/account/h5-preview') },
   ];
 
   return (
-    <div className="max-w-lg mx-auto space-y-4">
-      {/* User Info Card */}
-      <Card>
+    <div className="max-w-lg mx-auto px-4 py-5 space-y-4">
+      <h1 className="text-h3 font-bold text-text-primary">Account</h1>
+
+      <Card className="!rounded-xl">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
-            <User size={28} className="text-primary-500" />
+          <div className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center">
+            <User size={28} className="text-white" />
           </div>
           <div>
-            <h2 className="text-h4 font-heading text-text-primary">{user.name}</h2>
+            <h2 className="text-h4 font-bold text-text-primary">{user.name}</h2>
             <p className="text-caption text-text-muted flex items-center gap-1">
               <Phone size={14} /> {user.phone}
             </p>
@@ -48,17 +49,20 @@ export function Profile() {
         </div>
       </Card>
 
-      {/* Menu Items */}
-      <Card className="p-0 divide-y divide-border overflow-hidden">
+      <Card className="!p-0 divide-y divide-border overflow-hidden !rounded-xl">
         {menuItems.map((item, i) => (
           <button
             key={i}
             onClick={item.onClick}
-            className="w-full flex items-center gap-4 px-4 py-4 hover:bg-surface-low transition-colors text-left"
+            className={`w-full flex items-center gap-4 px-4 py-4 hover:bg-surface-low transition-colors text-left ${
+              item.highlight ? 'bg-primary-50/50' : ''
+            }`}
           >
-            <span className="text-text-muted">{item.icon}</span>
+            <span className={item.highlight ? 'text-primary-500' : 'text-text-muted'}>{item.icon}</span>
             <div className="flex-1 min-w-0">
-              <p className="text-body text-text-primary font-medium">{item.label}</p>
+              <p className={`text-body font-medium ${item.highlight ? 'text-primary-500' : 'text-text-primary'}`}>
+                {item.label}
+              </p>
               {item.desc && <p className="text-caption text-text-muted truncate">{item.desc}</p>}
             </div>
             <ChevronRight size={18} className="text-text-muted shrink-0" />
@@ -66,9 +70,8 @@ export function Profile() {
         ))}
       </Card>
 
-      {/* Settings */}
-      <Card>
-        <h3 className="text-h4 font-heading text-text-primary mb-3">Settings</h3>
+      <Card className="!rounded-xl">
+        <h3 className="text-body font-bold text-text-primary mb-3">Settings</h3>
         <div className="space-y-1">
           <button
             onClick={switchLanguage}
@@ -102,9 +105,8 @@ export function Profile() {
         </div>
       </Card>
 
-      {/* Account */}
-      <Card>
-        <h3 className="text-h4 font-heading text-text-primary mb-3">Account</h3>
+      <Card className="!rounded-xl">
+        <h3 className="text-body font-bold text-text-primary mb-3">Account</h3>
         <div className="flex items-center justify-between py-3 px-1">
           <div className="flex items-center gap-3">
             <Shield size={20} className="text-text-muted" />
@@ -116,7 +118,6 @@ export function Profile() {
         </div>
       </Card>
 
-      {/* Logout */}
       <Button
         variant="ghost"
         size="lg"

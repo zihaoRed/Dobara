@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { Home, RefreshCw, User } from 'lucide-react';
+import { Home as HomeIcon, ShoppingBag, ArrowLeftRight, User } from 'lucide-react';
 
 import { Login } from './pages/Login';
+import { Home } from './pages/Home';
 import { MallHome } from './pages/MallHome';
 import { ProductDetail } from './pages/ProductDetail';
 import { OrderConfirm } from './pages/OrderConfirm';
@@ -44,41 +44,40 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/* ── Tab Bar Layout ── */
+/* ── Tab Bar Layout — Home / Buy / Exchange / Account ── */
 const TABS = [
-  { key: '/home', label: 'Mall', icon: <Home size={22} /> },
-  { key: '/recycle', label: 'Recycle', icon: <RefreshCw size={22} /> },
-  { key: '/profile', label: 'Profile', icon: <User size={22} /> },
+  { key: '/home', label: 'Home', icon: <HomeIcon size={22} /> },
+  { key: '/buy', label: 'Buy', icon: <ShoppingBag size={22} /> },
+  { key: '/sell', label: 'Exchange', icon: <ArrowLeftRight size={22} /> },
+  { key: '/account', label: 'Account', icon: <User size={22} /> },
 ];
 
 function TabBar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const active = TABS.some((t) => location.pathname.startsWith(t.key))
-    ? TABS.find((t) => location.pathname.startsWith(t.key))!.key
-    : '/home';
+
+  const active = TABS.find((t) => location.pathname === t.key || location.pathname.startsWith(t.key + '/'))?.key
+    ?? (location.pathname.startsWith('/buy') || location.pathname.startsWith('/home/product') ? '/buy' : null)
+    ?? (location.pathname.startsWith('/sell') || location.pathname.startsWith('/recycle') ? '/sell' : null)
+    ?? (location.pathname.startsWith('/account') || location.pathname.startsWith('/profile') ? '/account' : null)
+    ?? '/home';
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 safe-bottom">
-      <div className="bg-white/80 backdrop-blur-xl border-t border-border-light">
+      <div className="bg-white/95 backdrop-blur-xl border-t border-border shadow-[0_-2px_12px_rgba(6,68,57,0.06)]">
         <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => navigate(tab.key)}
-              className={`flex flex-col items-center justify-center gap-1 w-full h-full transition-all duration-300 ${
+              className={`flex flex-col items-center justify-center gap-0.5 w-full h-full transition-all duration-200 ${
                 active === tab.key
-                  ? 'text-emerald-600 scale-105'
+                  ? 'text-primary-500'
                   : 'text-text-muted hover:text-text-secondary'
               }`}
             >
-              <div className={`transition-all duration-300 ${active === tab.key ? 'scale-110' : ''}`}>
-                {tab.icon}
-              </div>
-              <span className="text-eyebrow font-medium">{tab.label}</span>
-              {active === tab.key && (
-                <div className="absolute top-0 w-8 h-0.5 rounded-full bg-emerald-500" />
-              )}
+              <div className={active === tab.key ? 'scale-110' : ''}>{tab.icon}</div>
+              <span className="text-[10px] font-semibold tracking-wide uppercase">{tab.label}</span>
             </button>
           ))}
         </div>
@@ -87,20 +86,18 @@ function TabBar() {
   );
 }
 
-/* ── App Layout with tab visibility ── */
-const TAB_PATHS = ['/home', '/recycle', '/profile'];
+/* ── App Layout ── */
+const TAB_PATHS = ['/home', '/buy', '/sell', '/account'];
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const showTabs = TAB_PATHS.some((p) => location.pathname.startsWith(p) || location.pathname === p);
+  const showTabs =
+    TAB_PATHS.some((p) => location.pathname === p) ||
+    location.pathname === '/recycle' ||
+    location.pathname === '/profile';
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
-      {showTabs && (
-        <header className="h-11 bg-surface-container border-b border-border flex items-center px-4 shrink-0">
-          <a href="/" className="text-h4 font-heading text-primary-500 hover:text-primary-600 transition-colors no-underline">Dobara</a>
-        </header>
-      )}
       <main className={`flex-1 ${showTabs ? 'pb-16' : ''}`}>{children}</main>
       {showTabs && <TabBar />}
     </div>
@@ -109,7 +106,6 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
 /* ── App ── */
 export function App() {
-  const { t } = useTranslation();
   const [user, setUserState] = useState(getUser());
 
   useEffect(() => {
@@ -125,60 +121,43 @@ export function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<Navigate to={user ? '/home' : '/login'} replace />} />
 
-          <Route
-            path="/home"
-            element={<RequireAuth><MallHome /></RequireAuth>}
-          />
-          <Route
-            path="/home/product/:imei"
-            element={<RequireAuth><ProductDetail /></RequireAuth>}
-          />
-          <Route
-            path="/home/product/:imei/order"
-            element={<RequireAuth><OrderConfirm /></RequireAuth>}
-          />
-          <Route
-            path="/home/order/success/:orderId"
-            element={<RequireAuth><OrderSuccess /></RequireAuth>}
-          />
+          {/* Home — marketing landing */}
+          <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
 
-          <Route
-            path="/recycle"
-            element={<RequireAuth><RecycleHome /></RequireAuth>}
-          />
-          <Route
-            path="/recycle/appointment"
-            element={<RequireAuth><Appointment /></RequireAuth>}
-          />
-          <Route
-            path="/recycle/appointment/success"
-            element={<RequireAuth><AppointmentSuccess /></RequireAuth>}
-          />
-          <Route
-            path="/recycle/report/:sessionId"
-            element={<RequireAuth><InspectionReport /></RequireAuth>}
-          />
-          <Route
-            path="/recycle/report/:sessionId/accept"
-            element={<RequireAuth><AcceptQuote /></RequireAuth>}
-          />
+          {/* Buy — product catalog (former MallHome) */}
+          <Route path="/buy" element={<RequireAuth><MallHome /></RequireAuth>} />
+          <Route path="/home/product/:imei" element={<RequireAuth><ProductDetail /></RequireAuth>} />
+          <Route path="/buy/product/:imei" element={<RequireAuth><ProductDetail /></RequireAuth>} />
+          <Route path="/home/product/:imei/order" element={<RequireAuth><OrderConfirm /></RequireAuth>} />
+          <Route path="/buy/product/:imei/order" element={<RequireAuth><OrderConfirm /></RequireAuth>} />
+          <Route path="/home/order/success/:orderId" element={<RequireAuth><OrderSuccess /></RequireAuth>} />
+          <Route path="/buy/order/success/:orderId" element={<RequireAuth><OrderSuccess /></RequireAuth>} />
 
-          <Route
-            path="/profile"
-            element={<RequireAuth><Profile /></RequireAuth>}
-          />
-          <Route
-            path="/profile/orders"
-            element={<RequireAuth><OrderList /></RequireAuth>}
-          />
-          <Route
-            path="/profile/orders/:orderId"
-            element={<RequireAuth><OrderDetail /></RequireAuth>}
-          />
-          <Route
-            path="/profile/h5-preview"
-            element={<RequireAuth><H5Preview /></RequireAuth>}
-          />
+          {/* Sell — recycle / trade-in */}
+          <Route path="/sell" element={<RequireAuth><RecycleHome /></RequireAuth>} />
+          <Route path="/sell/appointment" element={<RequireAuth><Appointment /></RequireAuth>} />
+          <Route path="/sell/appointment/success" element={<RequireAuth><AppointmentSuccess /></RequireAuth>} />
+          <Route path="/sell/report/:sessionId" element={<RequireAuth><InspectionReport /></RequireAuth>} />
+          <Route path="/sell/report/:sessionId/accept" element={<RequireAuth><AcceptQuote /></RequireAuth>} />
+
+          {/* Legacy recycle redirects */}
+          <Route path="/recycle" element={<Navigate to="/sell" replace />} />
+          <Route path="/recycle/appointment" element={<Navigate to="/sell/appointment" replace />} />
+          <Route path="/recycle/appointment/success" element={<Navigate to="/sell/appointment/success" replace />} />
+          <Route path="/recycle/report/:sessionId" element={<RequireAuth><InspectionReport /></RequireAuth>} />
+          <Route path="/recycle/report/:sessionId/accept" element={<RequireAuth><AcceptQuote /></RequireAuth>} />
+
+          {/* Account */}
+          <Route path="/account" element={<RequireAuth><Profile /></RequireAuth>} />
+          <Route path="/account/orders" element={<RequireAuth><OrderList /></RequireAuth>} />
+          <Route path="/account/orders/:orderId" element={<RequireAuth><OrderDetail /></RequireAuth>} />
+          <Route path="/account/h5-preview" element={<RequireAuth><H5Preview /></RequireAuth>} />
+
+          {/* Legacy profile redirects */}
+          <Route path="/profile" element={<Navigate to="/account" replace />} />
+          <Route path="/profile/orders" element={<Navigate to="/account/orders" replace />} />
+          <Route path="/profile/orders/:orderId" element={<RequireAuth><OrderDetail /></RequireAuth>} />
+          <Route path="/profile/h5-preview" element={<Navigate to="/account/h5-preview" replace />} />
 
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>

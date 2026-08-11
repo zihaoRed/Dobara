@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Tabs, StatusBadge, Button, EmptyState, SkeletonCard } from '@dobara/ui';
-import { ShoppingBag, RefreshCw, IndianRupee } from 'lucide-react';
+import { ShoppingBag, IndianRupee } from 'lucide-react';
 import type { IOrder } from '@dobara/utils';
 
 type TabKey = 'buy' | 'sell';
@@ -41,10 +41,11 @@ export function OrderList() {
 
   return (
     <div className="max-w-lg mx-auto">
+      <Button variant="ghost" size="sm" onClick={() => navigate('/account')} className="mb-3">← Back</Button>
       <Tabs
         tabs={[
           { key: 'buy', label: 'My Purchases' },
-          { key: 'sell', label: 'Recycling Orders' },
+          { key: 'sell', label: 'Exchange Orders' },
         ]}
         activeTab={activeTab}
         onChange={(k: string) => setActiveTab(k as TabKey)}
@@ -63,7 +64,7 @@ export function OrderList() {
             title="No purchase orders"
             description="You haven't bought any devices yet. Start shopping!"
             action={
-              <Button variant="primary" onClick={() => navigate('/home')}>
+              <Button variant="primary" onClick={() => navigate('/buy')}>
                 Browse Marketplace
               </Button>
             }
@@ -92,10 +93,10 @@ export function OrderList() {
         )
       ) : (
         <EmptyState
-          title="No recycling orders"
-          description="Start recycling your old phone by booking an appointment."
+          title="No exchange orders"
+          description="Book an appointment to exchange your old phone for a new one."
           action={
-            <Button variant="primary" onClick={() => navigate('/recycle/appointment')}>
+            <Button variant="primary" onClick={() => navigate('/sell/appointment')}>
               Book Appointment
             </Button>
           }

@@ -51,9 +51,12 @@ export function InspectionReport() {
 
   if (loading) {
     return (
-      <div className="max-w-lg mx-auto text-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-500 border-t-transparent mx-auto mb-4" />
-        <p className="text-body text-text-secondary">Loading inspection report...</p>
+      <div className="max-w-lg mx-auto">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/sell')} className="mb-3">← Back</Button>
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-500 border-t-transparent mx-auto mb-4" />
+          <p className="text-body text-text-secondary">Loading inspection report...</p>
+        </div>
       </div>
     );
   }
@@ -61,6 +64,7 @@ export function InspectionReport() {
   if (!report) {
     return (
       <div className="max-w-lg mx-auto">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/sell')} className="mb-3">← Back</Button>
         <Card className="text-center py-8">
           <p className="text-text-muted">Report not available.</p>
         </Card>
@@ -70,6 +74,7 @@ export function InspectionReport() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-24">
+      <Button variant="ghost" size="sm" onClick={() => navigate('/sell')} className="mb-1">← Back</Button>
       {/* Device Summary */}
       <Card>
         <div className="flex items-center gap-3 mb-3">
@@ -160,7 +165,7 @@ export function InspectionReport() {
             variant="primary"
             size="lg"
             className="w-full"
-            onClick={() => navigate(`/recycle/report/${sessionId}/accept`)}
+            onClick={() => navigate(`/sell/report/${sessionId}/accept`)}
           >
             Review & Accept <ArrowRight size={18} />
           </Button>

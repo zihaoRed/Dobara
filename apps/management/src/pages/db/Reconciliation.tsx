@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Button, Input } from '@dobara/ui';
-import { FileText, Search, ArrowRight } from 'lucide-react';
+import { FileText, Search, ArrowRight, ArrowLeft } from 'lucide-react';
 
 const stores = [
   { id: 'st-mum-1', name: 'MobileXchange Andheri' },
@@ -22,7 +22,12 @@ const Reconciliation: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-h3 font-heading">Reconciliation</h2>
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate('/db')} className="p-1 hover:bg-surface-high rounded">
+          <ArrowLeft size={20} className="text-text-secondary" />
+        </button>
+        <h2 className="text-h3 font-heading">Reconciliation</h2>
+      </div>
 
       <Card>
         <CardHeader>

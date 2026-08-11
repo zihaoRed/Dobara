@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Card, ProgressBar } from '@dobara/ui';
-import { FileText, CheckCircle, Loader } from 'lucide-react';
+import { ArrowLeft, FileText, CheckCircle, Loader } from 'lucide-react';
 
 const uploadFiles = [
   { name: 'photos.zip', size: '12.4 MB', type: 'Images' },
@@ -52,7 +52,12 @@ export default function DataUpload() {
 
   return (
     <div className="p-6">
-      <h1 className="text-h3 font-heading text-text-primary mb-2">Data Upload</h1>
+      <div className="flex items-center gap-3 mb-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate(`/session/${sessionId}`)}>
+          <ArrowLeft size={16} />
+        </Button>
+        <h1 className="text-h3 font-heading text-text-primary">Data Upload</h1>
+      </div>
       <p className="text-body text-text-body mb-6">
         Uploading inspection data to the server...
       </p>

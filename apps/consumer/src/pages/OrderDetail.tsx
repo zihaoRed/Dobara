@@ -52,7 +52,7 @@ export function OrderDetail() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/profile/orders')}>
+      <Button variant="ghost" size="sm" onClick={() => navigate('/account/orders')}>
         ← Back to Orders
       </Button>
 

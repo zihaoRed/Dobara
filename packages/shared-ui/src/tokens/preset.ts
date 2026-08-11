@@ -1,4 +1,4 @@
-/** Dobara Tailwind CSS Preset — Commercial Edition */
+/** Dobara Tailwind CSS Preset — Forest Green + Gold */
 const preset = {
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
@@ -16,19 +16,23 @@ const preset = {
           100: 'var(--color-accent-100)',
           500: 'var(--color-accent-500)',
         },
+        gold: {
+          50: 'var(--color-accent-50)',
+          100: 'var(--color-accent-100)',
+          500: 'var(--color-accent-500)',
+        },
         surface: {
           DEFAULT: 'var(--color-surface)',
           muted: 'var(--color-surface-low)',
           card: 'var(--color-surface-container)',
           elevated: 'var(--color-surface-container)',
-          dark: '#1b1f1c',
+          dark: '#0a1210',
         },
         border: {
           DEFAULT: 'var(--color-border)',
           light: 'var(--color-border-light)',
           strong: 'var(--color-border-strong)',
         },
-        /* Backward-compat aliases — all use CSS variables */
         primary: {
           '50': 'var(--color-primary-50)', '100': 'var(--color-primary-100)',
           '500': 'var(--color-primary-500)', '600': 'var(--color-primary-600)',
@@ -61,9 +65,9 @@ const preset = {
         'text-muted': 'var(--color-text-muted)',
       },
       fontFamily: {
-        display: ["'DM Serif Display'", 'Georgia', 'serif'],
-        heading: ["'DM Serif Display'", 'Georgia', 'serif'],
-        body: ["'DM Sans'", 'system-ui', 'sans-serif'],
+        display: ["'Plus Jakarta Sans'", 'system-ui', 'sans-serif'],
+        heading: ["'Plus Jakarta Sans'", 'system-ui', 'sans-serif'],
+        body: ["'Plus Jakarta Sans'", 'system-ui', 'sans-serif'],
         mono: ["'JetBrains Mono'", 'monospace'],
       },
       fontSize: {
@@ -84,13 +88,13 @@ const preset = {
         7: '32px', 8: '40px', 9: '48px', 10: '56px', 11: '64px', 12: '80px', 14: '96px',
       },
       borderRadius: {
-        xs: '4px', sm: '6px', md: '10px', lg: '14px', xl: '20px', '2xl': '28px', full: '9999px',
+        xs: '4px', sm: '8px', md: '12px', lg: '16px', xl: '20px', '2xl': '28px', full: '9999px',
       },
       boxShadow: {
         xs: '0 1px 2px 0 rgba(0,0,0,0.03)',
         sm: '0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.03)',
         card: 'var(--shadow-card)',
-        'card-hover': '0 8px 24px -4px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04)',
+        'card-hover': '0 8px 24px -4px rgba(6,68,57,0.10), 0 2px 4px -2px rgba(0,0,0,0.04)',
         float: 'var(--shadow-elevated)',
         modal: '0 24px 48px -6px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04)',
         overlay: '0 32px 64px -8px rgba(0,0,0,0.16)',
@@ -99,7 +103,8 @@ const preset = {
       backgroundImage: {
         'gradient-warm': 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-low) 100%)',
         'gradient-emerald': 'linear-gradient(135deg, var(--color-primary-500) 0%, var(--color-primary-600) 100%)',
-        'gradient-terracotta': 'linear-gradient(135deg, var(--color-accent-500) 0%, #d1662d 100%)',
+        'gradient-gold': 'linear-gradient(135deg, var(--color-accent-500) 0%, #a8871c 100%)',
+        'gradient-terracotta': 'linear-gradient(135deg, var(--color-accent-500) 0%, #a8871c 100%)',
       },
       transitionTimingFunction: {
         'out-expo': 'cubic-bezier(0.19, 1, 0.22, 1)',

@@ -28,7 +28,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const navItems = items || defaultItems;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-surface-container border-t border-border z-40 safe-area-pb">
+    <nav className="fixed bottom-0 left-0 right-0 bg-surface-container border-t border-border z-40 safe-area-pb shadow-[0_-2px_12px_rgba(6,68,57,0.06)]">
       <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
         {navItems.map((item) => (
           <button
@@ -39,7 +39,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             }`}
           >
             {item.icon}
-            <span className="text-eyebrow">{item.label}</span>
+            <span className="text-eyebrow font-semibold">{item.label}</span>
           </button>
         ))}
       </div>

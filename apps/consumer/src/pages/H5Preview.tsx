@@ -1,5 +1,6 @@
 import React from 'react';
-import { Card, Badge, PriceDisplay, Countdown, GradeBadge, ProgressBar } from '@dobara/ui';
+import { useNavigate } from 'react-router-dom';
+import { Card, Badge, PriceDisplay, Countdown, GradeBadge, ProgressBar, Button } from '@dobara/ui';
 import { Camera, Cpu, Battery, Wifi, CheckCircle2 } from 'lucide-react';
 
 const hardwareItems = [
@@ -14,8 +15,13 @@ const hardwareItems = [
 ];
 
 export function H5Preview() {
+  const navigate = useNavigate();
+
   return (
     <div className="max-w-md mx-auto bg-white min-h-screen">
+      <div className="px-4 pt-3">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/account')}>← Back</Button>
+      </div>
       {/* Header bar */}
       <div className="bg-primary-500 text-white px-4 py-3 flex items-center gap-2">
         <span className="text-eyebrow bg-white/20 px-2 py-0.5 rounded">H5 Preview</span>

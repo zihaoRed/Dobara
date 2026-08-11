@@ -109,9 +109,9 @@ export function Appointment() {
     setSubmitting(true);
     try {
       await fetch('/api/sessions', { method: 'POST' });
-      navigate('/recycle/appointment/success');
+      navigate('/sell/appointment/success');
     } catch {
-      navigate('/recycle/appointment/success');
+      navigate('/sell/appointment/success');
     } finally {
       setSubmitting(false);
     }
@@ -123,6 +123,13 @@ export function Appointment() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => (step === 1 ? navigate('/sell') : setStep(step - 1))}
+      >
+        ← Back
+      </Button>
       <h1 className="text-h3 font-heading">Book Inspection</h1>
 
       {/* Step indicators */}

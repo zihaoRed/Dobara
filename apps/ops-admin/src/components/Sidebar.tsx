@@ -73,7 +73,7 @@ export const Sidebar: React.FC = () => {
     <aside className="fixed left-0 top-0 bottom-0 w-[240px] bg-surface-container border-r border-border flex flex-col z-40">
       {/* Logo */}
       <div className="h-16 flex items-center gap-3 px-5 border-b border-border flex-shrink-0">
-        <a href="/" className="no-underline font-heading text-h4 text-primary-500 font-bold hover:text-primary-600 transition-colors">Dobara</a>
+        <a href="/" className="no-underline text-h4 text-primary-500 font-extrabold hover:text-primary-600 transition-colors">Dobara</a>
         <span className="text-eyebrow text-text-muted ml-auto bg-surface-high px-2 py-0.5 rounded-sm">Admin</span>
       </div>
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Badge, EmptyState } from '@dobara/ui';
-import { Bell, ChevronRight } from 'lucide-react';
+import { Button, Card, Badge, EmptyState } from '@dobara/ui';
+import { ArrowLeft, Bell, ChevronRight } from 'lucide-react';
 
 interface Notification {
   id: string;
@@ -57,7 +57,12 @@ export default function NotificationList() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-h3 font-heading text-text-primary">Notifications</h1>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
+            <ArrowLeft size={16} />
+          </Button>
+          <h1 className="text-h3 font-heading text-text-primary">Notifications</h1>
+        </div>
         {unreadCount > 0 && (
           <Badge variant="accent" size="md">
             {unreadCount} unread

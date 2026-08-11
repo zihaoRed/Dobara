@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Badge, Button } from '@dobara/ui';
-import { ArrowRight, CheckSquare, Clock, AlertCircle } from 'lucide-react';
+import { ArrowRight, CheckSquare, Clock, AlertCircle, ArrowLeft } from 'lucide-react';
 
 interface Settlement {
   id: string;
@@ -46,7 +46,12 @@ const SettlementList: React.FC = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-h3 font-heading">Settlements</h2>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/db')} className="p-1 hover:bg-surface-high rounded">
+            <ArrowLeft size={20} className="text-text-secondary" />
+          </button>
+          <h2 className="text-h3 font-heading">Settlements</h2>
+        </div>
         {selected.size > 0 && (
           <Button size="sm" variant="primary" icon={<CheckSquare size={16} />} onClick={handleBatchSettle}>
             Settle {selected.size} Selected

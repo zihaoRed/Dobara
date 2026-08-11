@@ -253,7 +253,7 @@ export function ProductDetail() {
       <div className="fixed bottom-[64px] left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-border p-4 z-20">
         <div className="flex items-center justify-between max-w-lg md:max-w-4xl mx-auto">
           <PriceDisplay amount={device.price} size="md" />
-          <Button variant="primary" size="lg" onClick={() => navigate(`/home/product/${imei}/order`)}>
+          <Button variant="primary" size="lg" onClick={() => navigate(`/buy/product/${imei}/order`)}>
             Buy Now
           </Button>
         </div>

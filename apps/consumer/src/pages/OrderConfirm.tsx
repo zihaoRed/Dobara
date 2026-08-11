@@ -55,7 +55,7 @@ export function OrderConfirm() {
       });
       const data = await res.json();
       if (data.orderId) {
-        navigate(`/home/order/success/${data.orderId}`);
+        navigate(`/buy/order/success/${data.orderId}`);
       }
     } catch {
       setError('Payment failed. Please try again.');
@@ -96,7 +96,7 @@ export function OrderConfirm() {
         <Card>
           <div className="text-center py-8 space-y-3">
             <p className="text-dobara-error font-semibold">{error}</p>
-            <Button variant="secondary" onClick={() => navigate(`/home/product/${imei}`)}>
+            <Button variant="secondary" onClick={() => navigate(`/buy/product/${imei}`)}>
               Go Back
             </Button>
           </div>
@@ -109,7 +109,7 @@ export function OrderConfirm() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4">
-      <Button variant="ghost" size="sm" onClick={() => navigate(`/home/product/${imei}`)} className="mb-2">
+      <Button variant="ghost" size="sm" onClick={() => navigate(`/buy/product/${imei}`)} className="mb-2">
         ← Back
       </Button>
 

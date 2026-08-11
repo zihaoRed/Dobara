@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Card, CardHeader, CardContent, Stepper } from '@dobara/ui';
-import { User, Store, Clock } from 'lucide-react';
+import { ArrowLeft, User, Store, Clock } from 'lucide-react';
 
 const steps = [
   { key: 'photo', label: 'Photos' },
@@ -54,7 +54,12 @@ export default function SessionDetail() {
 
   return (
     <div className="p-6">
-      <h1 className="text-h3 font-heading text-text-primary mb-2">Session Details</h1>
+      <div className="flex items-center gap-3 mb-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
+          <ArrowLeft size={16} />
+        </Button>
+        <h1 className="text-h3 font-heading text-text-primary">Session Details</h1>
+      </div>
       <p className="text-caption text-text-muted mb-6">Session ID: {sessionId}</p>
 
       <Stepper steps={steps} current={0} className="mb-6" />

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Badge, Button } from '@dobara/ui';
-import { Plus, Phone, Shield, Clock } from 'lucide-react';
+import { Plus, Phone, Shield, Clock, ArrowLeft } from 'lucide-react';
 
 interface Clerk {
   id: string;
@@ -24,7 +24,12 @@ const ClerkList: React.FC = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-h3 font-heading">Clerks</h2>
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate('/owner')} className="p-1 hover:bg-surface-high rounded">
+            <ArrowLeft size={20} className="text-text-secondary" />
+          </button>
+          <h2 className="text-h3 font-heading">Clerks</h2>
+        </div>
         <Button size="sm" icon={<Plus size={16} />} onClick={() => navigate('/owner/clerks/add')}>
           Add Clerk
         </Button>

@@ -73,8 +73,8 @@ export function Login() {
     <div className="min-h-screen bg-surface flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="text-h2 font-heading text-primary-500">Dobara</h1>
-          <p className="text-body text-text-muted mt-2">Sign in to continue</p>
+          <h1 className="text-h2 font-extrabold text-primary-500 tracking-tight">Dobara</h1>
+          <p className="text-body text-text-muted mt-2">Buy & sell certified pre-owned phones</p>
         </div>
 
         <Card className="space-y-4">

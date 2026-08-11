@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Input, Card } from '@dobara/ui';
-import { Phone } from 'lucide-react';
+import { ArrowLeft, Phone } from 'lucide-react';
 
 const DEMO_OTP = '123456';
 
@@ -86,7 +86,12 @@ export default function OtpPage() {
   };
 
   return (
-    <div className="flex items-center justify-center h-full px-6">
+    <div className="flex flex-col items-center justify-center h-full px-6">
+      <div className="w-full max-w-[400px] mb-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
+          <ArrowLeft size={16} /> Back
+        </Button>
+      </div>
       <Card className="w-full max-w-[400px]">
         <div className="text-center mb-6">
           <div className="w-14 h-14 mx-auto bg-primary-50 rounded-full flex items-center justify-center mb-3">

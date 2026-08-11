@@ -16,9 +16,9 @@ const monthlyRevenue = [
 ];
 
 const gradeDistribution = [
-  { name: 'Grade A', value: 45, color: '#00b86e' },
+  { name: 'Grade A', value: 45, color: '#064439' },
   { name: 'Grade B', value: 30, color: '#3fc68b' },
-  { name: 'Grade C', value: 18, color: '#ff7b1a' },
+  { name: 'Grade C', value: 18, color: '#c9a227' },
   { name: 'Grade D', value: 7, color: '#ef4444' },
 ];
 
@@ -109,7 +109,7 @@ const RevenueDashboard: React.FC = () => {
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6b7280' }} />
               <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}K`} />
               <Tooltip formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Revenue']} />
-              <Bar dataKey="amount" fill="#00b86e" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="amount" fill="#064439" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

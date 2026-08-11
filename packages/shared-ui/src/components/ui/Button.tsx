@@ -8,23 +8,24 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   size?: ButtonSize;
   loading?: boolean;
   icon?: React.ReactNode;
+  pill?: boolean;
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-primary-500 text-white hover:bg-primary-400 active:bg-primary-600 disabled:bg-primary-200',
+    'bg-primary-500 text-white hover:bg-primary-600 active:bg-primary-700 disabled:opacity-50',
   secondary:
     'bg-surface-container text-text-secondary hover:bg-surface-high active:bg-surface-container border border-border',
   accent:
-    'bg-accent-500 text-white hover:bg-accent-400 active:bg-accent-600 disabled:bg-accent-200',
+    'bg-accent-500 text-white hover:opacity-90 active:opacity-80 disabled:opacity-50',
   ghost: 'bg-transparent text-text-secondary hover:bg-surface-container active:bg-surface-high',
   danger: 'bg-dobara-error text-white hover:opacity-90 active:opacity-80',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'h-[32px] px-3 text-caption rounded-md gap-1',
-  md: 'h-[40px] px-4 text-body rounded-md gap-2',
-  lg: 'h-[48px] px-6 text-lead rounded-lg gap-2',
+  sm: 'h-[32px] px-3 text-caption gap-1',
+  md: 'h-[40px] px-4 text-body gap-2',
+  lg: 'h-[48px] px-6 text-lead gap-2',
 };
 
 export const Button: React.FC<ButtonProps> = ({
@@ -32,14 +33,16 @@ export const Button: React.FC<ButtonProps> = ({
   size = 'md',
   loading = false,
   icon,
+  pill = false,
   children,
   className = '',
   disabled,
   ...props
 }) => {
+  const radius = pill ? 'rounded-full' : size === 'lg' ? 'rounded-lg' : 'rounded-md';
   return (
     <button
-      className={`inline-flex items-center justify-center font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      className={`inline-flex items-center justify-center font-semibold transition-all duration-150 disabled:cursor-not-allowed ${variantClasses[variant]} ${sizeClasses[size]} ${radius} ${className}`}
       disabled={disabled || loading}
       {...props}
     >

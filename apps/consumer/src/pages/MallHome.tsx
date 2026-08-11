@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DeviceCard, SearchBar, SkeletonCard, EmptyState, Button, Card } from '@dobara/ui';
 import { Filter, X } from 'lucide-react';
-import type { IDevice, IBrand, IModel } from '@dobara/utils';
+import type { IDevice, IBrand } from '@dobara/utils';
 
 const PRICE_RANGES = [
   { label: 'All', min: 0, max: Infinity },
@@ -38,7 +38,13 @@ export function MallHome() {
   const [devices, setDevices] = useState<IDevice[]>([]);
   const [brands, setBrands] = useState<IBrand[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('q') || '';
+    } catch {
+      return '';
+    }
+  });
   const [brandFilter, setBrandFilter] = useState<string>('');
   const [gradeFilter, setGradeFilter] = useState<string>('');
   const [priceFilter, setPriceFilter] = useState<number>(0);
@@ -102,7 +108,12 @@ export function MallHome() {
   };
 
   return (
-    <div className="max-w-lg md:max-w-7xl mx-auto">
+    <div className="max-w-lg md:max-w-7xl mx-auto px-4 py-4">
+      <div className="mb-4">
+        <h1 className="text-h3 font-bold text-text-primary">Buy Phones</h1>
+        <p className="text-caption text-text-muted">Certified pre-owned, IMEI verified</p>
+      </div>
+
       {/* Search & Filter Bar */}
       <div className="mb-5 space-y-3">
         <div className="flex gap-2">
@@ -111,13 +122,14 @@ export function MallHome() {
             onChange={setSearch}
             placeholder="Search phones..."
             className="flex-1"
+            showExtras
           />
           <Button
             variant="secondary"
             size="md"
             icon={<Filter size={18} />}
             onClick={() => setShowFilters(!showFilters)}
-            className="relative"
+            className="relative !rounded-full !h-[44px] !w-[44px] !px-0"
           >
             {hasFilters && (
               <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary-500 rounded-full" />
@@ -240,8 +252,10 @@ export function MallHome() {
               model={getModelName(device.modelId)}
               grade={device.grade}
               price={device.price}
+              originalPrice={device.originalPrice > device.price ? device.originalPrice : Math.round(device.price * 1.25)}
+              storage={device.storage}
               city={device.city}
-              onClick={() => navigate(`/home/product/${device.imei}`)}
+              onClick={() => navigate(`/buy/product/${device.imei}`)}
             />
           ))}
         </div>

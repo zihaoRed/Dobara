@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Button, Badge, Input } from '@dobara/ui';
-import { Search, Flag, ArrowRight } from 'lucide-react';
+import { Search, Flag, ArrowRight, ArrowLeft } from 'lucide-react';
 
 const mockVouchers = [
   { id: 'vch-001', store: 'MobileXchange Andheri', date: '2026-07-28', amount: 120000, flagged: null },
@@ -10,6 +11,7 @@ const mockVouchers = [
 ];
 
 const VoucherReview: React.FC = () => {
+  const navigate = useNavigate();
   const [storeFilter, setStoreFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [reasonInput, setReasonInput] = useState('');
@@ -33,7 +35,12 @@ const VoucherReview: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-h3 font-heading">Voucher Review</h2>
+      <div className="flex items-center gap-3">
+        <button onClick={() => navigate('/db')} className="p-1 hover:bg-surface-high rounded">
+          <ArrowLeft size={20} className="text-text-secondary" />
+        </button>
+        <h2 className="text-h3 font-heading">Voucher Review</h2>
+      </div>
 
       {/* Filters */}
       <Card>

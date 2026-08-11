@@ -9,18 +9,18 @@ rootEl.innerHTML = `
   @keyframes dobara-fade { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
   .dobara-loading {
     display:flex; flex-direction:column; align-items:center; justify-content:center;
-    min-height:100vh; font-family:'DM Sans',system-ui,sans-serif; background:#f9f7f4;
+    min-height:100vh; font-family:'Plus Jakarta Sans',system-ui,sans-serif; background:#f5f6f5;
   }
   .dobara-loading .mark {
-    font-family:'DM Serif Display',Georgia,serif; font-size:2rem; font-weight:400;
-    color:#0d6b4e; letter-spacing:-0.02em; margin-bottom:20px;
+    font-family:'Plus Jakarta Sans',system-ui,sans-serif; font-size:2rem; font-weight:800;
+    color:#064439; letter-spacing:-0.02em; margin-bottom:20px;
   }
   .dobara-loading .spinner {
-    width:36px; height:36px; border:2.5px solid #e8e2da; border-top-color:#0d6b4e;
+    width:36px; height:36px; border:2.5px solid #dde3df; border-top-color:#064439;
     border-radius:50%; animation:dobara-spin 0.7s linear infinite;
   }
   .dobara-loading .hint {
-    font-size:0.8125rem; color:#939994; margin-top:14px; animation:dobara-fade 2.2s ease-in-out infinite;
+    font-size:0.8125rem; color:#8a9590; margin-top:14px; animation:dobara-fade 2.2s ease-in-out infinite;
   }
 </style>
 <div class="dobara-loading">
@@ -47,9 +47,9 @@ async function boot() {
     ReactDOM.createRoot(rootEl).render(<React.StrictMode><App /></React.StrictMode>);
   } catch {
     ReactDOM.createRoot(rootEl).render(
-      <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',fontFamily:"'DM Sans',sans-serif",color:'#6b706c',textAlign:'center',padding:24}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',fontFamily:"'Plus Jakarta Sans',sans-serif",color:'#5c6863',textAlign:'center',padding:24}}>
         <div>
-          <h1 style={{fontFamily:"'DM Serif Display',serif",color:'#0d6b4e',fontSize:'1.5rem',marginBottom:8}}>Dobara</h1>
+          <h1 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",color:'#064439',fontSize:'1.5rem',marginBottom:8,fontWeight:800}}>Dobara</h1>
           <p>Something went wrong.<br/>Please refresh the page.</p>
         </div>
       </div>
