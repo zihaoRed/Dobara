@@ -32,7 +32,12 @@ export const Portal: React.FC = () => {
           {apps.map((app) => (
             <a
               key={app.url}
-              href={app.url}
+              href={`${app.url}/`}
+              onClick={(e) => {
+                // Bust browser document cache when leaving portal for an app shell
+                e.preventDefault();
+                window.location.assign(`${app.url}/?_t=${Date.now()}`);
+              }}
               style={{
                 background: '#fff', borderRadius: 16, padding: '28px 26px',
                 boxShadow: '0 2px 10px -2px rgba(6,68,57,0.06), 0 1px 3px -1px rgba(0,0,0,0.04)',

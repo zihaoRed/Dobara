@@ -1,8 +1,8 @@
-const RELOAD_GUARD_KEY = 'dobara_consumer_reload_for';
+const VB_PARAM = '_vb';
 
 /**
- * Compare embedded build id with server version.json (always network).
- * If newer deploy detected, reload once (guarded to avoid loops when HTML is still stale).
+ * Stale index.html (same URL) is often reused by reload().
+ * Bust the document cache by replacing with a new query key when remote version differs.
  */
 export async function ensureLatestBuild(): Promise<void> {
   const local = import.meta.env.VITE_APP_VERSION as string | undefined;
@@ -16,15 +16,15 @@ export async function ensureLatestBuild(): Promise<void> {
     const remote = data.version;
     if (!remote || remote === local) return;
 
-    if (sessionStorage.getItem(RELOAD_GUARD_KEY) === remote) return;
-    sessionStorage.setItem(RELOAD_GUARD_KEY, remote);
-    window.location.reload();
+    const next = new URL(window.location.href);
+    if (next.searchParams.get(VB_PARAM) === remote) return;
+    next.searchParams.set(VB_PARAM, remote);
+    window.location.replace(next.toString());
   } catch {
-    /* offline / first deploy without version.json — ignore */
+    /* ignore */
   }
 }
 
-/** Keep long-lived tabs in sync after deploy (e.g. user left app open overnight). */
 export function startLatestBuildPolling(intervalMs = 5 * 60 * 1000) {
   if (import.meta.env.DEV) return;
   const tick = () => {

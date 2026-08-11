@@ -5,7 +5,7 @@ import { appVersionPlugin } from '../../scripts/viteAppVersionPlugin';
 
 export default defineConfig({
   base: '/consumer/',
-  plugins: [react(), appVersionPlugin()],
+  plugins: [react(), appVersionPlugin({ basePath: '/consumer/' })],
   server: {
     port: 3001,
   },

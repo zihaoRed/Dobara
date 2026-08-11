@@ -24,8 +24,11 @@ const startMSW = async () => {
     await Promise.race([
       worker.start({
         onUnhandledRequest: 'bypass',
-        // Vite base is /consumer/ — SW must be under the same scope
-        serviceWorker: { url: `${import.meta.env.BASE_URL}mockServiceWorker.js` },
+        serviceWorker: {
+          url: `${import.meta.env.BASE_URL}mockServiceWorker.js`,
+          // Avoid SW script itself being served from HTTP cache after deploy
+          options: { updateViaCache: 'none' },
+        },
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
     ]);
