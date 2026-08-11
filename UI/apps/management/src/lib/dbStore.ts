@@ -416,6 +416,77 @@ export function downloadText(filename: string, content: string, mime = 'text/csv
   URL.revokeObjectURL(url);
 }
 
+/** Print-friendly HTML summary for reconciliation (window.print). */
+export function buildReconPrintHtml(
+  storeName: string,
+  start: string,
+  end: string,
+  lines: IReconLine[],
+): string {
+  const recycling = lines.filter((l) => l.type === 'recycling').reduce((a, l) => a + l.amount, 0);
+  const purchase = lines.filter((l) => l.type === 'purchase').reduce((a, l) => a + l.amount, 0);
+  const net = recycling - purchase;
+  const fmt = (n: number) => `₹${Math.abs(n).toLocaleString('en-IN')}`;
+  const rows = lines
+    .map(
+      (l) =>
+        `<tr><td>${l.date}</td><td>${l.type}</td><td>${l.description}</td><td style="text-align:right">${fmt(l.amount)}</td></tr>`,
+    )
+    .join('');
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Reconciliation — ${storeName}</title>
+<style>
+  body{font-family:system-ui,Segoe UI,sans-serif;padding:24px;color:#111}
+  h1{font-size:20px;margin:0 0 4px} .meta{color:#555;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px}
+  th,td{border-bottom:1px solid #ddd;padding:8px 6px;text-align:left}
+  th{background:#f5f5f5} .totals{margin-top:20px;font-size:14px}
+  .totals p{margin:4px 0} .net{font-size:18px;font-weight:700}
+  @media print{button{display:none}}
+</style></head><body>
+  <h1>Dobara — Store Reconciliation</h1>
+  <p class="meta">${storeName}<br/>Period: ${start} → ${end}<br/>Generated: ${new Date().toLocaleString('en-IN')}</p>
+  <table><thead><tr><th>Date</th><th>Type</th><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
+  <tbody>${rows}</tbody></table>
+  <div class="totals">
+    <p>Recycling total: ${fmt(recycling)}</p>
+    <p>B2B purchase total: ${fmt(purchase)}</p>
+    <p class="net">Net settlement: ${net >= 0 ? '+' : '−'}${fmt(net)}</p>
+  </div>
+  <script>window.onload=function(){window.print()}</script>
+</body></html>`;
+}
+
+export function openReconPrint(
+  storeName: string,
+  start: string,
+  end: string,
+  lines: IReconLine[],
+) {
+  const html = buildReconPrintHtml(storeName, start, end, lines);
+  const w = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
+  if (!w) return false;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  return true;
+}
+
+export function exportCommissionCsv(rows: ICommissionRow[]): string {
+  const header = ['Store', 'Period', 'Units', 'GMV', 'Rate %', 'Commission', 'Status'];
+  const body = rows.map((c) => [
+    c.storeName,
+    c.period,
+    String(c.recycleCount),
+    String(c.recycleGmv),
+    String(c.ratePct),
+    String(c.commission),
+    c.status === 'paid' ? 'Paid' : c.status === 'ready' ? 'Unpaid' : 'Draft',
+  ]);
+  return [header, ...body]
+    .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+    .join('\n');
+}
+
 export function formulaOk(v: IVoucher): boolean {
   return v.newPrice - v.deduction === v.actualPayment;
 }

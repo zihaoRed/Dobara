@@ -38,9 +38,12 @@ import InboundDetail from './pages/wh/InboundDetail';
 import RefurbishQuality from './pages/wh/RefurbishQuality';
 import RefurbishUpload from './pages/wh/RefurbishUpload';
 import PickingList from './pages/wh/PickingList';
+import PickingDetail from './pages/wh/PickingDetail';
 import PickingScan from './pages/wh/PickingScan';
 import LabelPrint from './pages/wh/LabelPrint';
 import InventoryQuery from './pages/wh/InventoryQuery';
+import BatchOutbound from './pages/wh/BatchOutbound';
+import Stocktake from './pages/wh/Stocktake';
 
 import DbHome from './pages/db/DbHome';
 import SettlementList from './pages/db/SettlementList';
@@ -264,9 +267,13 @@ function AppRoutes() {
           <Route path="inbound/:imei/refurbish" element={<RefurbishQuality />} />
           <Route path="inbound/:imei/refurbish/upload" element={<RefurbishUpload />} />
           <Route path="picking" element={<PickingList />} />
+          <Route path="picking/:orderId/batch" element={<BatchOutbound />} />
           <Route path="picking/:orderId/scan" element={<PickingScan />} />
           <Route path="picking/:orderId/label" element={<LabelPrint />} />
+          <Route path="picking/:orderId" element={<PickingDetail />} />
+          <Route path="batch" element={<BatchOutbound />} />
           <Route path="inventory" element={<InventoryQuery />} />
+          <Route path="stocktake" element={<Stocktake />} />
         </Route>
 
         <Route path="/db" element={<ModuleGuard module="db" />}>

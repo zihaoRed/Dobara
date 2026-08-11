@@ -9,6 +9,7 @@ import {
   History,
   ArrowDownToLine,
   ClipboardList,
+  ClipboardCheck,
   FileCheck,
   FileText,
   Search,
@@ -16,6 +17,7 @@ import {
   Settings,
   RefreshCw,
   UserRound,
+  Layers,
 } from 'lucide-react';
 import { Modal, Button } from '@dobara/ui';
 import { useAuth } from '../lib/AuthContext';
@@ -38,7 +40,9 @@ const whNav: NavItem[] = [
   { label: 'Overview', path: '/wh', icon: <Home size={18} /> },
   { label: 'Inbound Scan', path: '/wh/inbound', icon: <ArrowDownToLine size={18} /> },
   { label: 'Picking', path: '/wh/picking', icon: <ClipboardList size={18} /> },
+  { label: 'Batch outbound', path: '/wh/batch', icon: <Layers size={18} /> },
   { label: 'Inventory', path: '/wh/inventory', icon: <Search size={18} /> },
+  { label: 'Stocktake', path: '/wh/stocktake', icon: <ClipboardCheck size={18} /> },
 ];
 
 const dbNav: NavItem[] = [

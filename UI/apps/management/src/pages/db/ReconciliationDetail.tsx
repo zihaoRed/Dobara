@@ -1,14 +1,21 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Button, Badge } from '@dobara/ui';
-import { ArrowLeft, Download } from 'lucide-react';
-import { buildReconLines, DB_STORES, downloadText, exportReconCsv } from '../../lib/dbStore';
+import { ArrowLeft, Download, Printer } from 'lucide-react';
+import {
+  buildReconLines,
+  DB_STORES,
+  downloadText,
+  exportReconCsv,
+  openReconPrint,
+} from '../../lib/dbStore';
 
 const ReconciliationDetail: React.FC = () => {
   const { storeId = '', period = '' } = useParams<{ storeId: string; period: string }>();
   const navigate = useNavigate();
   const [start, end] = period.includes('_') ? period.split('_') : [period, period];
   const storeName = DB_STORES.find((s) => s.id === storeId)?.name || storeId;
+  const [printHint, setPrintHint] = useState('');
 
   const lines = useMemo(() => buildReconLines(storeId, start, end || start), [storeId, start, end]);
 
@@ -19,6 +26,11 @@ const ReconciliationDetail: React.FC = () => {
   const onExportCsv = () => {
     const csv = exportReconCsv(storeName, start, end || start, lines);
     downloadText(`recon_${storeId}_${start}_${end || start}.csv`, csv);
+  };
+
+  const onPrintPdf = () => {
+    const ok = openReconPrint(storeName, start, end || start, lines);
+    setPrintHint(ok ? 'Print dialog opened — choose “Save as PDF” if needed.' : 'Pop-up blocked. Allow pop-ups and try again.');
   };
 
   return (
@@ -90,17 +102,33 @@ const ReconciliationDetail: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Button
-        variant="secondary"
-        size="lg"
-        className="w-full"
-        icon={<Download size={18} />}
-        data-testid="export-csv"
-        onClick={onExportCsv}
-      >
-        Export CSV
-      </Button>
-      <p className="text-caption text-text-muted text-center">PDF / Excel export — placeholder (CSV available now)</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Button
+          variant="secondary"
+          size="lg"
+          className="w-full"
+          icon={<Download size={18} />}
+          data-testid="export-csv"
+          onClick={onExportCsv}
+        >
+          Export CSV
+        </Button>
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full"
+          icon={<Printer size={18} />}
+          data-testid="export-print"
+          onClick={onPrintPdf}
+        >
+          Print / PDF
+        </Button>
+      </div>
+      {printHint && (
+        <p className="text-caption text-text-muted text-center" data-testid="print-hint">
+          {printHint}
+        </p>
+      )}
     </div>
   );
 };

@@ -44,7 +44,9 @@ export interface IWhDevice {
   inboundAt?: string;
 }
 
-export type TChannel = 'B2C' | 'B2B';
+export type TChannel = 'B2C' | 'B2B' | 'AFTERSALE';
+
+export type TSlaUrgency = 'ok' | 'warning' | 'error' | 'overdue';
 
 export interface IPickLine {
   imei: string;
@@ -52,6 +54,12 @@ export interface IPickLine {
   model: string;
   scanned: boolean;
   shipped?: boolean;
+}
+
+/** Lightweight scan progress for multi-qty B2B (mirrors lines) */
+export interface IPickItem {
+  imei: string;
+  scanned: boolean;
 }
 
 export interface IPickOrder {
@@ -63,13 +71,75 @@ export interface IPickOrder {
   city: string;
   status: 'ready' | 'picking' | 'done';
   lines: IPickLine[];
+  paidAt: string;
+  /** B2C = paidAt + 24h; others set per channel policy */
+  slaDeadline: string;
+  courier: string;
+  shelfCode: string;
+  recipientPhone: string;
+  lockedBy?: string;
+  lockedUntil?: string;
+  /** Multi-qty B2B scan progress */
+  items?: IPickItem[];
+  shelfExceptionAt?: string;
   labelPrinted?: boolean;
   labelReprintReasons?: string[];
 }
 
 const DEV_KEY = 'dobara_mgmt_wh_devices';
-const ORD_KEY = 'dobara_mgmt_wh_orders';
+const ORD_KEY = 'dobara_mgmt_wh_orders_v3';
 const STOCK_KEY = 'dobara_mgmt_wh_stock';
+const BATCH_KEY = 'dobara_mgmt_wh_batch';
+const STOCKTAKE_KEY = 'dobara_mgmt_wh_stocktake';
+const DEMO_WH_USER = 'wh-demo';
+
+export type TBatchLineStatus = 'pending' | 'scanned' | 'failed';
+
+export interface IBatchLine {
+  imei: string;
+  brand: string;
+  model: string;
+  status: TBatchLineStatus;
+  failReason?: string;
+}
+
+export interface IBatchProgress {
+  orderId: string;
+  paused: boolean;
+  lines: IBatchLine[];
+  updatedAt: string;
+}
+
+export type TStocktakeLineStatus = 'expected' | 'scanned' | 'missing' | 'extra';
+
+export interface IStocktakeLine {
+  imei: string;
+  brand: string;
+  model: string;
+  grade: TGrade | '';
+  status: TStocktakeLineStatus;
+}
+
+export interface IStocktakeSession {
+  id: string;
+  warehouseId: string;
+  createdAt: string;
+  status: 'in_progress' | 'confirmed';
+  lines: IStocktakeLine[];
+  confirmedAt?: string;
+}
+
+function isoOffsetHours(hours: number): string {
+  return new Date(Date.now() + hours * 3600_000).toISOString();
+}
+
+function b2cSlaFromPaidAt(paidAt: string): string {
+  return new Date(new Date(paidAt).getTime() + 24 * 3600_000).toISOString();
+}
+
+function syncItems(lines: IPickLine[]): IPickItem[] {
+  return lines.map((l) => ({ imei: l.imei, scanned: l.scanned }));
+}
 
 const DEFAULT_HW = (): IHwCheck[] => [
   { id: 'bat', name: 'Battery Health', ok: true, note: '87%' },
@@ -176,6 +246,19 @@ function seedDevices(): IWhDevice[] {
 }
 
 function seedOrders(): IPickOrder[] {
+  // Relative clocks so SLA badges stay meaningful across demo sessions
+  const b2cUrgentPaid = isoOffsetHours(-23.5); // SLA ~30m left → error
+  const b2cOverduePaid = isoOffsetHours(-26); // SLA overdue
+  const b2cOkPaid = isoOffsetHours(-4); // SLA ~20h left → ok
+  const b2bPaid = isoOffsetHours(-6);
+  const aftersalePaid = isoOffsetHours(-10);
+
+  const b2bLines: IPickLine[] = [
+    { imei: '350000000000503', brand: 'Apple', model: 'iPhone 13', scanned: false },
+    { imei: '350000000000504', brand: 'Apple', model: 'iPhone 13', scanned: false },
+    { imei: '350000000000505', brand: 'Apple', model: 'iPhone 13', scanned: false },
+  ];
+
   return [
     {
       orderId: 'ORD-B2C-101',
@@ -185,6 +268,11 @@ function seedOrders(): IPickOrder[] {
       address: '12 Palm Grove, Andheri West, Mumbai 400058',
       city: 'Mumbai',
       status: 'ready',
+      paidAt: b2cUrgentPaid,
+      slaDeadline: b2cSlaFromPaidAt(b2cUrgentPaid),
+      courier: 'Delhivery',
+      shelfCode: 'A-12-03',
+      recipientPhone: '9876500001',
       lines: [
         { imei: '350000000000501', brand: 'Apple', model: 'iPhone 13', scanned: false },
       ],
@@ -197,8 +285,32 @@ function seedOrders(): IPickOrder[] {
       address: '88 MG Road, Bengaluru 560001',
       city: 'Bengaluru',
       status: 'ready',
+      paidAt: b2cOverduePaid,
+      slaDeadline: b2cSlaFromPaidAt(b2cOverduePaid),
+      courier: 'BlueDart',
+      shelfCode: 'B-04-11',
+      recipientPhone: '9876500002',
       lines: [
         { imei: '350000000000502', brand: 'Samsung', model: 'Galaxy S22', scanned: false },
+      ],
+    },
+    {
+      orderId: 'ORD-B2C-103',
+      channel: 'B2C',
+      deviceSummary: 'iPhone 12 64GB White',
+      quantity: 1,
+      address: '5 Residency Road, Pune 411001',
+      city: 'Pune',
+      status: 'ready',
+      paidAt: b2cOkPaid,
+      slaDeadline: b2cSlaFromPaidAt(b2cOkPaid),
+      courier: 'Delhivery',
+      shelfCode: 'C-01-07',
+      recipientPhone: '9876500003',
+      lockedBy: 'ravi.wh',
+      lockedUntil: isoOffsetHours(2),
+      lines: [
+        { imei: '350000000000506', brand: 'Apple', model: 'iPhone 12', scanned: false },
       ],
     },
     {
@@ -209,10 +321,29 @@ function seedOrders(): IPickOrder[] {
       address: 'MobileXchange Warehouse Dock B, Andheri',
       city: 'Mumbai',
       status: 'ready',
+      paidAt: b2bPaid,
+      slaDeadline: isoOffsetHours(18),
+      courier: 'Delhivery',
+      shelfCode: 'D-22-01',
+      recipientPhone: '9876500099',
+      lines: b2bLines,
+      items: syncItems(b2bLines),
+    },
+    {
+      orderId: 'ORD-AS-301',
+      channel: 'AFTERSALE',
+      deviceSummary: 'OnePlus Nord 2 128GB (swap)',
+      quantity: 1,
+      address: 'Service Center Desk, Koramangala',
+      city: 'Bengaluru',
+      status: 'ready',
+      paidAt: aftersalePaid,
+      slaDeadline: isoOffsetHours(2.5), // warning <4h
+      courier: 'DTDC',
+      shelfCode: 'S-08-02',
+      recipientPhone: '9876500044',
       lines: [
-        { imei: '350000000000503', brand: 'Apple', model: 'iPhone 13', scanned: false },
-        { imei: '350000000000504', brand: 'Apple', model: 'iPhone 13', scanned: false },
-        { imei: '350000000000505', brand: 'Apple', model: 'iPhone 13', scanned: false },
+        { imei: '350000000000507', brand: 'OnePlus', model: 'Nord 2', scanned: false },
       ],
     },
   ];
@@ -436,13 +567,54 @@ export function completeRefurbish(imei: string): IWhDevice | null {
   return next;
 }
 
+export function slaMsRemaining(order: IPickOrder, now = Date.now()): number {
+  return new Date(order.slaDeadline).getTime() - now;
+}
+
+export function slaUrgency(order: IPickOrder, now = Date.now()): TSlaUrgency {
+  const ms = slaMsRemaining(order, now);
+  if (ms < 0) return 'overdue';
+  if (ms < 1 * 3600_000) return 'error';
+  if (ms < 4 * 3600_000) return 'warning';
+  return 'ok';
+}
+
+/** Human countdown e.g. "2h 15m left" / "Overdue 45m" */
+export function formatSlaCountdown(order: IPickOrder, now = Date.now()): string {
+  const ms = slaMsRemaining(order, now);
+  const abs = Math.abs(ms);
+  const hours = Math.floor(abs / 3600_000);
+  const mins = Math.floor((abs % 3600_000) / 60_000);
+  const body = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  if (ms < 0) return `Overdue ${body}`;
+  return `${body} left`;
+}
+
+export function isOrderLocked(
+  order: IPickOrder,
+  currentUser = DEMO_WH_USER,
+  now = Date.now(),
+): { locked: boolean; by?: string; until?: string } {
+  if (!order.lockedBy || !order.lockedUntil) return { locked: false };
+  if (order.lockedBy === currentUser) return { locked: false };
+  if (new Date(order.lockedUntil).getTime() <= now) return { locked: false };
+  return { locked: true, by: order.lockedBy, until: order.lockedUntil };
+}
+
+export function listCouriers(): string[] {
+  const set = new Set(loadOrders().map((o) => o.courier).filter(Boolean));
+  return [...set].sort();
+}
+
 export function listPickOrders(includeDone = false): IPickOrder[] {
   const list = loadOrders();
   const open = list.filter((o) => includeDone || o.status !== 'done');
-  // B2C first
+  // Default: SLA urgency (soonest / overdue first)
   return [...open].sort((a, b) => {
-    if (a.channel === b.channel) return a.orderId.localeCompare(b.orderId);
-    return a.channel === 'B2C' ? -1 : 1;
+    const da = new Date(a.slaDeadline).getTime();
+    const db = new Date(b.slaDeadline).getTime();
+    if (da !== db) return da - db;
+    return a.orderId.localeCompare(b.orderId);
   });
 }
 
@@ -450,52 +622,101 @@ export function getPickOrder(orderId: string): IPickOrder | undefined {
   return loadOrders().find((o) => o.orderId === orderId);
 }
 
-export function searchPickOrders(q: string): IPickOrder[] {
+export function searchPickOrders(
+  q: string,
+  filters?: { channel?: TChannel | 'all'; courier?: string },
+): IPickOrder[] {
   const term = q.trim().toLowerCase();
-  const list = listPickOrders(false);
+  let list = listPickOrders(false);
+  const channel = filters?.channel;
+  if (channel && channel !== 'all') {
+    list = list.filter((o) => o.channel === channel);
+  }
+  const courier = filters?.courier?.trim();
+  if (courier) {
+    list = list.filter((o) => o.courier === courier);
+  }
   if (!term) return list;
   return list.filter(
     (o) =>
       o.orderId.toLowerCase().includes(term)
       || o.lines.some((l) => l.imei.includes(term))
+      || (o.items || []).some((i) => i.imei.includes(term))
       || o.address.toLowerCase().includes(term)
-      || o.deviceSummary.toLowerCase().includes(term),
+      || o.deviceSummary.toLowerCase().includes(term)
+      || o.courier.toLowerCase().includes(term)
+      || o.shelfCode.toLowerCase().includes(term)
+      || o.recipientPhone.includes(term),
   );
 }
 
 export type TScanResult =
   | { ok: true; line: IPickLine; order: IPickOrder; allDone: boolean }
-  | { ok: false; error: string };
+  | { ok: false; error: string; code?: 'not_found' | 'other_order' | 'locked' | 'already' | 'order' };
 
 export function scanPickImei(orderId: string, imeiRaw: string): TScanResult {
   const imei = imeiRaw.trim();
   const list = loadOrders();
   const idx = list.findIndex((o) => o.orderId === orderId);
-  if (idx < 0) return { ok: false, error: 'Order not found' };
+  if (idx < 0) return { ok: false, error: 'Order not found', code: 'order' };
   const order = list[idx];
+  const lock = isOrderLocked(order);
+  if (lock.locked) {
+    return {
+      ok: false,
+      error: `Order locked by ${lock.by} until ${new Date(lock.until!).toLocaleTimeString()}.`,
+      code: 'locked',
+    };
+  }
   const line = order.lines.find((l) => l.imei === imei);
   if (!line) {
-    // Check if this IMEI belongs to another order or already shipped elsewhere
-    const elsewhere = list.flatMap((o) => o.lines.map((l) => ({ ...l, orderId: o.orderId })))
+    const elsewhere = list
+      .flatMap((o) => o.lines.map((l) => ({ ...l, orderId: o.orderId })))
       .find((l) => l.imei === imei);
-    if (elsewhere?.shipped || elsewhere?.scanned) {
-      return { ok: false, error: `IMEI already scanned/shipped on ${elsewhere.orderId}.` };
+    if (elsewhere) {
+      if (elsewhere.shipped || elsewhere.scanned) {
+        return {
+          ok: false,
+          error: `IMEI already scanned/shipped on ${elsewhere.orderId}.`,
+          code: 'other_order',
+        };
+      }
+      return {
+        ok: false,
+        error: `IMEI belongs to another order (${elsewhere.orderId}).`,
+        code: 'other_order',
+      };
     }
-    return { ok: false, error: 'IMEI does not match this order. Outbound blocked.' };
+    return { ok: false, error: 'IMEI not found.', code: 'not_found' };
   }
   if (line.scanned || line.shipped) {
-    return { ok: false, error: 'This IMEI was already scanned for this order.' };
+    return { ok: false, error: 'This IMEI was already scanned for this order.', code: 'already' };
   }
   order.lines = order.lines.map((l) => (l.imei === imei ? { ...l, scanned: true } : l));
+  order.items = syncItems(order.lines);
   order.status = 'picking';
   const allDone = order.lines.every((l) => l.scanned);
   if (allDone) {
     order.status = 'done';
     order.lines = order.lines.map((l) => ({ ...l, shipped: true }));
+    order.items = syncItems(order.lines);
   }
   list[idx] = order;
   saveOrders(list);
   return { ok: true, line: order.lines.find((l) => l.imei === imei)!, order, allDone };
+}
+
+/** Mark shelf exception when picker can't find the device */
+export function reportShelfException(orderId: string): IPickOrder | null {
+  const list = loadOrders();
+  const idx = list.findIndex((o) => o.orderId === orderId);
+  if (idx < 0) return null;
+  list[idx] = {
+    ...list[idx],
+    shelfExceptionAt: new Date().toISOString(),
+  };
+  saveOrders(list);
+  return list[idx];
 }
 
 export function markLabelPrinted(orderId: string, reprintReason?: string): IPickOrder | null {
@@ -546,4 +767,305 @@ export function statusLabel(s: TDeviceLifecycle): string {
     rejected: 'Rejected',
   };
   return map[s];
+}
+
+/* ── WH-P1-01 Batch outbound progress ── */
+
+function loadBatchMap(): Record<string, IBatchProgress> {
+  try {
+    const raw = localStorage.getItem(BATCH_KEY);
+    if (raw) return JSON.parse(raw) as Record<string, IBatchProgress>;
+  } catch { /* ignore */ }
+  return {};
+}
+
+function saveBatchMap(map: Record<string, IBatchProgress>) {
+  localStorage.setItem(BATCH_KEY, JSON.stringify(map));
+}
+
+export function listB2BPickOrders(includeDone = false): IPickOrder[] {
+  return listPickOrders(includeDone).filter((o) => o.channel === 'B2B');
+}
+
+/** Init or return existing batch session from pick-order lines */
+export function getOrInitBatchProgress(orderId: string): IBatchProgress | null {
+  const order = getPickOrder(orderId);
+  if (!order || order.channel !== 'B2B') return null;
+  const map = loadBatchMap();
+  const existing = map[orderId];
+  if (existing) {
+    // Merge any new lines from order (keep scan state)
+    const byImei = new Map(existing.lines.map((l) => [l.imei, l]));
+    const lines: IBatchLine[] = order.lines.map((l) => {
+      const prev = byImei.get(l.imei);
+      if (prev) return prev;
+      return {
+        imei: l.imei,
+        brand: l.brand,
+        model: l.model,
+        status: l.scanned ? 'scanned' : 'pending',
+      };
+    });
+    const next = { ...existing, lines, updatedAt: new Date().toISOString() };
+    map[orderId] = next;
+    saveBatchMap(map);
+    return next;
+  }
+  const progress: IBatchProgress = {
+    orderId,
+    paused: false,
+    lines: order.lines.map((l) => ({
+      imei: l.imei,
+      brand: l.brand,
+      model: l.model,
+      status: l.scanned ? 'scanned' : 'pending',
+    })),
+    updatedAt: new Date().toISOString(),
+  };
+  map[orderId] = progress;
+  saveBatchMap(map);
+  return progress;
+}
+
+export function getBatchProgress(orderId: string): IBatchProgress | undefined {
+  return loadBatchMap()[orderId];
+}
+
+export function setBatchPaused(orderId: string, paused: boolean): IBatchProgress | null {
+  const map = loadBatchMap();
+  const cur = map[orderId] || getOrInitBatchProgress(orderId);
+  if (!cur) return null;
+  const next = { ...cur, paused, updatedAt: new Date().toISOString() };
+  map[orderId] = next;
+  saveBatchMap(map);
+  return next;
+}
+
+export type TBatchScanResult =
+  | { ok: true; progress: IBatchProgress; allScanned: boolean }
+  | { ok: false; error: string; progress?: IBatchProgress };
+
+export function scanBatchImei(orderId: string, imeiRaw: string): TBatchScanResult {
+  const imei = imeiRaw.trim();
+  const map = loadBatchMap();
+  let progress = map[orderId] || getOrInitBatchProgress(orderId);
+  if (!progress) return { ok: false, error: 'Batch session not found (B2B orders only).' };
+  if (progress.paused) return { ok: false, error: 'Batch paused — resume to continue scanning.', progress };
+
+  const lineIdx = progress.lines.findIndex((l) => l.imei === imei);
+  if (lineIdx < 0) {
+    // Mark a synthetic fail on last pending or keep error only
+    return { ok: false, error: 'IMEI does not belong to this B2B order.', progress };
+  }
+  const line = progress.lines[lineIdx];
+  if (line.status === 'scanned') {
+    return { ok: false, error: 'IMEI already scanned.', progress };
+  }
+
+  // Demo: IMEIs ending with 505 simulate a scan failure once (unless retry cleared)
+  if (imei.endsWith('505') && line.status === 'pending' && !line.failReason?.includes('retried')) {
+    const failed: IBatchLine = {
+      ...line,
+      status: 'failed',
+      failReason: 'Scan verify failed (demo) — retry after check',
+    };
+    progress = {
+      ...progress,
+      lines: progress.lines.map((l, i) => (i === lineIdx ? failed : l)),
+      updatedAt: new Date().toISOString(),
+    };
+    map[orderId] = progress;
+    saveBatchMap(map);
+    return { ok: false, error: failed.failReason!, progress };
+  }
+
+  const scanned: IBatchLine = { ...line, status: 'scanned', failReason: undefined };
+  progress = {
+    ...progress,
+    lines: progress.lines.map((l, i) => (i === lineIdx ? scanned : l)),
+    updatedAt: new Date().toISOString(),
+  };
+  map[orderId] = progress;
+  saveBatchMap(map);
+
+  // Mirror into pick order for label print flow (ignore lock / already-scanned)
+  const orders = loadOrders();
+  const oIdx = orders.findIndex((o) => o.orderId === orderId);
+  if (oIdx >= 0) {
+    const order = orders[oIdx];
+    order.lines = order.lines.map((l) => (l.imei === imei ? { ...l, scanned: true } : l));
+    order.items = syncItems(order.lines);
+    order.status = 'picking';
+    const allDone = order.lines.every((l) => l.scanned);
+    if (allDone) {
+      order.status = 'done';
+      order.lines = order.lines.map((l) => ({ ...l, shipped: true }));
+      order.items = syncItems(order.lines);
+    }
+    orders[oIdx] = order;
+    saveOrders(orders);
+  }
+
+  const allScanned = progress.lines.every((l) => l.status === 'scanned');
+  return { ok: true, progress, allScanned };
+}
+
+export function retryFailedBatch(orderId: string): IBatchProgress | null {
+  const map = loadBatchMap();
+  const cur = map[orderId] || getOrInitBatchProgress(orderId);
+  if (!cur) return null;
+  const next: IBatchProgress = {
+    ...cur,
+    lines: cur.lines.map((l) =>
+      l.status === 'failed'
+        ? { ...l, status: 'pending', failReason: 'retried — ready to re-scan' }
+        : l,
+    ),
+    updatedAt: new Date().toISOString(),
+  };
+  map[orderId] = next;
+  saveBatchMap(map);
+  return next;
+}
+
+export function batchCounts(progress: IBatchProgress) {
+  const total = progress.lines.length;
+  const scanned = progress.lines.filter((l) => l.status === 'scanned').length;
+  const failed = progress.lines.filter((l) => l.status === 'failed').length;
+  const pending = progress.lines.filter((l) => l.status === 'pending').length;
+  return { total, scanned, failed, pending };
+}
+
+/* ── WH-P2-01 Stocktake ── */
+
+function loadStocktakes(): IStocktakeSession[] {
+  try {
+    const raw = localStorage.getItem(STOCKTAKE_KEY);
+    if (raw) return JSON.parse(raw) as IStocktakeSession[];
+  } catch { /* ignore */ }
+  return [];
+}
+
+function saveStocktakes(list: IStocktakeSession[]) {
+  localStorage.setItem(STOCKTAKE_KEY, JSON.stringify(list));
+}
+
+export function listStocktakes(): IStocktakeSession[] {
+  return loadStocktakes().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function getStocktake(id: string): IStocktakeSession | undefined {
+  return loadStocktakes().find((s) => s.id === id);
+}
+
+export function getActiveStocktake(): IStocktakeSession | undefined {
+  return loadStocktakes().find((s) => s.status === 'in_progress');
+}
+
+export function createStocktake(warehouseId = 'WH-MH-0001'): IStocktakeSession {
+  const existing = getActiveStocktake();
+  if (existing) return existing;
+  const stock = loadStock().filter((d) => d.status === 'in_stock' && d.warehouseId === warehouseId);
+  const session: IStocktakeSession = {
+    id: `STK-${Date.now().toString(36).toUpperCase()}`,
+    warehouseId,
+    createdAt: new Date().toISOString(),
+    status: 'in_progress',
+    lines: stock.map((d) => ({
+      imei: d.imei,
+      brand: d.brand,
+      model: d.model,
+      grade: d.grade,
+      status: 'expected',
+    })),
+  };
+  const list = loadStocktakes();
+  list.unshift(session);
+  saveStocktakes(list);
+  return session;
+}
+
+export function scanStocktakeImei(
+  sessionId: string,
+  imeiRaw: string,
+): { ok: true; session: IStocktakeSession } | { ok: false; error: string } {
+  const imei = imeiRaw.trim();
+  if (!imei) return { ok: false, error: 'Enter IMEI' };
+  const list = loadStocktakes();
+  const idx = list.findIndex((s) => s.id === sessionId);
+  if (idx < 0) return { ok: false, error: 'Stocktake not found' };
+  if (list[idx].status !== 'in_progress') return { ok: false, error: 'Stocktake already confirmed' };
+
+  const lineIdx = list[idx].lines.findIndex((l) => l.imei === imei);
+  if (lineIdx >= 0) {
+    const line = list[idx].lines[lineIdx];
+    if (line.status === 'scanned') return { ok: false, error: 'Already scanned' };
+    if (line.status === 'extra') return { ok: false, error: 'Already logged as extra' };
+    list[idx].lines[lineIdx] = { ...line, status: 'scanned' };
+  } else {
+    const known = getDevice(imei);
+    list[idx].lines.push({
+      imei,
+      brand: known?.brand || 'Unknown',
+      model: known?.model || 'Extra unit',
+      grade: known?.grade || '',
+      status: 'extra',
+    });
+  }
+  saveStocktakes(list);
+  return { ok: true, session: list[idx] };
+}
+
+/** Mark remaining expected as missing, then apply inventory adjustments */
+export function confirmStocktake(sessionId: string): {
+  ok: true; session: IStocktakeSession; removed: number; added: number;
+} | { ok: false; error: string } {
+  const list = loadStocktakes();
+  const idx = list.findIndex((s) => s.id === sessionId);
+  if (idx < 0) return { ok: false, error: 'Stocktake not found' };
+  if (list[idx].status !== 'in_progress') return { ok: false, error: 'Already confirmed' };
+
+  const lines = list[idx].lines.map((l) =>
+    l.status === 'expected' ? { ...l, status: 'missing' as const } : l,
+  );
+  const missing = lines.filter((l) => l.status === 'missing');
+  const extras = lines.filter((l) => l.status === 'extra');
+
+  let stock = loadStock();
+  // Remove missing from inventory
+  for (const m of missing) {
+    stock = stock.filter((d) => d.imei !== m.imei);
+  }
+  // Add extras as in_stock demo devices if not already present
+  let added = 0;
+  for (const e of extras) {
+    if (stock.some((d) => d.imei === e.imei)) continue;
+    stock.push({
+      imei: e.imei,
+      sessionId: `sess-stk-${e.imei.slice(-4)}`,
+      brand: e.brand || 'Unknown',
+      model: e.model || 'Extra',
+      color: '—',
+      storage: '—',
+      grade: (e.grade as TGrade) || 'C',
+      offerPrice: 0,
+      storeName: '—',
+      warehouseId: list[idx].warehouseId,
+      status: 'in_stock',
+      photos: [],
+      hardware: DEFAULT_HW().map((h) => ({ ...h, ok: true })),
+      appearance: DEFAULT_APPEARANCE(),
+    });
+    added += 1;
+  }
+  saveStock(stock);
+
+  list[idx] = {
+    ...list[idx],
+    lines,
+    status: 'confirmed',
+    confirmedAt: new Date().toISOString(),
+  };
+  saveStocktakes(list);
+  return { ok: true, session: list[idx], removed: missing.length, added };
 }

@@ -62,11 +62,18 @@ const SettlementList: React.FC = () => {
 
       {settlements.map((s) => {
         const credit = getCredit(s.storeId);
+        const isOverdue = s.overdue && s.status === 'pending';
         return (
           <Card
             key={s.id}
             variant={s.status === 'settled' ? 'flat' : 'default'}
-            className={s.status === 'settled' ? 'opacity-70' : ''}
+            className={
+              s.status === 'settled'
+                ? 'opacity-70'
+                : isOverdue
+                  ? 'border border-dobara-error/40 bg-dobara-error-light/40 ring-1 ring-dobara-error/20'
+                  : ''
+            }
             data-testid={`settle-row-${s.orderId}`}
           >
             <CardContent>

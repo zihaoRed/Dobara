@@ -31,7 +31,7 @@ const TradeInEntry: React.FC = () => {
             if (data.newPrice != null) setNewPrice(String(data.newPrice));
             if (data.actualPayment != null) setActualPayment(String(data.actualPayment));
             if (data.status === 'awaiting_user_confirm' || data.status === 'confirmed') {
-              setSubmitted(data.status !== 'pending');
+              setSubmitted(true);
             }
           }
           return;
@@ -98,12 +98,18 @@ const TradeInEntry: React.FC = () => {
   };
 
   if (submitted || session.status === 'awaiting_user_confirm' || session.status === 'confirmed') {
+    const waitingUser = session.status !== 'confirmed';
+    const statusLabel = tradeInStatusLabel(
+      session.status === 'confirmed' ? 'confirmed' : 'awaiting_user_confirm',
+    );
     return (
       <Card className="text-center py-6" data-testid="tradein-submitted">
         <CardContent className="space-y-4">
           <CheckCircle size={48} className="text-primary-500 mx-auto" />
           <h3 className="text-h3 font-heading">Price submitted</h3>
-          <Badge variant="warning">{tradeInStatusLabel(session.status === 'pending' ? 'awaiting_user_confirm' : session.status)}</Badge>
+          <Badge variant={waitingUser ? 'info' : 'success'}>
+            {statusLabel}
+          </Badge>
           <p className="text-body text-text-secondary">
             {session.customerName} · {session.device}
           </p>
@@ -113,9 +119,19 @@ const TradeInEntry: React.FC = () => {
           <p className="text-h4 font-heading text-primary-500">
             Actual: ₹{(session.actualPayment ?? actualPaymentNum).toLocaleString('en-IN')}
           </p>
-          <p className="text-caption text-text-muted px-4">
-            Owner step complete. Waiting for the customer to confirm verification in the consumer App — you do not confirm here.
-          </p>
+          {waitingUser ? (
+            <div
+              className="mx-4 rounded-md bg-dobara-info-light text-dobara-info px-4 py-3 space-y-1"
+              data-testid="tradein-waiting-user"
+            >
+              <p className="text-body font-semibold">Waiting for user confirmation on C-app</p>
+              <p className="text-caption">
+                Ask the customer to open the Dobara consumer app and tap Confirm verification. You do not confirm here.
+              </p>
+            </div>
+          ) : (
+            <p className="text-caption text-text-muted px-4">Customer already confirmed this trade-in.</p>
+          )}
           <Button data-testid="tradein-back" onClick={() => navigate('/owner')}>Back to Home</Button>
         </CardContent>
       </Card>

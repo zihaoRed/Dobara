@@ -2,25 +2,28 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, Badge, Button, Modal } from '@dobara/ui';
 import { ArrowLeft, Phone, Shield, Clock, Trash2, KeyRound, Mail } from 'lucide-react';
+import { useAuth } from '../../lib/AuthContext';
 import { useOwnerStore } from '../../lib/useOwnerStore';
 import {
+  canRemoveStaff,
   displayName,
   getStaffById,
   maskPhone,
   removeStaff,
   resendInvite,
   resetStaffPassword,
-  roleLabel,
   statusLabel,
 } from '../../lib/staffStore';
 
 const ClerkDetail: React.FC = () => {
   const { clerkId = '' } = useParams<{ clerkId: string }>();
   const navigate = useNavigate();
+  const { session } = useAuth();
   const { storeId, storeName } = useOwnerStore();
   const [showRemove, setShowRemove] = useState(false);
   const [toast, setToast] = useState('');
   const [removed, setRemoved] = useState(false);
+  const [removeHints, setRemoveHints] = useState<{ warnLastClerk?: boolean; warnInspection?: boolean }>({});
   const [, bump] = useState(0);
 
   const clerk = getStaffById(storeId, storeName, clerkId);
@@ -38,7 +41,7 @@ const ClerkDetail: React.FC = () => {
     return (
       <Card className="text-center py-6" data-testid="clerk-removed">
         <CardContent className="space-y-3">
-          <h3 className="text-h3 font-heading">Staff removed</h3>
+          <h3 className="text-h3 font-heading">Clerk removed</h3>
           <p className="text-body text-text-secondary">
             {displayName(clerk)} can no longer sign in to the tablet. History is retained.
           </p>
@@ -68,6 +71,16 @@ const ClerkDetail: React.FC = () => {
     bump((n) => n + 1);
   };
 
+  const openRemove = () => {
+    const check = canRemoveStaff(storeId, storeName, clerk.id, session?.phone);
+    if (!check.ok) {
+      setToast(check.error);
+      return;
+    }
+    setRemoveHints({ warnLastClerk: check.warnLastClerk, warnInspection: check.warnInspection });
+    setShowRemove(true);
+  };
+
   return (
     <div className="space-y-4" data-testid="clerk-detail">
       <div className="flex items-center gap-3">
@@ -86,22 +99,21 @@ const ClerkDetail: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 text-body">
             <Shield size={16} className="text-text-muted" />
-            <Badge variant="info">{roleLabel(clerk.role)}</Badge>
+            <Badge variant="info">Clerk (QC)</Badge>
             <Badge variant={clerk.status === 'pending_activation' ? 'warning' : 'success'}>
               {statusLabel(clerk.status)}
             </Badge>
+            {clerk.inspectionInProgress && <Badge variant="warning">QC in progress</Badge>}
           </div>
-          <p className="text-caption text-text-muted">Org: {clerk.orgName}</p>
+          <p className="text-caption text-text-muted">Store: {clerk.orgName}</p>
           <div className="flex items-center gap-2 text-body">
             <Clock size={16} className="text-text-muted" />
             <span>Last active: {clerk.lastActiveAt}</span>
           </div>
-          {clerk.role === 'ROLE-CLK' && (
-            <div className="border-t border-border pt-3">
-              <p className="text-caption text-text-muted">Monthly inspections</p>
-              <p className="text-h4 font-heading text-primary-500">{clerk.monthlyInspections}</p>
-            </div>
-          )}
+          <div className="border-t border-border pt-3">
+            <p className="text-caption text-text-muted">Monthly inspections</p>
+            <p className="text-h4 font-heading text-primary-500">{clerk.monthlyInspections}</p>
+          </div>
           <div>
             <p className="text-caption text-text-muted">Joined</p>
             <p className="text-body">{clerk.joinedDate}</p>
@@ -122,15 +134,27 @@ const ClerkDetail: React.FC = () => {
             Reset password (SMS)
           </Button>
         )}
-        <Button variant="danger" className="w-full" icon={<Trash2 size={18} />} data-testid="remove-clerk" onClick={() => setShowRemove(true)}>
-          Remove staff
+        <Button variant="danger" className="w-full" icon={<Trash2 size={18} />} data-testid="remove-clerk" onClick={openRemove}>
+          Remove clerk
         </Button>
       </div>
 
-      <Modal open={showRemove} onClose={() => setShowRemove(false)} title="Remove staff" size="sm">
-        <p className="text-body text-text-secondary mb-4">
-          Remove <strong>{displayName(clerk)}</strong>? They will lose tablet access immediately. QC history stays with this store.
-        </p>
+      <Modal open={showRemove} onClose={() => setShowRemove(false)} title="Remove clerk" size="sm">
+        <div className="space-y-3 mb-4">
+          <p className="text-body text-text-secondary">
+            Remove <strong>{displayName(clerk)}</strong>? They lose tablet access immediately. QC history stays.
+          </p>
+          {removeHints.warnInspection && (
+            <p className="text-caption text-dobara-warning bg-surface-low rounded-md p-2">
+              This clerk has 1 inspection in progress. It will be marked interrupted; uploaded media is kept.
+            </p>
+          )}
+          {removeHints.warnLastClerk && (
+            <p className="text-caption text-dobara-error bg-surface-low rounded-md p-2">
+              This is the last clerk. Tablet QC will be unavailable until you invite someone else.
+            </p>
+          )}
+        </div>
         <div className="flex gap-3">
           <Button variant="secondary" className="flex-1" onClick={() => setShowRemove(false)}>Cancel</Button>
           <Button

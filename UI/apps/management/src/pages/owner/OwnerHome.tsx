@@ -31,15 +31,26 @@ const OwnerHome: React.FC = () => {
           <h2 className="text-h3 font-heading">Store Overview</h2>
           <p className="text-caption text-text-muted">{storeName}</p>
         </div>
-        {(pending > 0 || awaiting > 0) && (
-          <span
-            className="inline-flex items-center gap-1 rounded-full bg-accent-50 text-accent-800 px-2.5 py-1 text-caption font-semibold"
-            data-testid="tradein-badge"
-          >
-            <Bell size={14} />
-            {pending} pending · {awaiting} awaiting user
-          </span>
-        )}
+        <div className="flex flex-wrap items-center gap-2 justify-end">
+          {awaiting > 0 && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-dobara-info-light text-dobara-info px-2.5 py-1 text-caption font-semibold ring-1 ring-dobara-info/30"
+              data-testid="awaiting-badge"
+            >
+              <Bell size={14} />
+              {awaiting} awaiting user confirm
+            </span>
+          )}
+          {pending > 0 && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-accent-50 text-accent-800 px-2.5 py-1 text-caption font-semibold"
+              data-testid="tradein-badge"
+            >
+              <Bell size={14} />
+              {pending} pending entry
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -117,26 +128,40 @@ const OwnerHome: React.FC = () => {
           <h3 className="text-h4 font-heading">Trade-in inbox</h3>
         </CardHeader>
         <CardContent className="space-y-3">
-          {inbox.map((item) => (
-            <div
-              key={item.sessionId}
-              data-testid={`tradein-row-${item.sessionId}`}
-              onClick={() => navigate(`/owner/trade-in/${item.sessionId}`)}
-              className="flex items-center justify-between p-3 rounded-md bg-surface-low hover:bg-surface-high cursor-pointer transition-colors"
-            >
-              <div>
-                <p className="text-body font-medium">{item.customerName}</p>
-                <p className="text-caption text-text-body">{item.device}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="text-body font-semibold">₹{item.deduction.toLocaleString('en-IN')}</p>
-                  <Badge variant={badgeVariant(item.status)}>{tradeInStatusLabel(item.status)}</Badge>
+          {inbox.map((item) => {
+            const awaitingUser = item.status === 'awaiting_user_confirm';
+            return (
+              <div
+                key={item.sessionId}
+                data-testid={`tradein-row-${item.sessionId}`}
+                onClick={() => navigate(`/owner/trade-in/${item.sessionId}`)}
+                className={`flex items-center justify-between p-3 rounded-md cursor-pointer transition-colors ${
+                  awaitingUser
+                    ? 'bg-dobara-info-light/60 ring-1 ring-dobara-info/40 hover:bg-dobara-info-light'
+                    : 'bg-surface-low hover:bg-surface-high'
+                }`}
+              >
+                <div>
+                  <p className="text-body font-medium">{item.customerName}</p>
+                  <p className="text-caption text-text-body">{item.device}</p>
+                  {awaitingUser && (
+                    <p className="text-caption font-semibold text-dobara-info mt-1">
+                      Waiting for customer confirm on C-app
+                    </p>
+                  )}
                 </div>
-                <ArrowRight size={16} className="text-text-muted" />
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-body font-semibold">₹{item.deduction.toLocaleString('en-IN')}</p>
+                    <Badge variant={badgeVariant(item.status)} className={awaitingUser ? 'font-semibold' : undefined}>
+                      {tradeInStatusLabel(item.status)}
+                    </Badge>
+                  </div>
+                  <ArrowRight size={16} className="text-text-muted" />
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {inbox.length === 0 && (
             <p className="text-center text-text-muted py-4">No pending trade-ins</p>
           )}

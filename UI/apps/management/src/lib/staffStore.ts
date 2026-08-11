@@ -1,4 +1,4 @@
-/** OWN-P0-02 — store staff invite management (demo / localStorage) */
+/** OWN-P0-02 — store clerk invite only (ROLE-CLK). Warehouse staff SA-managed, read-only for OWN. */
 
 import { maskPhone } from '@dobara/utils';
 
@@ -18,6 +18,18 @@ export interface IStaffMember {
   monthlyInspections: number;
   joinedDate: string;
   inviteCooldownUntil?: number;
+  /** Demo: clerk currently mid-inspection on tablet */
+  inspectionInProgress?: boolean;
+}
+
+export interface IWarehouseStaffReadonly {
+  id: string;
+  name: string;
+  phone: string;
+  warehouseId: string;
+  warehouseName: string;
+  status: 'active';
+  lastActiveAt: string;
 }
 
 const KEY = 'dobara_mgmt_staff';
@@ -42,6 +54,7 @@ function seed(storeId: string, storeName: string): IStaffMember[] {
       lastActiveAt: '2 hours ago',
       monthlyInspections: 32,
       joinedDate: '2026-01-15',
+      inspectionInProgress: true,
     },
     {
       id: 'c-2',
@@ -90,7 +103,43 @@ export function getStaffForStore(storeId: string, storeName: string): IStaffMemb
     map[storeId] = seed(storeId, storeName);
     saveAll(map);
   }
+  // Migrate: drop any WH rows owner may have invited under old demo
+  const cleaned = map[storeId].filter((s) => s.role === 'ROLE-CLK');
+  if (cleaned.length !== map[storeId].length) {
+    map[storeId] = cleaned;
+    saveAll(map);
+  }
   return map[storeId];
+}
+
+/** Active/pending clerks only (not removed). */
+export function getClerksForStore(storeId: string, storeName: string): IStaffMember[] {
+  return getStaffForStore(storeId, storeName).filter((s) => s.status !== 'removed');
+}
+
+/** Linked warehouse staff — SA-managed, owner read-only. */
+export function getLinkedWarehouseStaff(storeId: string): IWarehouseStaffReadonly[] {
+  const wh = storeId.includes('KA') ? DEMO_WAREHOUSES[1] : DEMO_WAREHOUSES[0];
+  return [
+    {
+      id: `wh-ro-${wh.id}-1`,
+      name: 'Ravi Warehouse',
+      phone: '9876543211',
+      warehouseId: wh.id,
+      warehouseName: wh.name,
+      status: 'active',
+      lastActiveAt: 'Today',
+    },
+    {
+      id: `wh-ro-${wh.id}-2`,
+      name: 'Neha Logistics',
+      phone: '9876543299',
+      warehouseId: wh.id,
+      warehouseName: wh.name,
+      status: 'active',
+      lastActiveAt: '3 days ago',
+    },
+  ];
 }
 
 function writeStaff(storeId: string, list: IStaffMember[]) {
@@ -109,7 +158,7 @@ export function displayName(s: IStaffMember): string {
 }
 
 export function roleLabel(role: TStaffRole): string {
-  return role === 'ROLE-WH' ? 'Warehouse' : 'Clerk';
+  return role === 'ROLE-WH' ? 'Warehouse' : 'Clerk (QC)';
 }
 
 export function statusLabel(status: TStaffStatus): string {
@@ -126,8 +175,6 @@ export function inviteStaff(opts: {
   storeId: string;
   storeName: string;
   phoneRaw: string;
-  role: TStaffRole;
-  warehouseId?: string;
 }): TInviteResult {
   const phone = opts.phoneRaw.replace(/\D/g, '').slice(-10);
   if (!/^[6-9]\d{9}$/.test(phone)) {
@@ -137,31 +184,24 @@ export function inviteStaff(opts: {
   const list = getStaffForStore(opts.storeId, opts.storeName);
   const activeCount = list.filter((s) => s.status !== 'removed').length;
   if (activeCount >= STAFF_LIMIT) {
-    return { ok: false, error: `Staff limit reached (${STAFF_LIMIT}/store). Contact admin.` };
+    return { ok: false, error: `Clerk limit reached (${STAFF_LIMIT}/store). Contact admin.` };
   }
   if (list.some((s) => s.phone === phone && s.status !== 'removed')) {
     return { ok: false, error: 'This staff already belongs to this store.' };
   }
-  if (opts.role === 'ROLE-WH' && !opts.warehouseId) {
-    return { ok: false, error: 'Select a warehouse for warehouse role.' };
-  }
 
-  const wh = DEMO_WAREHOUSES.find((w) => w.id === opts.warehouseId);
-  const seq = String(list.length + 1).padStart(3, '0');
-  // Demo: phones ending with even digit = existing platform user → instant active
+  const seq = String(list.filter((s) => s.role === 'ROLE-CLK').length + 1).padStart(3, '0');
   const existingUser = Number(phone.slice(-1)) % 2 === 0;
-  const tempPassword = existingUser
-    ? undefined
-    : `Tp${Math.random().toString(36).slice(2, 6)}A1`;
+  const tempPassword = existingUser ? undefined : `Tp${Math.random().toString(36).slice(2, 6)}A1`;
 
   const staff: IStaffMember = {
     id: `c-${Date.now()}`,
     name: existingUser ? `User ${phone.slice(-4)}` : '',
     phone,
     staffCode: `STAFF-${opts.storeId}-${seq}`,
-    role: opts.role,
-    orgId: opts.role === 'ROLE-WH' ? (wh?.id || opts.warehouseId!) : opts.storeId,
-    orgName: opts.role === 'ROLE-WH' ? (wh?.name || opts.warehouseId!) : opts.storeName,
+    role: 'ROLE-CLK',
+    orgId: opts.storeId,
+    orgName: opts.storeName,
     status: existingUser ? 'active' : 'pending_activation',
     lastActiveAt: existingUser ? 'Just now' : '—',
     monthlyInspections: 0,
@@ -172,9 +212,35 @@ export function inviteStaff(opts: {
   return { ok: true, staff, existingUser, tempPassword };
 }
 
+export type TRemoveResult =
+  | { ok: true; warnLastClerk?: boolean; warnInspection?: boolean }
+  | { ok: false; error: string };
+
+export function canRemoveStaff(
+  storeId: string,
+  storeName: string,
+  id: string,
+  ownerPhone?: string,
+): TRemoveResult {
+  const list = getStaffForStore(storeId, storeName);
+  const target = list.find((s) => s.id === id);
+  if (!target || target.status === 'removed') return { ok: false, error: 'Staff already removed.' };
+  if (ownerPhone && target.phone === ownerPhone.replace(/\D/g, '').slice(-10)) {
+    return { ok: false, error: 'Owners cannot remove themselves. Use Settings → Delete account.' };
+  }
+  const remaining = list.filter((s) => s.status !== 'removed' && s.id !== id).length;
+  return {
+    ok: true,
+    warnLastClerk: remaining === 0,
+    warnInspection: Boolean(target.inspectionInProgress),
+  };
+}
+
 export function removeStaff(storeId: string, storeName: string, id: string): boolean {
   const list = getStaffForStore(storeId, storeName);
-  const next = list.map((s) => (s.id === id ? { ...s, status: 'removed' as const } : s));
+  const next = list.map((s) =>
+    s.id === id ? { ...s, status: 'removed' as const, inspectionInProgress: false } : s,
+  );
   writeStaff(storeId, next);
   return true;
 }
