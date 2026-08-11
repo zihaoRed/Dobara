@@ -101,7 +101,15 @@ export default function Login() {
     <div className="min-h-[100dvh] flex flex-col items-center justify-center px-4 py-8 bg-surface-high" data-testid="mgmt-login">
       <Card className="w-full max-w-[420px] space-y-4">
         <div className="text-center">
-          <h1 className="text-h3 font-extrabold text-primary-500">Dobara</h1>
+          <a
+            href="/"
+            className="no-underline inline-block"
+            aria-label="Back to Dobara module selection"
+          >
+            <h1 className="text-h3 font-extrabold text-primary-500 hover:text-primary-600 transition-colors">
+              Dobara
+            </h1>
+          </a>
           <p className="text-caption text-text-muted mt-1">Store Management · Owner / Warehouse / Finance</p>
         </div>
 

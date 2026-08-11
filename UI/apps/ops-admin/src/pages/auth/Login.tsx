@@ -29,7 +29,15 @@ const Login: React.FC<LoginProps> = ({ onSuccess }) => {
     <div className="min-h-screen bg-surface-low flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-h1 font-heading text-primary-500 font-extrabold">Dobara</div>
+          <a
+            href="/"
+            className="no-underline inline-block"
+            aria-label="Back to Dobara module selection"
+          >
+            <div className="text-h1 font-heading text-primary-500 font-extrabold hover:text-primary-600 transition-colors">
+              Dobara
+            </div>
+          </a>
           <p className="text-body text-text-muted mt-2">Ops Admin · Sign in</p>
         </div>
 
