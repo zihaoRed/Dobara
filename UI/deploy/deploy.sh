@@ -40,14 +40,22 @@ sudo cp -r dist/* "${SITE_DIR}/"
 sudo chown -R nginx:nginx "${SITE_DIR}"
 
 echo ""
-echo "[5/6] Nginx config (HTML no-cache + version.json)..."
-sudo cp "${SCRIPT_DIR}/nginx.conf" /tmp/dobara_nginx.conf
-sudo sed -i 's/server_name your-domain.com;/server_name _;/' /tmp/dobara_nginx.conf || true
-sudo cp /tmp/dobara_nginx.conf "${NGINX_CONF}"
+echo "[5/6] Nginx config (disable welcome page + install Dobara)..."
+# RHEL/CentOS/Amazon: default welcome site
+sudo mv /etc/nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf.disabled 2>/dev/null || true
+# Debian/Ubuntu: default site
+sudo rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+
+sudo cp "${SCRIPT_DIR}/nginx.conf" "${NGINX_CONF}"
 
 echo ""
 echo "[6/6] Reloading Nginx..."
-sudo nginx -t && sudo systemctl reload nginx
+if ! sudo nginx -t; then
+  echo "ERROR: nginx -t failed. Dobara conf not applied."
+  echo "Check: ls -la /var/www/dobara && cat ${NGINX_CONF}"
+  exit 1
+fi
+sudo systemctl reload nginx
 
 echo ""
 echo "========================================"
