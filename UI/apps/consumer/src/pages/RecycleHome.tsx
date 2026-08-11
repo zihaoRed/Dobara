@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Input } from '@dobara/ui';
-import { ClipboardCheck, Search, Tag, ArrowLeftRight, Recycle, ChevronRight } from 'lucide-react';
+import { ClipboardCheck, Search, Tag, ArrowLeftRight, ChevronRight } from 'lucide-react';
 
 export function RecycleHome() {
   const navigate = useNavigate();
@@ -14,34 +14,23 @@ export function RecycleHome() {
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2">
             <Tag size={22} className="text-accent-100" />
-            <h1 className="text-h3 font-bold">Sell Your Phone</h1>
+            <h1 className="text-h3 font-bold">Exchange Your Phone</h1>
           </div>
           <p className="text-sm text-white/80">
-            Get an instant quote, book a store visit, and walk out with cash or store credit.
+            Upgrade to a certified device with instant trade-in quotes at partner stores.
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-5">
-        <button
-          type="button"
-          onClick={() => navigate('/sell/appointment')}
-          className="rounded-2xl bg-accent-500 text-white p-4 text-left shadow-card"
-        >
-          <ArrowLeftRight size={24} className="mb-2" />
-          <p className="font-bold">Exchange</p>
-          <p className="text-xs text-white/80 mt-0.5">Upgrade with bonus</p>
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate('/sell/appointment')}
-          className="rounded-2xl bg-primary-700 text-white p-4 text-left shadow-card"
-        >
-          <Recycle size={24} className="mb-2" />
-          <p className="font-bold">Recycle</p>
-          <p className="text-xs text-white/80 mt-0.5">Go green, get paid</p>
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => navigate('/sell/appointment')}
+        className="w-full rounded-2xl bg-accent-500 text-white p-4 text-left shadow-card mb-5"
+      >
+        <ArrowLeftRight size={24} className="mb-2" />
+        <p className="font-bold">Exchange</p>
+        <p className="text-xs text-white/80 mt-0.5">Upgrade with bonus</p>
+      </button>
 
       <Card
         variant="hover"

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Home as HomeIcon, ShoppingBag, RefreshCw, User } from 'lucide-react';
+import { Home as HomeIcon, ShoppingBag, ArrowLeftRight, User } from 'lucide-react';
 
 import { Login } from './pages/Login';
 import { Home } from './pages/Home';
@@ -50,11 +50,11 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/* ── Tab Bar Layout — Home / Buy / Sell / Account ── */
+/* ── Tab Bar Layout — Home / Buy / Exchange / Account ── */
 const TABS = [
   { key: '/home', label: 'Home', icon: <HomeIcon size={22} /> },
   { key: '/buy', label: 'Buy', icon: <ShoppingBag size={22} /> },
-  { key: '/sell', label: 'Sell', icon: <RefreshCw size={22} /> },
+  { key: '/sell', label: 'Exchange', icon: <ArrowLeftRight size={22} /> },
   { key: '/account', label: 'Account', icon: <User size={22} /> },
 ];
 

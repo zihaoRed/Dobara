@@ -127,7 +127,7 @@ export function OrderList() {
       <Tabs
         tabs={[
           { key: 'buy', label: `Purchases (${orders.length})` },
-          { key: 'sell', label: `Recycling (${recycleOrders.length})` },
+          { key: 'sell', label: `Exchange (${recycleOrders.length})` },
         ]}
         activeTab={activeTab}
         onChange={(k: string) => setActiveTab(k as TabKey)}
@@ -206,8 +206,8 @@ export function OrderList() {
         )
       ) : sellOrders.length === 0 ? (
         <EmptyState
-          title="No recycling orders"
-          description="Book an inspection to sell or trade in your phone."
+          title="No exchange orders"
+          description="Book an appointment to exchange your old phone for a new one."
           action={<Button variant="primary" onClick={() => navigate('/sell/appointment')}>Book Appointment</Button>}
         />
       ) : (

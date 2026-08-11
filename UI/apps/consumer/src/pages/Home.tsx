@@ -3,16 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { SearchBar, DeviceCard, Button } from '@dobara/ui';
 import {
   Bell, ShoppingBag, Check, Star, ChevronRight,
-  ShoppingCart, Tag, ArrowLeftRight, Recycle,
+  ShoppingCart, ArrowLeftRight,
   Zap, Gift, GraduationCap, Users, Shield, RotateCcw,
   Truck, BadgeCheck, Bot, Mail, Gem, Wallet, Sparkles, Smartphone,
 } from 'lucide-react';
 
 const SERVICES = [
   { key: 'buy', title: 'Buy', desc: 'Certified phones', icon: ShoppingCart, bg: 'bg-primary-500', to: '/buy' },
-  { key: 'sell', title: 'Sell', desc: 'Best prices', icon: Tag, bg: 'bg-accent-500', to: '/sell' },
   { key: 'exchange', title: 'Exchange', desc: 'Upgrade now', icon: ArrowLeftRight, bg: 'bg-sky-600', to: '/sell' },
-  { key: 'recycle', title: 'Recycle', desc: 'Go green', icon: Recycle, bg: 'bg-primary-700', to: '/sell' },
 ];
 
 const STATS = [
@@ -389,11 +387,11 @@ export function Home() {
       <section className="mt-5">
         <div className="rounded-2xl bg-primary-500 text-white p-5 flex items-center justify-between gap-3">
           <div>
-            <h3 className="font-bold text-lg">Sell Your Phone</h3>
-            <p className="text-xs text-white/75 mt-0.5">Get instant quotes at partner stores</p>
+            <h3 className="font-bold text-lg">Exchange Your Phone</h3>
+            <p className="text-xs text-white/75 mt-0.5">Upgrade with trade-in bonus at partner stores</p>
           </div>
           <Button pill size="sm" className="!bg-white !text-primary-500 shrink-0" onClick={() => navigate('/sell')}>
-            Sell Now →
+            Exchange Now →
           </Button>
         </div>
       </section>

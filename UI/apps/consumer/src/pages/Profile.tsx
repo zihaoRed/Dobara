@@ -4,7 +4,7 @@ import { Card, Button } from '@dobara/ui';
 import { useTranslation } from 'react-i18next';
 import {
   User, Phone, Shield, Globe, Moon, Sun,
-  ShoppingBag, ExternalLink, RefreshCw, LogOut, ChevronRight,
+  ShoppingBag, ExternalLink, ArrowLeftRight, LogOut, ChevronRight,
   MapPin, HeadphonesIcon, LifeBuoy,
 } from 'lucide-react';
 import { getUser, clearUser } from '../App';
@@ -29,11 +29,11 @@ export function Profile() {
   };
 
   const menuItems = [
-    { icon: <ShoppingBag size={20} />, label: 'My Orders', desc: 'Purchase & recycling orders', onClick: () => navigate('/account/orders'), highlight: true },
+    { icon: <ShoppingBag size={20} />, label: 'My Orders', desc: 'Purchase & exchange orders', onClick: () => navigate('/account/orders'), highlight: true },
     { icon: <MapPin size={20} />, label: 'Addresses', desc: 'Manage delivery addresses', onClick: () => navigate('/account/addresses') },
     { icon: <LifeBuoy size={20} />, label: 'After-Sales', desc: 'Returns, exchanges & refunds', onClick: () => navigate('/account/after-sales') },
     { icon: <HeadphonesIcon size={20} />, label: 'Help Center', desc: 'FAQ & contact support', onClick: () => navigate('/account/help') },
-    { icon: <RefreshCw size={20} />, label: 'Sell / Recycle', desc: 'Get a quote for your old phone', onClick: () => navigate('/sell') },
+    { icon: <ArrowLeftRight size={20} />, label: 'Exchange', desc: 'Upgrade your phone with trade-in bonus', onClick: () => navigate('/sell') },
     { icon: <ExternalLink size={20} />, label: 'H5 Inspection Preview', desc: 'Standalone H5 report page', onClick: () => navigate('/account/h5-preview') },
   ];
 
