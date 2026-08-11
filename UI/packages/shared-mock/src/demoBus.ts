@@ -61,7 +61,8 @@ export interface IDemoBus {
   inbound: IDemoInbound[];
   pickOrders: IDemoPickOrder[];
   reviewQueue: IDevice[];
-  enterpriseCart: { imei: string; qty: number }[];
+  /** Unique IMEIs selected for enterprise bulk order (1 device each) */
+  enterpriseCart: { imei: string }[];
 }
 
 function emptyBus(): IDemoBus {
@@ -232,17 +233,22 @@ export function getEnterpriseCart() {
   return loadBus().enterpriseCart;
 }
 
-export function setEnterpriseCart(items: { imei: string; qty: number }[]) {
+export function setEnterpriseCart(items: { imei: string }[]) {
   const bus = loadBus();
-  bus.enterpriseCart = items;
+  const seen = new Set<string>();
+  bus.enterpriseCart = items.filter((i) => {
+    if (!i.imei || seen.has(i.imei)) return false;
+    seen.add(i.imei);
+    return true;
+  });
   saveBus(bus);
 }
 
-export function addToEnterpriseCart(imei: string, qty = 1) {
+export function addToEnterpriseCart(imei: string) {
   const bus = loadBus();
-  const hit = bus.enterpriseCart.find((c) => c.imei === imei);
-  if (hit) hit.qty += qty;
-  else bus.enterpriseCart.push({ imei, qty });
-  saveBus(bus);
+  if (!bus.enterpriseCart.some((c) => c.imei === imei)) {
+    bus.enterpriseCart.push({ imei });
+    saveBus(bus);
+  }
   return bus.enterpriseCart;
 }

@@ -2,13 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Badge, EmptyState, GradeBadge } from '@dobara/ui';
 import { CreditCard, Building2, Trash2 } from 'lucide-react';
+import { imeiLast4 } from '@dobara/utils';
 import {
   clearEnterpriseCart,
   enterpriseCartTotal,
   getEnterpriseCart,
-  setEnterpriseCart,
+  removeFromEnterpriseCart,
   type EnterpriseCartLine,
-  updateEnterpriseCartQty,
 } from '../lib/enterpriseMode';
 
 type PayChoice = 'credit' | 'razorpay';
@@ -28,14 +28,9 @@ export function EnterpriseCart() {
 
   const total = useMemo(() => enterpriseCartTotal(), [lines]);
 
-  const setQty = (imei: string, qty: number) => {
-    setLines(updateEnterpriseCartQty(imei, qty));
-  };
-
   const removeLine = (imei: string) => {
-    const next = lines.filter((l) => l.imei !== imei);
-    setEnterpriseCart(next);
-    setLines(next);
+    removeFromEnterpriseCart(imei);
+    setLines(getEnterpriseCart());
   };
 
   const placeOrder = async () => {
@@ -45,7 +40,6 @@ export function EnterpriseCart() {
     try {
       let lastOrderId = '';
       for (const line of lines) {
-        // Demo: one API order per distinct device (qty reflected in toast only)
         const res = await fetch('/api/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -62,7 +56,6 @@ export function EnterpriseCart() {
         if (res.ok && data.orderId) {
           lastOrderId = data.orderId;
         } else if (!res.ok) {
-          // Local demo fallback
           lastOrderId = `ORD-ENT-${Date.now().toString().slice(-6)}`;
         }
       }
@@ -71,7 +64,7 @@ export function EnterpriseCart() {
       if (isCredit) {
         navigate('/account/orders', {
           state: {
-            toast: `Enterprise order placed on credit · ₹${total.toLocaleString('en-IN')} (pending settlement)`,
+            toast: `Enterprise order: ${lines.length} unique device(s) · ₹${total.toLocaleString('en-IN')} (credit · pending settlement)`,
           },
         });
       } else {
@@ -90,7 +83,7 @@ export function EnterpriseCart() {
       if (isCredit) {
         navigate('/account/orders', {
           state: {
-            toast: `Enterprise order placed on credit · ₹${total.toLocaleString('en-IN')} (pending settlement)`,
+            toast: `Enterprise order: ${lines.length} unique device(s) · ₹${total.toLocaleString('en-IN')} (credit · pending settlement)`,
           },
         });
       } else {
@@ -113,11 +106,14 @@ export function EnterpriseCart() {
         ← Back
       </Button>
       <h1 className="text-h3 font-heading">Enterprise cart</h1>
+      <p className="text-caption text-text-muted -mt-2">
+        {lines.length} unique device{lines.length === 1 ? '' : 's'} · one IMEI each
+      </p>
 
       {lines.length === 0 ? (
         <EmptyState
           title="Cart is empty"
-          description="Add devices from bulk procurement."
+          description="Multi-select devices from bulk procurement."
           action={
             <Button variant="primary" onClick={() => navigate('/buy/enterprise')}>
               Browse bulk stock
@@ -134,41 +130,27 @@ export function EnterpriseCart() {
                     <p className="text-body font-semibold">
                       {line.brand} {line.model}
                     </p>
+                    <p className="text-caption text-text-muted mt-0.5">IMEI ···{imeiLast4(line.imei)}</p>
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       <GradeBadge grade={line.grade as 'A' | 'B' | 'C' | 'D'} />
                       <Badge variant="neutral">{line.storage}</Badge>
                       <Badge variant="neutral">{line.color}</Badge>
                     </div>
-                    <p className="text-caption text-text-muted mt-1">
-                      ₹{line.price.toLocaleString('en-IN')} each
-                    </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeLine(line.imei)}
-                    className="p-1 text-text-muted hover:text-dobara-error"
-                    data-testid={`cart-remove-${line.imei}`}
-                    aria-label="Remove"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between mt-3">
-                  <div className="flex items-center gap-2">
-                    <label className="text-caption text-text-muted">Qty</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={20}
-                      value={line.qty}
-                      onChange={(e) => setQty(line.imei, Math.max(1, Number(e.target.value) || 1))}
-                      className="w-16 h-9 px-2 rounded-md border border-border bg-surface-container text-body"
-                      data-testid={`cart-qty-${line.imei}`}
-                    />
+                  <div className="flex flex-col items-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => removeLine(line.imei)}
+                      className="p-1 text-text-muted hover:text-dobara-error"
+                      data-testid={`cart-remove-${line.imei}`}
+                      aria-label="Remove"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                    <span className="text-body font-bold">
+                      ₹{line.price.toLocaleString('en-IN')}
+                    </span>
                   </div>
-                  <span className="text-body font-bold">
-                    ₹{(line.price * line.qty).toLocaleString('en-IN')}
-                  </span>
                 </div>
               </Card>
             ))}
@@ -211,7 +193,7 @@ export function EnterpriseCart() {
           <div className="fixed bottom-0 left-0 right-0 px-3 pb-3 z-30">
             <div className="max-w-lg mx-auto rounded-2xl border border-border bg-white/95 backdrop-blur p-4 shadow-card">
               <div className="flex justify-between mb-3">
-                <span className="text-body text-text-secondary">Total</span>
+                <span className="text-body text-text-secondary">{lines.length} devices</span>
                 <span className="text-h4 font-heading" data-testid="enterprise-cart-total">
                   ₹{total.toLocaleString('en-IN')}
                 </span>

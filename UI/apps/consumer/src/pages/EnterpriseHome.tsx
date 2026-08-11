@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, Button, GradeBadge, Badge, SkeletonCard, EmptyState } from '@dobara/ui';
-import { Building2, ShoppingCart, Plus } from 'lucide-react';
+import { Building2, ShoppingCart } from 'lucide-react';
 import type { IDevice, IBrand, IModel } from '@dobara/utils';
+import { imeiLast4 } from '@dobara/utils';
 import {
-  addToEnterpriseCart,
+  addDevicesToEnterpriseCart,
   enterpriseCartCount,
   isEnterpriseMode,
+  isInEnterpriseCart,
   setEnterpriseMode,
 } from '../lib/enterpriseMode';
 
@@ -16,6 +18,8 @@ const DEMO_DEVICES: IDevice[] = [
   { imei: '350000000000007', brandId: 'samsung', modelId: 'galaxys22', grade: 'A', color: 'Phantom Black', storage: '128GB', status: 'available', price: 40000, originalPrice: 36000, city: 'Mumbai', warehouseId: 'wh-mum' },
   { imei: '350000000000010', brandId: 'xiaomi', modelId: 'mi11', grade: 'A', color: 'Midnight Gray', storage: '256GB', status: 'available', price: 22000, originalPrice: 19000, city: 'Mumbai', warehouseId: 'wh-mum' },
   { imei: '350000000000012', brandId: 'oneplus', modelId: 'nord2', grade: 'A', color: 'Blue Haze', storage: '256GB', status: 'available', price: 20000, originalPrice: 18000, city: 'Mumbai', warehouseId: 'wh-mum' },
+  { imei: '350000000000015', brandId: 'apple', modelId: 'iphone13', grade: 'B', color: 'Starlight', storage: '128GB', status: 'available', price: 36000, originalPrice: 32000, city: 'Delhi', warehouseId: 'wh-del' },
+  { imei: '350000000000018', brandId: 'samsung', modelId: 'galaxys22', grade: 'B', color: 'Green', storage: '256GB', status: 'available', price: 34000, originalPrice: 30000, city: 'Bangalore', warehouseId: 'wh-blr' },
 ];
 
 const DEMO_BRANDS: IBrand[] = [
@@ -44,13 +48,11 @@ export function EnterpriseHome() {
   const [models, setModels] = useState<IModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [cartCount, setCartCount] = useState(enterpriseCartCount);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState('');
-  const [qtyMap, setQtyMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (!isEnterpriseMode()) {
-      setEnterpriseMode(true);
-    }
+    if (!isEnterpriseMode()) setEnterpriseMode(true);
   }, []);
 
   useEffect(() => {
@@ -77,10 +79,31 @@ export function EnterpriseHome() {
   const brandName = (id: string) => brands.find((b) => b.id === id)?.name || id;
   const modelName = (id: string) => models.find((m) => m.id === id)?.name || id;
 
-  const handleAdd = (d: IDevice) => {
-    const qty = qtyMap[d.imei] || 1;
-    addToEnterpriseCart(
-      {
+  const selectable = useMemo(
+    () => devices.filter((d) => !isInEnterpriseCart(d.imei)),
+    [devices, cartCount],
+  );
+
+  const toggle = (imei: string) => {
+    if (isInEnterpriseCart(imei)) return;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(imei)) next.delete(imei);
+      else next.add(imei);
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    setSelected(new Set(selectable.map((d) => d.imei)));
+  };
+
+  const clearSelection = () => setSelected(new Set());
+
+  const addSelectedToCart = () => {
+    const lines = devices
+      .filter((d) => selected.has(d.imei))
+      .map((d) => ({
         imei: d.imei,
         brand: brandName(d.brandId),
         model: modelName(d.modelId),
@@ -88,11 +111,12 @@ export function EnterpriseHome() {
         storage: d.storage,
         color: d.color,
         price: d.price,
-      },
-      qty,
-    );
+      }));
+    if (lines.length === 0) return;
+    addDevicesToEnterpriseCart(lines);
     setCartCount(enterpriseCartCount());
-    setToast(`Added ${qty} × ${brandName(d.brandId)} ${modelName(d.modelId)} to cart`);
+    setSelected(new Set());
+    setToast(`Added ${lines.length} unique device${lines.length > 1 ? 's' : ''} to cart`);
     setTimeout(() => setToast(''), 2500);
   };
 
@@ -101,8 +125,12 @@ export function EnterpriseHome() {
     navigate('/buy');
   };
 
+  const selectedTotal = devices
+    .filter((d) => selected.has(d.imei))
+    .reduce((n, d) => n + d.price, 0);
+
   return (
-    <div className="max-w-lg mx-auto space-y-4 pb-8" data-testid="enterprise-home">
+    <div className={`max-w-lg mx-auto space-y-4 ${selected.size > 0 ? 'pb-48' : 'pb-8'}`} data-testid="enterprise-home">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-h3 font-heading">Bulk Procurement</h1>
         <Link
@@ -124,9 +152,9 @@ export function EnterpriseHome() {
         <div className="flex items-start gap-3">
           <Building2 size={22} className="text-primary-600 shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-body font-semibold text-primary-800">Switch to Bulk Procurement</p>
+            <p className="text-body font-semibold text-primary-800">Enterprise bulk select</p>
             <p className="text-caption text-primary-700 mt-0.5">
-              ROLE-ENT demo — you are in enterprise mode. Buy certified devices in quantity with credit or Razorpay.
+              Each listing is one unique IMEI device. Multi-select units to order — quantity per model is not available.
             </p>
             <Button
               variant="secondary"
@@ -147,7 +175,31 @@ export function EnterpriseHome() {
         </div>
       )}
 
-      <h2 className="text-h4 font-heading">Available devices</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-h4 font-heading">Available devices</h2>
+        {selectable.length > 0 && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="text-caption text-primary-600 font-semibold"
+              onClick={selectAllVisible}
+              data-testid="enterprise-select-all"
+            >
+              Select all
+            </button>
+            {selected.size > 0 && (
+              <button
+                type="button"
+                className="text-caption text-text-muted font-semibold"
+                onClick={clearSelection}
+                data-testid="enterprise-clear-selection"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <div className="space-y-3">
@@ -159,52 +211,72 @@ export function EnterpriseHome() {
         <EmptyState title="No devices available" description="Check back later for bulk stock." />
       ) : (
         <div className="space-y-3" data-testid="enterprise-device-list">
-          {devices.map((d) => (
-            <Card key={d.imei} data-testid={`enterprise-device-${d.imei}`}>
-              <div className="flex justify-between items-start gap-2 mb-2">
-                <div>
-                  <p className="text-body font-semibold">
-                    {brandName(d.brandId)} {modelName(d.modelId)}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    <GradeBadge grade={d.grade} />
-                    <Badge variant="neutral">{d.storage}</Badge>
-                    <Badge variant="neutral">{d.color}</Badge>
+          {devices.map((d) => {
+            const inCart = isInEnterpriseCart(d.imei);
+            const checked = selected.has(d.imei);
+            return (
+              <Card
+                key={d.imei}
+                data-testid={`enterprise-device-${d.imei}`}
+                className={checked ? '!border-primary-500 bg-primary-50/40' : undefined}
+              >
+                <label className={`flex items-start gap-3 ${inCart ? 'opacity-60' : 'cursor-pointer'}`}>
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 accent-primary-500"
+                    checked={checked || inCart}
+                    disabled={inCart}
+                    onChange={() => toggle(d.imei)}
+                    data-testid={`enterprise-select-${d.imei}`}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <p className="text-body font-semibold">
+                          {brandName(d.brandId)} {modelName(d.modelId)}
+                        </p>
+                        <p className="text-caption text-text-muted mt-0.5">
+                          IMEI ···{imeiLast4(d.imei)} · {d.city}
+                          {inCart ? ' · In cart' : ''}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          <GradeBadge grade={d.grade} />
+                          <Badge variant="neutral">{d.storage}</Badge>
+                          <Badge variant="neutral">{d.color}</Badge>
+                        </div>
+                      </div>
+                      <p className="text-body font-bold text-primary-600 shrink-0">
+                        ₹{d.price.toLocaleString('en-IN')}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <p className="text-body font-bold text-primary-600">
-                  ₹{d.price.toLocaleString('en-IN')}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-caption text-text-muted">Qty</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={qtyMap[d.imei] || 1}
-                  onChange={(e) =>
-                    setQtyMap((prev) => ({
-                      ...prev,
-                      [d.imei]: Math.max(1, Math.min(20, Number(e.target.value) || 1)),
-                    }))
-                  }
-                  className="w-16 h-9 px-2 rounded-md border border-border bg-surface-container text-body"
-                  data-testid={`enterprise-qty-${d.imei}`}
-                />
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="flex-1"
-                  icon={<Plus size={16} />}
-                  onClick={() => handleAdd(d)}
-                  data-testid={`enterprise-add-${d.imei}`}
-                >
-                  Add to cart
-                </Button>
-              </div>
-            </Card>
-          ))}
+                </label>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {selected.size > 0 && (
+        /* Sit above bottom TabBar (h-14 + pb-3 ≈ 5.5rem) so total is not covered */
+        <div className="fixed bottom-[5.75rem] left-0 right-0 px-3 z-40 safe-bottom">
+          <div className="max-w-lg mx-auto rounded-2xl border border-border bg-white/95 backdrop-blur p-4 shadow-card">
+            <div className="flex justify-between mb-3">
+              <span className="text-body text-text-secondary" data-testid="enterprise-selected-count">
+                {selected.size} device{selected.size > 1 ? 's' : ''} selected
+              </span>
+              <span className="text-body font-bold">₹{selectedTotal.toLocaleString('en-IN')}</span>
+            </div>
+            <Button
+              variant="primary"
+              size="lg"
+              className="w-full"
+              onClick={addSelectedToCart}
+              data-testid="enterprise-add-selected"
+            >
+              Add selected to cart
+            </Button>
+          </div>
         </div>
       )}
     </div>
