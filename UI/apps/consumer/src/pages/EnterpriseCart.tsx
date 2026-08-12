@@ -1,13 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Badge, EmptyState, GradeBadge } from '@dobara/ui';
-import { CreditCard, Building2, Trash2 } from 'lucide-react';
+import { CreditCard, Building2 } from 'lucide-react';
 import { imeiLast4 } from '@dobara/utils';
 import {
   clearEnterpriseCart,
   enterpriseCartTotal,
   getEnterpriseCart,
-  removeFromEnterpriseCart,
   type EnterpriseCartLine,
 } from '../lib/enterpriseMode';
 
@@ -27,11 +26,6 @@ export function EnterpriseCart() {
   }, []);
 
   const total = useMemo(() => enterpriseCartTotal(), [lines]);
-
-  const removeLine = (imei: string) => {
-    removeFromEnterpriseCart(imei);
-    setLines(getEnterpriseCart());
-  };
 
   const placeOrder = async () => {
     if (lines.length === 0) return;
@@ -137,20 +131,9 @@ export function EnterpriseCart() {
                       <Badge variant="neutral">{line.color}</Badge>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => removeLine(line.imei)}
-                      className="p-1 text-text-muted hover:text-dobara-error"
-                      data-testid={`cart-remove-${line.imei}`}
-                      aria-label="Remove"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                    <span className="text-body font-bold">
-                      ₹{line.price.toLocaleString('en-IN')}
-                    </span>
-                  </div>
+                  <span className="text-body font-bold shrink-0">
+                    ₹{line.price.toLocaleString('en-IN')}
+                  </span>
                 </div>
               </Card>
             ))}
