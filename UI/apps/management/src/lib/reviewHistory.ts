@@ -1,6 +1,6 @@
 import type { TGrade } from '@dobara/utils';
 
-const KEY = 'dobara_ops_review_history';
+const KEY = 'dobara_wh_review_history';
 
 export type TReviewResult = 'direct_list' | 'adjust_list';
 
@@ -56,7 +56,7 @@ function seedHistory(): IReviewHistoryItem[] {
       mallAfter: 67500,
       result: 'direct_list',
       deductionCodes: [],
-      reviewer: 'Ops Demo',
+      reviewer: 'Suresh Patil',
       reviewedAt: new Date(Date.now() - 86400000).toISOString(),
       openedAt: new Date(Date.now() - 86400000 - 180000).toISOString(),
       durationSec: 180,
@@ -76,7 +76,7 @@ function seedHistory(): IReviewHistoryItem[] {
       result: 'adjust_list',
       deductionCodes: ['CO-SCR-02'],
       adjustReason: 'Screen scratch clearly visible in video; clerk missed CO-SCR-02.',
-      reviewer: 'Ops Demo',
+      reviewer: 'Suresh Patil',
       reviewedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
       openedAt: new Date(Date.now() - 2 * 86400000 - 300000).toISOString(),
       durationSec: 300,

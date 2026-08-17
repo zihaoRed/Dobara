@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, Button, Modal, Input, Badge } from '@dobara/ui';
 import { Plus, Shield, Lock } from 'lucide-react';
-import { DataTable } from '../components/DataTable';
+import { DataTable } from '../../components/DataTable';
 import {
   ATOMIC_PERMISSIONS,
   listRoles,
   saveRoles,
   type RoleRecord,
-} from '../lib/roleDefs';
+} from '../../lib/roleDefs';
 
 const RoleMgmt: React.FC = () => {
   const [roles, setRoles] = useState<RoleRecord[]>(() => listRoles());
@@ -70,7 +70,7 @@ const RoleMgmt: React.FC = () => {
         <div>
           <h1 className="text-h2 font-heading text-text-primary">Role Management</h1>
           <p className="text-body text-text-muted mt-1">
-            7 preset roles · {ATOMIC_PERMISSIONS.length} atomic permissions
+            6 preset roles · {ATOMIC_PERMISSIONS.length} atomic permissions
           </p>
         </div>
         <Button variant="primary" icon={<Plus size={18} />} onClick={() => setShowCreate(true)}>

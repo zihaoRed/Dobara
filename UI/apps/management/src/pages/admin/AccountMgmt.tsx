@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, Button, Modal, Input, Badge, Stepper } from '@dobara/ui';
 import { UserPlus, UserCheck, UserX } from 'lucide-react';
-import { DataTable } from '../components/DataTable';
-import { listOrgs } from '../lib/orgStore';
+import { DataTable } from '../../components/DataTable';
+import { listOrgs } from '../../lib/orgStore';
 import {
   listAccounts,
   saveAccounts,
@@ -12,10 +12,9 @@ import {
   type AccountStatus,
   type AssignableRole,
   type RoleBinding,
-} from '../lib/accountStore';
+} from '../../lib/accountStore';
 
 const ASSIGNABLE: { role: AssignableRole; label: string }[] = [
-  { role: 'ROLE-OPS', label: 'Operations' },
   { role: 'ROLE-OWN', label: 'Store Owner' },
   { role: 'ROLE-CLK', label: 'Clerk' },
   { role: 'ROLE-WH', label: 'Warehouse' },

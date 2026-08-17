@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Skeleton } from '@dobara/ui';
-import { useRole } from '../context/RoleContext';
 import type { IDevice } from '@dobara/utils';
 import { ClipboardCheck, Package, DollarSign, AlertCircle } from 'lucide-react';
 
@@ -26,7 +25,6 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, sub, icon, color }) =
 );
 
 const Dashboard: React.FC = () => {
-  const { role } = useRole();
   const [loading, setLoading] = useState(true);
   const [reviewCount, setReviewCount] = useState(0);
 
@@ -42,17 +40,15 @@ const Dashboard: React.FC = () => {
     <div>
       <div className="mb-6">
         <h1 className="text-h2 font-heading text-text-primary">Dashboard</h1>
-        <p className="text-body text-text-muted mt-1">
-          {role === 'admin' ? 'System Admin Overview' : 'Operations Overview'}
-        </p>
+        <p className="text-body text-text-muted mt-1">System Admin Overview</p>
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="w-full" height="100px" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
             title="Pending Review"
             value={String(reviewCount)}

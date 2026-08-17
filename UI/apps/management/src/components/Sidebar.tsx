@@ -18,6 +18,12 @@ import {
   RefreshCw,
   UserRound,
   Layers,
+  Shield,
+  Building2,
+  Recycle,
+  ShoppingBag,
+  SlidersHorizontal,
+  PackageSearch,
 } from 'lucide-react';
 import { Modal, Button } from '@dobara/ui';
 import { useAuth } from '../lib/AuthContext';
@@ -29,6 +35,19 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
+const adminNav: NavItem[] = [
+  { label: 'Overview', path: '/admin', icon: <Home size={18} /> },
+  { label: 'Org Mgmt', path: '/admin/orgs', icon: <Building2 size={18} /> },
+  { label: 'Role Mgmt', path: '/admin/roles', icon: <Users size={18} /> },
+  { label: 'Account Mgmt', path: '/admin/accounts', icon: <UserRound size={18} /> },
+  { label: 'Recycle Orders', path: '/admin/orders/recycle', icon: <Recycle size={18} /> },
+  { label: 'Mall Orders', path: '/admin/orders/mall', icon: <ShoppingBag size={18} /> },
+  { label: 'Config Center', path: '/admin/config', icon: <SlidersHorizontal size={18} /> },
+  { label: 'Category', path: '/admin/category', icon: <PackageSearch size={18} /> },
+  { label: 'Review History', path: '/admin/review/history', icon: <History size={18} /> },
+  { label: 'Reports', path: '/admin/reports', icon: <BarChart3 size={18} /> },
+];
+
 const ownerNav: NavItem[] = [
   { label: 'Overview', path: '/owner', icon: <Home size={18} /> },
   { label: 'Revenue', path: '/owner/revenue', icon: <BarChart3 size={18} /> },
@@ -39,6 +58,7 @@ const ownerNav: NavItem[] = [
 const whNav: NavItem[] = [
   { label: 'Overview', path: '/wh', icon: <Home size={18} /> },
   { label: 'Inbound Scan', path: '/wh/inbound', icon: <ArrowDownToLine size={18} /> },
+  { label: 'Listing Review', path: '/wh/review', icon: <ClipboardCheck size={18} /> },
   { label: 'Picking', path: '/wh/picking', icon: <ClipboardList size={18} /> },
   { label: 'Batch outbound', path: '/wh/batch', icon: <Layers size={18} /> },
   { label: 'Inventory', path: '/wh/inventory', icon: <Search size={18} /> },
@@ -54,6 +74,7 @@ const dbNav: NavItem[] = [
 ];
 
 const moduleMeta: Record<TModule, { label: string; icon: React.ReactNode; role: TRoleCode }> = {
+  admin: { label: 'Admin', icon: <Shield size={20} />, role: 'ROLE-SA' },
   owner: { label: 'Store Owner', icon: <Store size={20} />, role: 'ROLE-OWN' },
   wh: { label: 'Warehouse', icon: <Package size={20} />, role: 'ROLE-WH' },
   db: { label: 'Finance', icon: <DollarSign size={20} />, role: 'ROLE-DB' },
@@ -68,7 +89,8 @@ const Sidebar: React.FC<SidebarProps> = ({ active }) => {
   const { session, modules, switchRole } = useAuth();
   const [switchOpen, setSwitchOpen] = useState(false);
 
-  const navItems = active === 'owner' ? ownerNav : active === 'wh' ? whNav : dbNav;
+  const navItems =
+    active === 'admin' ? adminNav : active === 'owner' ? ownerNav : active === 'wh' ? whNav : dbNav;
   const activeRole = session?.roles.find((r) => r.roleCode === session.activeRoleCode);
 
   const onSwitch = (roleCode: TRoleCode) => {
@@ -131,7 +153,13 @@ const Sidebar: React.FC<SidebarProps> = ({ active }) => {
 
       <div className="px-3 py-2 border-t border-border">
         <p className="px-3 py-1 text-eyebrow text-text-muted uppercase tracking-wider">
-          {active === 'owner' ? 'Store Management' : active === 'wh' ? 'Warehouse Ops' : 'Finance'}
+          {active === 'admin'
+            ? 'Administration'
+            : active === 'owner'
+              ? 'Store Management'
+              : active === 'wh'
+                ? 'Warehouse Ops'
+                : 'Finance'}
         </p>
         <div className="mt-1 space-y-0.5">
           {navItems.map((item) => (

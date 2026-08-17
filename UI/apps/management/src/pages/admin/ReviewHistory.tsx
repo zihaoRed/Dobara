@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, Button, Badge, Modal, Input } from '@dobara/ui';
 import { Download, Eye, History } from 'lucide-react';
-import { DataTable } from '../components/DataTable';
-import { listReviewHistory, type IReviewHistoryItem, type TReviewResult } from '../lib/reviewHistory';
+import { DataTable } from '../../components/DataTable';
+import { listReviewHistory, type IReviewHistoryItem, type TReviewResult } from '../../lib/reviewHistory';
 import type { TGrade } from '@dobara/utils';
 
 function formatDuration(sec: number): string {
@@ -95,7 +95,7 @@ const ReviewHistory: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-h2 font-heading text-text-primary">Review History</h1>
-          <p className="text-body text-text-muted mt-1">Audit trail & efficiency · CLOUD-P1-05</p>
+          <p className="text-body text-text-muted mt-1">Audit trail & efficiency · SA-P1-01</p>
         </div>
         <Button variant="secondary" icon={<Download size={18} />} onClick={() => downloadCsv(filtered)}>
           Export CSV

@@ -5,15 +5,19 @@ import { ArrowLeft, Image, Clock } from 'lucide-react';
 import type { IRecycleOrder, TRecycleStatus } from '@dobara/utils';
 
 const RECYCLE_STATUS_LABEL: Record<TRecycleStatus, string> = {
+  appointment_pending: 'Appointment Pending',
   inspecting: 'Inspecting',
   pending_confirm: 'Pending Accept',
+  awaiting_redeem: 'Awaiting Redeem',
   completed: 'Completed',
   rejected: 'Rejected by User',
 };
 
 const RECYCLE_STATUS_BADGE: Record<TRecycleStatus, 'pending' | 'in_progress' | 'completed' | 'rejected'> = {
+  appointment_pending: 'pending',
   inspecting: 'in_progress',
   pending_confirm: 'pending',
+  awaiting_redeem: 'pending',
   completed: 'completed',
   rejected: 'rejected',
 };
@@ -47,7 +51,7 @@ const RecycleOrderDetail: React.FC = () => {
   if (!order) {
     return (
       <div>
-        <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={() => navigate('/orders/recycle')} className="mb-4">
+        <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={() => navigate('/admin/orders/recycle')} className="mb-4">
           Back
         </Button>
         <EmptyState title="Order Not Found" description={`No recycle order with id ${id}.`} />
@@ -59,7 +63,7 @@ const RecycleOrderDetail: React.FC = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={() => navigate('/orders/recycle')}>
+          <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={() => navigate('/admin/orders/recycle')}>
             Back
           </Button>
           <div>

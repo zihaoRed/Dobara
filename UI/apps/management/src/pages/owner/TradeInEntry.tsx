@@ -187,7 +187,7 @@ const TradeInEntry: React.FC = () => {
         </CardHeader>
         <CardContent>
           <p className="text-caption text-text-muted mb-2">{session.device}</p>
-          <PriceDisplay amount={deduction} label="Deduction (read-only)" />
+          <PriceDisplay amount={deduction} />
         </CardContent>
       </Card>
 

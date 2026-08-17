@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card } from '@dobara/ui';
-import { Store, Package, DollarSign } from 'lucide-react';
+import { Store, Package, DollarSign, Shield } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
 import { roleHome, type TRoleCode } from '../../lib/auth';
 
 const ICONS: Record<TRoleCode, React.ReactNode> = {
+  'ROLE-SA': <Shield size={22} />,
   'ROLE-OWN': <Store size={22} />,
   'ROLE-WH': <Package size={22} />,
   'ROLE-DB': <DollarSign size={22} />,

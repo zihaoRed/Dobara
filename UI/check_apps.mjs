@@ -3,7 +3,6 @@ import { sync_playwright } from 'playwright';
 const APPS = [
   { name: 'consumer', url: 'http://localhost:3001' },
   { name: 'management', url: 'http://localhost:3003' },
-  { name: 'ops-admin', url: 'http://localhost:3004' },
   { name: 'store-tablet', url: 'http://localhost:3002' },
 ];
 

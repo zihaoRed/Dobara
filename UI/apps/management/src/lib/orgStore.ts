@@ -13,7 +13,7 @@ export interface OrgUnit {
   createdAt: string;
 }
 
-const ORG_KEY = 'dobara_ops_orgs';
+const ORG_KEY = 'dobara_app_orgs';
 
 const SEED: OrgUnit[] = [
   {

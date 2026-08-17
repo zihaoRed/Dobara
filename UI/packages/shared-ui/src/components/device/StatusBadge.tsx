@@ -25,7 +25,6 @@ interface StatusBadgeProps {
 }
 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = '', customLabel }) => {
-  // @ts-expect-error dynamic key
   const config = statusConfigs[status] || statusConfigs.pending;
 
   return (

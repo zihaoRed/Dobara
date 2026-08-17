@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Button, Badge, Skeleton, EmptyState, Modal, Input } from '@dobara/ui';
 import { Plus, PackageSearch, ChevronRight, ImageIcon } from 'lucide-react';
-import { DataTable } from '../components/DataTable';
+import { DataTable } from '../../components/DataTable';
 import type { IBrand, IModel } from '@dobara/utils';
 
 const GRADE_KEY = 'dobara_ops_grade_standards';
@@ -235,7 +235,7 @@ const CategoryMgmt: React.FC = () => {
           </CardHeader>
           <CardContent>
             <p className="text-body text-text-secondary">
-              Hero / main product images are uploaded during the ops review workbench when listing a
+              Hero / main product images are uploaded during the listing review when listing a
               device. Category management does not host the image library; use Review Workbench →
               adjust & list to attach the mall main image for each SKU.
             </p>

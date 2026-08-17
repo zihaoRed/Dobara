@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, Button, Modal, Input, Badge, Tabs } from '@dobara/ui';
 import { Plus, Building2, Warehouse } from 'lucide-react';
-import { DataTable } from '../components/DataTable';
+import { DataTable } from '../../components/DataTable';
 import {
   listOrgs,
   saveOrgs,
@@ -9,7 +9,7 @@ import {
   type OrgUnit,
   type OrgKind,
   type IndianState,
-} from '../lib/orgStore';
+} from '../../lib/orgStore';
 
 const STATES: IndianState[] = ['MH', 'DL', 'KA'];
 

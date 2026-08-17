@@ -6,10 +6,9 @@
     "dev:consumer": "pnpm --filter @dobara/consumer dev",
     "dev:tablet": "pnpm --filter @dobara/store-tablet dev",
     "dev:management": "pnpm --filter @dobara/management dev",
-    "dev:ops": "pnpm --filter @dobara/ops-admin dev",
     "dev:portal": "pnpm --filter @dobara/portal dev",
     "build": "pnpm -r build",
-    "build:preview": "pnpm build && mkdir -p dist && cp -r apps/portal/dist/* dist/ && mkdir -p dist/consumer && cp -r apps/consumer/dist/* dist/consumer/ && mkdir -p dist/tablet && cp -r apps/store-tablet/dist/* dist/tablet/ && mkdir -p dist/management && cp -r apps/management/dist/* dist/management/ && mkdir -p dist/ops && cp -r apps/ops-admin/dist/* dist/ops/",
+    "build:preview": "pnpm build && mkdir -p dist && cp -r apps/portal/dist/* dist/ && mkdir -p dist/consumer && cp -r apps/consumer/dist/* dist/consumer/ && mkdir -p dist/tablet && cp -r apps/store-tablet/dist/* dist/tablet/ && mkdir -p dist/management && cp -r apps/management/dist/* dist/management/",
     "lint": "pnpm -r lint"
   },
   "engines": {

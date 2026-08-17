@@ -115,7 +115,7 @@ const MallOrderDetail: React.FC = () => {
   if (!order) {
     return (
       <div>
-        <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={() => navigate('/orders/mall')} className="mb-4">
+        <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={() => navigate('/admin/orders/mall')} className="mb-4">
           Back
         </Button>
         <EmptyState title="Order Not Found" description={`No mall order with id ${id}.`} />
@@ -130,7 +130,7 @@ const MallOrderDetail: React.FC = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={() => navigate('/orders/mall')}>
+          <Button variant="ghost" size="sm" icon={<ArrowLeft size={16} />} onClick={() => navigate('/admin/orders/mall')}>
             Back
           </Button>
           <div>

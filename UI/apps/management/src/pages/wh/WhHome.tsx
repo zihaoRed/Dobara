@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Badge } from '@dobara/ui';
-import { ArrowRight, Package, Truck, Printer, Search } from 'lucide-react';
+import { ArrowRight, Package, Truck, Printer, Search, ClipboardCheck } from 'lucide-react';
 import { listPendingInbound, listPickOrders } from '../../lib/whStore';
 
 const WhHome: React.FC = () => {
@@ -49,6 +49,15 @@ const WhHome: React.FC = () => {
             </div>
             <p className="text-body font-semibold">Labels</p>
             <p className="text-caption text-text-muted">After IMEI scan</p>
+          </CardContent>
+        </Card>
+        <Card variant="hover" onClick={() => navigate('/wh/review')} data-testid="nav-review">
+          <CardContent className="text-center space-y-2 py-4">
+            <div className="p-3 rounded-full bg-dobara-warning-light w-fit mx-auto">
+              <ClipboardCheck size={24} className="text-dobara-warning" />
+            </div>
+            <p className="text-body font-semibold">Listing Review</p>
+            <p className="text-caption text-text-muted">Approve & list devices</p>
           </CardContent>
         </Card>
       </div>

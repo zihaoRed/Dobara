@@ -8,7 +8,7 @@ import {
   Navigate,
   Outlet,
 } from 'react-router-dom';
-import { Store, Package, DollarSign, Settings as SettingsIcon } from 'lucide-react';
+import { Store, Package, DollarSign, Shield, Settings as SettingsIcon } from 'lucide-react';
 import { Sidebar, moduleMeta } from './components/Sidebar';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import {
@@ -24,6 +24,21 @@ import Activate from './pages/auth/Activate';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import RoleSelect from './pages/auth/RoleSelect';
 import Settings from './pages/Settings';
+import Dashboard from './pages/admin/Dashboard';
+import OrgMgmt from './pages/admin/OrgMgmt';
+import RoleMgmt from './pages/admin/RoleMgmt';
+import AccountMgmt from './pages/admin/AccountMgmt';
+import ConfigCenter from './pages/admin/ConfigCenter';
+import CategoryMgmt from './pages/admin/CategoryMgmt';
+import SpecEdit from './pages/admin/SpecEdit';
+import I18nMgmt from './pages/admin/I18nMgmt';
+import Reports from './pages/admin/Reports';
+import ReviewHistory from './pages/admin/ReviewHistory';
+import RecycleOrderList from './pages/admin/RecycleOrderList';
+import RecycleOrderDetail from './pages/admin/RecycleOrderDetail';
+import MallOrderList from './pages/admin/MallOrderList';
+import MallOrderDetail from './pages/admin/MallOrderDetail';
+import AdminSettings from './pages/admin/Settings';
 
 import OwnerHome from './pages/owner/OwnerHome';
 import TradeInEntry from './pages/owner/TradeInEntry';
@@ -44,6 +59,8 @@ import LabelPrint from './pages/wh/LabelPrint';
 import InventoryQuery from './pages/wh/InventoryQuery';
 import BatchOutbound from './pages/wh/BatchOutbound';
 import Stocktake from './pages/wh/Stocktake';
+import ReviewList from './pages/wh/ReviewList';
+import ReviewDetail from './pages/wh/ReviewDetail';
 
 import DbHome from './pages/db/DbHome';
 import SettlementList from './pages/db/SettlementList';
@@ -177,7 +194,7 @@ function AppShell() {
           {modules.map((mod) => {
             const meta = moduleMeta[mod];
             const Icon =
-              mod === 'owner' ? Store : mod === 'wh' ? Package : DollarSign;
+              mod === 'admin' ? Shield : mod === 'owner' ? Store : mod === 'wh' ? Package : DollarSign;
             return (
               <button
                 key={mod}
@@ -250,6 +267,24 @@ function AppRoutes() {
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/settings" element={<Settings />} />
 
+        <Route path="/admin" element={<ModuleGuard module="admin" />}>
+          <Route index element={<Dashboard />} />
+          <Route path="orgs" element={<OrgMgmt />} />
+          <Route path="roles" element={<RoleMgmt />} />
+          <Route path="accounts" element={<AccountMgmt />} />
+          <Route path="orders/recycle" element={<RecycleOrderList />} />
+          <Route path="orders/recycle/:id" element={<RecycleOrderDetail />} />
+          <Route path="orders/mall" element={<MallOrderList />} />
+          <Route path="orders/mall/:id" element={<MallOrderDetail />} />
+          <Route path="config" element={<ConfigCenter />} />
+          <Route path="category" element={<CategoryMgmt />} />
+          <Route path="category/:modelId" element={<SpecEdit />} />
+          <Route path="i18n" element={<I18nMgmt />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="review/history" element={<ReviewHistory />} />
+          <Route path="settings" element={<AdminSettings />} />
+        </Route>
+
         <Route path="/owner" element={<ModuleGuard module="owner" />}>
           <Route index element={<OwnerHome />} />
           <Route path="trade-in/history" element={<TradeInHistory />} />
@@ -274,6 +309,8 @@ function AppRoutes() {
           <Route path="batch" element={<BatchOutbound />} />
           <Route path="inventory" element={<InventoryQuery />} />
           <Route path="stocktake" element={<Stocktake />} />
+          <Route path="review" element={<ReviewList />} />
+          <Route path="review/:imei" element={<ReviewDetail />} />
         </Route>
 
         <Route path="/db" element={<ModuleGuard module="db" />}>

@@ -1,11 +1,18 @@
+// 统一角色与权限模型 — 一套账号体系，六角色，跨端（内部业务应用）
+// SA（系统管理员，含原运营能力）· OWN 店老板 · CLK 店员 · WH 库管 · DB 财务 · ENT 企业采购
+
 export type PresetRoleCode =
   | 'ROLE-SA'
-  | 'ROLE-OPS'
   | 'ROLE-OWN'
   | 'ROLE-CLK'
   | 'ROLE-WH'
   | 'ROLE-DB'
   | 'ROLE-ENT';
+
+/** 内部业务应用可登录的角色（CLK 属平板、ENT 属 C 端，不在本应用登录） */
+export type TRoleCode = 'ROLE-SA' | 'ROLE-OWN' | 'ROLE-WH' | 'ROLE-DB';
+
+export type TModule = 'admin' | 'owner' | 'wh' | 'db';
 
 export interface PermissionDef {
   code: string;
@@ -34,16 +41,20 @@ export const ATOMIC_PERMISSIONS: PermissionDef[] = [
   { code: 'report:export', label: 'Export reports' },
   { code: 'device:admin', label: 'Tablet device admin' },
   { code: 'pricing:config', label: 'Pricing configuration' },
-  { code: 'review:write', label: 'Ops review actions' },
+  { code: 'review:write', label: 'Listing review actions (warehouse)' },
+  { code: 'review:read', label: 'View review history / stats' },
 ];
 
-export const PRESET_ROLE_META: Record<
-  PresetRoleCode,
-  { name: string; description: string; defaultPerms: string[] }
-> = {
+export interface RoleMeta {
+  name: string;
+  description: string;
+  defaultPerms: string[];
+}
+
+export const PRESET_ROLE_META: Record<PresetRoleCode, RoleMeta> = {
   'ROLE-SA': {
     name: 'System Admin',
-    description: 'Ops Admin Web · global',
+    description: 'Internal Business App · global (incl. former ops)',
     defaultPerms: ATOMIC_PERMISSIONS.map((p) => p.code).filter(
       (c) =>
         ![
@@ -52,31 +63,13 @@ export const PRESET_ROLE_META: Record<
           'inventory:write',
           'outbound:write',
           'settlement:approve',
+          'review:write',
         ].includes(c)
     ),
   },
-  'ROLE-OPS': {
-    name: 'Operations',
-    description: 'Ops Admin Web',
-    defaultPerms: [
-      'admin:audit',
-      'store:staff_mgmt',
-      'store:revenue_read',
-      'inspection:read',
-      'inventory:read',
-      'order:read',
-      'order:cancel',
-      'order:refund',
-      'settlement:read',
-      'report:read',
-      'report:export',
-      'pricing:config',
-      'review:write',
-    ],
-  },
   'ROLE-OWN': {
     name: 'Store Owner',
-    description: 'Store App · bind store',
+    description: 'Internal Business App · bind store',
     defaultPerms: [
       'store:staff_mgmt',
       'store:revenue_read',
@@ -96,7 +89,7 @@ export const PRESET_ROLE_META: Record<
   },
   'ROLE-WH': {
     name: 'Warehouse',
-    description: 'Store App · bind warehouse',
+    description: 'Internal Business App · bind warehouse',
     defaultPerms: [
       'inspection:read',
       'inventory:read',
@@ -104,11 +97,13 @@ export const PRESET_ROLE_META: Record<
       'outbound:write',
       'order:read',
       'order:refund',
+      'review:write',
+      'review:read',
     ],
   },
   'ROLE-DB': {
     name: 'Finance / Settlement',
-    description: 'Store App · cross-store',
+    description: 'Internal Business App · cross-store',
     defaultPerms: [
       'store:revenue_read',
       'inspection:read',
@@ -127,44 +122,24 @@ export const PRESET_ROLE_META: Record<
   },
 };
 
-export interface RoleRecord {
-  id: string;
-  code: string;
-  name: string;
-  description: string;
-  permissions: string[];
-  preset: boolean;
-  userCount: number;
-}
+export const ROLE_TO_MODULE: Partial<Record<PresetRoleCode, TModule>> = {
+  'ROLE-SA': 'admin',
+  'ROLE-OWN': 'owner',
+  'ROLE-WH': 'wh',
+  'ROLE-DB': 'db',
+  // ROLE-CLK → 平板；ROLE-ENT → C 端，不在内部业务应用
+};
 
-const ROLE_KEY = 'dobara_ops_roles';
+export const MODULE_TO_ROLE: Record<TModule, TRoleCode> = {
+  admin: 'ROLE-SA',
+  owner: 'ROLE-OWN',
+  wh: 'ROLE-WH',
+  db: 'ROLE-DB',
+};
 
-function seedRoles(): RoleRecord[] {
-  return (Object.keys(PRESET_ROLE_META) as PresetRoleCode[]).map((code) => ({
-    id: code,
-    code,
-    name: PRESET_ROLE_META[code].name,
-    description: PRESET_ROLE_META[code].description,
-    permissions: [...PRESET_ROLE_META[code].defaultPerms],
-    preset: true,
-    userCount: code === 'ROLE-SA' ? 1 : code === 'ROLE-OPS' ? 2 : 0,
-  }));
-}
-
-export function listRoles(): RoleRecord[] {
-  try {
-    const raw = localStorage.getItem(ROLE_KEY);
-    if (!raw) {
-      const seed = seedRoles();
-      localStorage.setItem(ROLE_KEY, JSON.stringify(seed));
-      return seed;
-    }
-    return JSON.parse(raw) as RoleRecord[];
-  } catch {
-    return seedRoles();
-  }
-}
-
-export function saveRoles(roles: RoleRecord[]): void {
-  localStorage.setItem(ROLE_KEY, JSON.stringify(roles));
-}
+export const MODULE_HOME: Record<TModule, string> = {
+  admin: '/admin',
+  owner: '/owner',
+  wh: '/wh',
+  db: '/db',
+};

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, Button, Tabs, Badge } from '@dobara/ui';
 import { Download } from 'lucide-react';
-import { DataTable } from '../components/DataTable';
+import { DataTable } from '../../components/DataTable';
 
 type TabKey = 'recycle' | 'sales' | 'inventory';
 

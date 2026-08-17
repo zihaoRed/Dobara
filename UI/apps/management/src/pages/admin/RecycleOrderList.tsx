@@ -7,15 +7,19 @@ import type { IRecycleOrder, TRecycleStatus } from '@dobara/utils';
 
 /** Map API recycle statuses → PRD display labels */
 const RECYCLE_STATUS_LABEL: Record<TRecycleStatus, string> = {
+  appointment_pending: 'Appointment Pending',
   inspecting: 'Inspecting',
   pending_confirm: 'Pending Accept',
+  awaiting_redeem: 'Awaiting Redeem',
   completed: 'Completed',
   rejected: 'Rejected by User',
 };
 
 const RECYCLE_STATUS_BADGE: Record<TRecycleStatus, 'pending' | 'in_progress' | 'completed' | 'rejected'> = {
+  appointment_pending: 'pending',
   inspecting: 'in_progress',
   pending_confirm: 'pending',
+  awaiting_redeem: 'pending',
   completed: 'completed',
   rejected: 'rejected',
 };

@@ -3,8 +3,7 @@ import React from 'react';
 const apps = [
   { name: 'Consumer App', desc: 'Home · Buy · Sell · Account — marketplace prototype', url: '/consumer', color: '#064439' },
   { name: 'Store Tablet', desc: 'OTP verification · Device inspection · Photo capture · Reports', url: '/tablet', color: '#0a7a52' },
-  { name: 'Management', desc: 'Store owner · Warehouse · Finance settlement', url: '/management', color: '#c9a227' },
-  { name: 'Operations Admin', desc: 'Review · Pricing · Category · Role-based access', url: '/ops', color: '#04352c' },
+  { name: 'Management', desc: 'Admin · Store owner · Warehouse · Finance — unified internal app', url: '/management', color: '#c9a227' },
 ];
 
 export const Portal: React.FC = () => {

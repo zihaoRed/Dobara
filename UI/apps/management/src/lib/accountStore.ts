@@ -1,7 +1,6 @@
 export type AccountStatus = 'pending_activation' | 'active' | 'disabled';
 
 export type AssignableRole =
-  | 'ROLE-OPS'
   | 'ROLE-OWN'
   | 'ROLE-CLK'
   | 'ROLE-WH'
@@ -22,7 +21,7 @@ export interface AccountRecord {
   createdAt: string;
 }
 
-const ACCOUNT_KEY = 'dobara_ops_accounts';
+const ACCOUNT_KEY = 'dobara_app_accounts';
 
 const SEED: AccountRecord[] = [
   {
@@ -30,7 +29,7 @@ const SEED: AccountRecord[] = [
     name: 'Neha Gupta',
     phone: '9876543205',
     status: 'active',
-    bindings: [{ role: 'ROLE-OPS' }],
+    bindings: [{ role: 'ROLE-WH', orgCode: 'WH-DL-0001' }],
     createdAt: '2026-01-15',
   },
   {
@@ -92,9 +91,9 @@ export function saveAccounts(accounts: AccountRecord[]): void {
   localStorage.setItem(ACCOUNT_KEY, JSON.stringify(accounts));
 }
 
-/** OWN/CLK → pending_activation; OPS/DB (and ENT/WH per PRD WH is activation) — user said OPS/DB active; OWN/CLK pending */
+/** OWN/CLK/WH → pending_activation; DB/ENT → active (activation required for org-bound roles). */
 export function initialStatusForRoles(roles: AssignableRole[]): AccountStatus {
-  const needsActivation = roles.some((r) => r === 'ROLE-OWN' || r === 'ROLE-CLK');
+  const needsActivation = roles.some((r) => r === 'ROLE-OWN' || r === 'ROLE-CLK' || r === 'ROLE-WH');
   if (needsActivation) return 'pending_activation';
   return 'active';
 }
