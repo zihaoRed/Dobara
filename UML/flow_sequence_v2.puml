@@ -18,7 +18,7 @@ end box
 
 box "业务核心中台" #LightCyan
 participant "云端大脑 (中台/后台)" as Central
-participant "运营后台 (审核)" as Ops
+participant "管理员 (SA)" as SA
 end box
 
 box "区域仓储" #LightGreen
@@ -200,26 +200,26 @@ alt 用户接受报价
     end
 
     Central -> Central: 设备状态变更为 [待上架申请]
-    Central --> Ops: (23) 推送待审核上架申请
-    activate Ops
+    Central --> WHManager: (23) 推送待审核上架申请\n(本仓库审核队列)
+    activate WHManager
 
-    Ops -> Ops: (24) 运营审核影像资料\n(外观/功能/配件完整性)
+    WHManager -> WHManager: (24) 库管审核影像资料\n(外观/功能/配件完整性)
     alt 机况一致，直接上架
-        Ops -> Central: 审核通过，上传商品主图\n(从新机图片库选择或本地上传)
+        WHManager -> Central: 审核通过，上传商品主图\n(从新机图片库选择或本地上传)
         activate Central
         Central -> Central: 自动计算商城售价\n(回收价 + 平台加价率 + 市场参考价)
         Central -> Central: 设备状态 → [在库可售]\n主图 + 质检影像 → 自动上架至商城
-        Central --> Ops: 上架成功
+        Central --> WHManager: 上架成功
         deactivate Central
     else 机况不符，调整后上架
-        Ops -> Central: 调整成色等级/扣款项\n(填写调整原因)\n上传商品主图
+        WHManager -> Central: 调整成色等级/扣款项\n(填写调整原因)\n上传商品主图
         activate Central
         Central -> Central: 重新计算回收价和商城售价\n(基于调整后的成色/扣款)\n设备状态 → [在库可售]\n主图 + 质检影像 → 自动上架至商城
-        Central --> Ops: 价格已调整，上架成功
+        Central --> WHManager: 价格已调整，上架成功
         Central --> Tablet: (25) 推送调整详情至平板\n(调整项 / 原价 / 调整后价格)
         deactivate Central
     end
-    deactivate Ops
+    deactivate WHManager
     deactivate Warehouse
     deactivate Staff
 
@@ -334,13 +334,13 @@ activate Central
 Central -> Central: 校验退货条件\n(7天内/防拆标签完好/未人为损坏)
 alt 退货条件满足
     Central --> Client: 退货申请已提交\n推送退货指引(物流/到店)
-    Central --> Ops: 推送退货审核任务
+    Central --> SA: 推送退货审核任务
     deactivate Central
-    activate Ops
+    activate SA
 
-    Ops -> Ops: (R2) 运营审核退货申请\n(照片/退货原因/订单信息)
+    SA -> SA: (R2) 管理员审核退货申请\n(照片/退货原因/订单信息)
     alt 审核通过
-        Ops -> Central: 审核通过，通知用户寄回
+        SA -> Central: 审核通过，通知用户寄回
         activate Central
         Central --> Client: (R3) 退货审核通过\n请寄回设备(附物流面单)
         deactivate Central
@@ -360,17 +360,17 @@ alt 退货条件满足
         else 设备不符(人为损坏/配件缺失)
             Central -> Central: 标记争议\n扣减退款金额或拒绝退款
             Central --> Client: 退款金额已调整\n(扣减项/原因说明)
-            Central --> Ops: 推送争议处理结果
+            Central --> SA: 推送争议处理结果
         end
         deactivate Central
         deactivate Warehouse
     else 审核拒绝
-        Ops -> Central: 拒绝退货(附原因)
+        SA -> Central: 拒绝退货(附原因)
         activate Central
         Central --> Client: 退货申请未通过\n(原因说明)
         deactivate Central
     end
-    deactivate Ops
+    deactivate SA
 else 不满足退货条件
     Central --> Client: 超出退货期限\n或设备已被人为损坏
     deactivate Central

@@ -28,8 +28,8 @@ Inspecting --> InspectionRejected : 准入检查命中\n(IMEI黑名单/iCloud锁
 InspectionDone --> PendingReview : 用户接受报价+店老板核销成功\n+DB发旧机到仓库+入库确认
 InspectionDone --> InspectionRejected : 用户拒绝报价(归还设备)
 
-PendingReview --> Available : 运营审核通过\n(机况一致→直接上架+计算商城售价+上传商品主图)
-PendingReview --> Available : 运营调整后上架\n(机况不符→下调成色/补扣款→重算价格→上架)
+PendingReview --> Available : 库管审核通过\n(机况一致→直接上架+计算商城售价+上传商品主图)
+PendingReview --> Available : 库管调整后上架\n(机况不符→下调成色/补扣款→重算价格→上架)
 
 Available --> Paying : 用户下单(提交订单→5分钟独占锁)
 
@@ -40,8 +40,8 @@ Sold --> Shipped : 仓库出库(扫码核销IMEI+打印面单)
 
 Shipped --> Returning : 用户发起退货(7天内)
 
-Returning --> Refunded : 退货审核通过+仓库收货确认+退款完成
-Returning --> Shipped : 退货审核拒绝
+Returning --> Refunded : 管理员审核通过+仓库收货确认+退款完成
+Returning --> Shipped : 管理员审核拒绝
 
 @enduml
 
@@ -252,8 +252,8 @@ state ExchangeApproved : 换货审核通过\nExchangeApproved
 state ExchangeShipped : 换货已发出\nExchangeShipped
 state ExchangeReceived : 用户已收到换货\nExchangeReceived(终止)
 
-ReturnRequested --> ReturnApproved : 运营审核通过
-ReturnRequested --> ReturnRejected : 运营审核拒绝(附原因)
+ReturnRequested --> ReturnApproved : 管理员审核通过
+ReturnRequested --> ReturnRejected : 管理员审核拒绝(附原因)
 
 ReturnApproved --> PickupScheduled : 选择上门取件→预约时间
 ReturnApproved --> ReturnShipped : 选择自行寄回→上传快递单号
@@ -280,7 +280,7 @@ skinparam defaultFontSize 11
 
 title B2B 授信额度状态机 | B2B Credit Line State Machine\n(服务端CLOUD-P1-06+DB端)
 
-[*] --> Active : 运营配置授信额度
+[*] --> Active : 管理员配置授信额度
 
 state Active : 额度正常\nActive
 state Deducted : 额度已扣减\n订单待结算
@@ -293,9 +293,9 @@ Active --> Deducted : 门店授信支付下单\n可用额度−订单金额
 Deducted --> Active : DB发起结算→门店付款\n→DB确认收款→释放额度
 Deducted --> Overdue : 超过结算周期未付款\n(T+7/T+15)
 
-Overdue --> Frozen : 运营/DB手动冻结
+Overdue --> Frozen : 管理员/DB手动冻结
 
-Frozen --> Active : 门店还清逾期款\n+运营解冻额度
+Frozen --> Active : 门店还清逾期款\n+管理员解冻额度
 
 @enduml
 

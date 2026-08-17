@@ -18,7 +18,7 @@ end box
 
 box "业务核心中台\nCore Platform (Backend)" #LightCyan
 participant "云端大脑 (中台/后台)\nCloud Brain (Backend)" as Central
-participant "运营后台 (审核)\nOperations Console (Review)" as Ops
+participant "管理员 (SA)\nSystem Admin (SA)" as SA
 end box
 
 box "区域仓储\nRegional Warehouse" #LightGreen
@@ -196,26 +196,26 @@ alt 用户接受报价\nUser Accepts Quote
     end
 
     Central -> Central: 设备状态变更为 [待上架申请]\nDevice status → [Pending Listing Request]
-    Central --> Ops: (23) 推送待审核上架申请\nPush pending review listing request
-    activate Ops
+    Central --> WHManager: (23) 推送待审核上架申请 (本仓库审核队列)\nPush pending review listing request (warehouse queue)
+    activate WHManager
 
-    Ops -> Ops: (24) 运营审核影像资料 (外观/功能/配件完整性)\nOps reviews images/video (appearance/function/accessories)
+    WHManager -> WHManager: (24) 库管审核影像资料 (外观/功能/配件完整性)\nWarehouse manager reviews images/video (appearance/function/accessories)
     alt 机况一致，直接上架\nCondition Matches — List Directly
-        Ops -> Central: 审核通过，上传商品主图 (从新机图片库选择或本地上传)\nApprove, upload product main image (select from library or upload)
+        WHManager -> Central: 审核通过，上传商品主图 (从新机图片库选择或本地上传)\nApprove, upload product main image (select from library or upload)
         activate Central
         Central -> Central: 自动计算商城售价 (回收价 + 平台加价率 + 市场参考价)\nAuto-calculate marketplace price (trade-in + margin + market reference)
         Central -> Central: 设备状态 → [在库可售]\n主图 + 质检影像 → 自动上架至商城\nDevice status → [Available for Sale]\nMain image + inspection images → auto-list on marketplace
-        Central --> Ops: 上架成功\nListing successful
+        Central --> WHManager: 上架成功\nListing successful
         deactivate Central
     else 机况不符，调整后上架\nCondition Mismatch — Adjust & List
-        Ops -> Central: 调整成色等级/扣款项 (填写调整原因)\n上传商品主图\nAdjust grade/deductions (with reason)\nUpload product main image
+        WHManager -> Central: 调整成色等级/扣款项 (填写调整原因)\n上传商品主图\nAdjust grade/deductions (with reason)\nUpload product main image
         activate Central
         Central -> Central: 重新计算回收价和商城售价 (基于调整后的成色/扣款)\n设备状态 → [在库可售]\n主图 + 质检影像 → 自动上架至商城\nRecalculate trade-in & sale price (based on adjusted grade/deductions)\nDevice status → [Available for Sale]\nMain image + inspection images → auto-list on marketplace
-        Central --> Ops: 价格已调整，上架成功\nPrice adjusted, listing successful
+        Central --> WHManager: 价格已调整，上架成功\nPrice adjusted, listing successful
         Central --> Tablet: (25) 推送调整详情至平板 (调整项 / 原价 / 调整后价格)\nPush adjustment details to tablet (adjusted items / original price / new price)
         deactivate Central
     end
-    deactivate Ops
+    deactivate WHManager
     deactivate Warehouse
     deactivate Staff
 
