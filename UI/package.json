@@ -11,6 +11,9 @@
     "build:preview": "pnpm build && mkdir -p dist && cp -r apps/portal/dist/* dist/ && mkdir -p dist/consumer && cp -r apps/consumer/dist/* dist/consumer/ && mkdir -p dist/tablet && cp -r apps/store-tablet/dist/* dist/tablet/ && mkdir -p dist/management && cp -r apps/management/dist/* dist/management/",
     "lint": "pnpm -r lint"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  },
   "engines": {
     "node": ">=18"
   }
