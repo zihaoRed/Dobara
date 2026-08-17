@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Badge } from '@dobara/ui';
+import { Card, Button, EstimateSearchPanel } from '@dobara/ui';
 import { ArrowRight, Smartphone, Info, MapPin, Clock } from 'lucide-react';
 import type { IBrand, IModel, IStore } from '@dobara/utils';
 
@@ -83,6 +83,7 @@ export function Appointment() {
   const [selRepairs, setSelRepairs] = useState<string[]>([]);
   const [selIssues, setSelIssues] = useState<string[]>([]);
   const [estimate, setEstimate] = useState<number | null>(null);
+  const [searching, setSearching] = useState(false);
   const [city, setCity] = useState('Mumbai');
   const [selStore, setSelStore] = useState('');
   const [selDate, setSelDate] = useState('');
@@ -123,6 +124,11 @@ export function Appointment() {
   }, [selBrand]);
 
   const selectedModel = models.find((m) => m.id === selModel);
+  const deviceLabel = [
+    brands.find((b) => b.id === selBrand)?.name,
+    selectedModel?.name,
+    selStorage,
+  ].filter(Boolean).join(' · ') || 'this device';
 
   const calculateEstimate = () => {
     // Single estimated offer from self-reported condition (demo rule engine).
@@ -143,7 +149,7 @@ export function Appointment() {
     price -= realIssues.length * 800;
     setEstimate(Math.max(3000, Math.round(price / 100) * 100));
     setSelDate(nextDays[0] || '');
-    setStep(3);
+    setSearching(true);
   };
 
   const handleSubmit = async () => {
@@ -200,7 +206,14 @@ export function Appointment() {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => (step === 1 ? navigate('/sell') : setStep(step - 1))}
+        onClick={() => {
+          if (searching) {
+            setSearching(false);
+            return;
+          }
+          if (step === 1) navigate('/sell');
+          else setStep(step - 1);
+        }}
       >
         ← Back
       </Button>
@@ -212,7 +225,7 @@ export function Appointment() {
           <React.Fragment key={s}>
             <div
               className={`w-8 h-8 rounded-full flex items-center justify-center text-caption font-semibold ${
-                step >= s ? 'bg-primary-500 text-white' : 'bg-surface-high text-text-muted'
+                step >= s || (searching && s === 2) ? 'bg-primary-500 text-white' : 'bg-surface-high text-text-muted'
               }`}
             >
               {s}
@@ -314,8 +327,29 @@ export function Appointment() {
         </Card>
       )}
 
+      {searching && estimate != null && (
+        <div className="space-y-3" data-testid="estimate-searching">
+          <div>
+            <h2 className="text-h4 font-heading">Reading the market</h2>
+            <p className="text-caption text-text-muted mt-1">
+              Pulling live-style buyback boards for {deviceLabel}. Tap a source anytime.
+            </p>
+          </div>
+          <EstimateSearchPanel
+            running
+            deviceLabel={deviceLabel}
+            estimate={estimate}
+            durationMs={5000}
+            onComplete={() => {
+              setSearching(false);
+              setStep(3);
+            }}
+          />
+        </div>
+      )}
+
       {/* Step 2: Condition */}
-      {step === 2 && (
+      {step === 2 && !searching && (
         <Card>
           <h2 className="text-h4 font-heading mb-4">Device Condition</h2>
           <div className="space-y-4">
@@ -469,8 +503,11 @@ export function Appointment() {
                 ₹{new Intl.NumberFormat('en-IN').format(estimate)}
               </p>
               <p className="text-caption text-text-muted mt-1">
-                Based on your answers. Final price after in-store inspection.
+                Median of Cashify / CeX / Flipkart, then your reported condition. Final price after in-store inspection.
               </p>
+            </div>
+            <div className="mt-4 pt-4 border-t border-border">
+              <EstimateSearchPanel compact deviceLabel={deviceLabel} estimate={estimate} running={false} />
             </div>
           </Card>
 

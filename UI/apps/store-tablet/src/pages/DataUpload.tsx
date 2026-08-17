@@ -48,7 +48,7 @@ export default function DataUpload() {
       const timer = setTimeout(() => {
         markStepComplete(sessionId, 'report');
         navigate(`/session/${sessionId}/report`);
-      }, 1000);
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [progress, failed, sessionId, navigate]);

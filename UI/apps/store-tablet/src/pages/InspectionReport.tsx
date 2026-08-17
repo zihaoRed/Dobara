@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Card, CardHeader, CardContent, GradeBadge, PriceDisplay, Countdown } from '@dobara/ui';
+import { Button, Card, CardHeader, CardContent, GradeBadge, PriceDisplay, Countdown, EstimateSearchPanel } from '@dobara/ui';
 import { Smartphone, Cpu, Camera, ChevronDown, ChevronUp } from 'lucide-react';
 import { imeiLast4 } from '@dobara/utils';
 import { markStepComplete } from '../lib/sessionProgress';
@@ -23,6 +23,7 @@ export default function InspectionReport() {
   const [loading, setLoading] = useState(true);
   const [hwOpen, setHwOpen] = useState(false);
   const [expired, setExpired] = useState(false);
+  const [radarDone, setRadarDone] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -67,6 +68,26 @@ export default function InspectionReport() {
     );
   }
   if (!report) return null;
+
+  const deviceLabel = `${report.deviceSummary.brand} ${report.deviceSummary.model}`;
+
+  if (!radarDone) {
+    return (
+      <div className="p-6" data-testid="estimate-searching">
+        <h1 className="text-h3 font-heading text-text-primary mb-1">Generating offer</h1>
+        <p className="text-body text-text-body mb-5">
+          Pricing engine is reading market boards for {deviceLabel}. Tap a source to inspect it.
+        </p>
+        <EstimateSearchPanel
+          running
+          deviceLabel={deviceLabel}
+          estimate={report.price}
+          durationMs={5000}
+          onComplete={() => setRadarDone(true)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`p-6 ${expired ? 'opacity-60 pointer-events-none' : ''}`} data-testid="tablet-report">
@@ -157,6 +178,9 @@ export default function InspectionReport() {
               />
               <p className="text-[11px] text-text-muted mt-1">Offer expires in</p>
             </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-border">
+            <EstimateSearchPanel compact running={false} deviceLabel={deviceLabel} estimate={report.price} />
           </div>
         </CardContent>
       </Card>

@@ -20,3 +20,5 @@ export { DeviceCard } from './components/device/DeviceCard';
 export { GradeBadge } from './components/device/GradeBadge';
 export { StatusBadge } from './components/device/StatusBadge';
 export { PriceDisplay } from './components/device/PriceDisplay';
+export { EstimateSearchPanel } from './components/device/EstimateSearchPanel';
+export { MARKET_SOURCES, quotesForEstimate } from './components/device/marketSources';

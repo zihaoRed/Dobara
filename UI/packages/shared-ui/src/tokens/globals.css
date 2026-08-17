@@ -133,3 +133,62 @@ a, button, input, select, textarea {
   background: rgba(6, 68, 57, 0.15);
   color: var(--color-text-primary);
 }
+
+/* ── Estimate search (Doubao-style market radar) ── */
+@keyframes dobara-radar-sweep {
+  0% { transform: translateY(-120%); opacity: 0; }
+  18% { opacity: 0.55; }
+  100% { transform: translateY(220%); opacity: 0; }
+}
+@keyframes dobara-pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.55); opacity: 0.45; }
+}
+@keyframes dobara-source-in {
+  0% { opacity: 0; transform: translateY(10px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes dobara-thought-in {
+  0% { opacity: 0; transform: translateX(-6px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes dobara-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+@keyframes dobara-cursor {
+  0%, 45% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.dobara-radar-sweep {
+  animation: dobara-radar-sweep 1.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+.dobara-pulse-dot {
+  animation: dobara-pulse-dot 1.2s ease-in-out infinite;
+}
+.dobara-source-in {
+  animation: dobara-source-in 0.42s cubic-bezier(0.19, 1, 0.22, 1) both;
+}
+.dobara-thought-in {
+  animation: dobara-thought-in 0.32s ease-out both;
+}
+.dobara-shimmer {
+  background-image: linear-gradient(90deg, transparent 0%, rgba(201, 162, 39, 0.18) 45%, transparent 80%);
+  background-size: 220% 100%;
+  animation: dobara-shimmer 1.1s linear infinite;
+}
+.dobara-cursor {
+  animation: dobara-cursor 1s steps(1, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dobara-radar-sweep,
+  .dobara-pulse-dot,
+  .dobara-source-in,
+  .dobara-thought-in,
+  .dobara-shimmer,
+  .dobara-cursor {
+    animation: none;
+  }
+}
