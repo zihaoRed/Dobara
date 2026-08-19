@@ -40,6 +40,13 @@ const RefurbishUpload: React.FC = () => {
   }
 
   if (done && result) {
+    const diffPct = result.refurbPriceDiffPct ?? 0;
+    const diffBadge =
+      Math.abs(diffPct) > 15
+        ? <Badge variant="error">Major diff {diffPct}%</Badge>
+        : Math.abs(diffPct) > 5
+          ? <Badge variant="warning">Price changed {diffPct}%</Badge>
+          : <Badge variant="success">Within 5%</Badge>;
     return (
       <Card className="text-center py-6" data-testid="refurbish-done">
         <CardContent className="space-y-3">
@@ -52,6 +59,18 @@ const RefurbishUpload: React.FC = () => {
           <p className="text-h4 font-heading text-primary-600">
             Recalculated offer ₹{result.offerPrice.toLocaleString('en-IN')}
           </p>
+          <div className="flex justify-center">{diffBadge}</div>
+          {(result.refurbHistory?.length || 0) > 1 && (
+            <div className="text-left text-caption text-text-muted space-y-1">
+              <p className="font-semibold text-text-secondary">Version history</p>
+              {result.refurbHistory!.map((v, i) => (
+                <div key={i} className="flex justify-between border-b border-border/50 last:border-0">
+                  <span>{v.source === 'store' ? 'Store v1' : `Refurbish v${i + 1}`} · {new Date(v.at).toLocaleDateString()}</span>
+                  <span>{v.grade} · ₹{v.offerPrice.toLocaleString('en-IN')}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <Button onClick={() => navigate('/wh')}>Back to warehouse</Button>
         </CardContent>
       </Card>

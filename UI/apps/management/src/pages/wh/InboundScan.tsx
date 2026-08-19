@@ -1,8 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, CardHeader, CardContent, Button, Input, Badge } from '@dobara/ui';
-import { ArrowLeft, ScanLine, CheckCircle, AlertCircle } from 'lucide-react';
-import { confirmInbound, lookupForInbound, statusLabel, type IWhDevice } from '../../lib/whStore';
+import { Card, CardHeader, CardContent, Button, Input, Badge, Modal } from '@dobara/ui';
+import { ArrowLeft, ScanLine, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
+import {
+  confirmInbound,
+  lookupForInbound,
+  markInboundException,
+  statusLabel,
+  type IWhDevice,
+} from '../../lib/whStore';
+
+const EXCEPTION_REASONS = [
+  'Grade mismatch vs QC report',
+  'Missing accessories',
+  'IMEI label mismatch',
+  'Transit damage',
+  'Other',
+];
 
 const InboundScan: React.FC = () => {
   const navigate = useNavigate();
@@ -12,6 +26,10 @@ const InboundScan: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [exceptionOpen, setExceptionOpen] = useState(false);
+  const [exceptionReason, setExceptionReason] = useState(EXCEPTION_REASONS[0]);
+  const [exceptionNote, setExceptionNote] = useState('');
+  const [exceptionDone, setExceptionDone] = useState(false);
 
   useEffect(() => {
     const pre = params.get('prefill');
@@ -23,6 +41,7 @@ const InboundScan: React.FC = () => {
     setError('');
     setDevice(null);
     setConfirmed(false);
+    setExceptionDone(false);
     await new Promise((r) => setTimeout(r, 300));
     const result = lookupForInbound(code);
     setLoading(false);
@@ -46,6 +65,37 @@ const InboundScan: React.FC = () => {
     setDevice(result.device);
     setConfirmed(true);
   };
+
+  const handleMarkException = () => {
+    if (!device) return;
+    const result = markInboundException(device.imei, exceptionReason, exceptionNote);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setExceptionOpen(false);
+    setExceptionNote('');
+    setDevice(null);
+    setCode('');
+    setExceptionDone(true);
+  };
+
+  if (exceptionDone) {
+    return (
+      <Card className="text-center py-6" data-testid="inbound-exception-done">
+        <CardContent className="space-y-3">
+          <AlertTriangle size={48} className="text-dobara-warning mx-auto" />
+          <h3 className="text-h3 font-heading">Inbound exception flagged</h3>
+          <p className="text-body text-text-secondary">
+            Device moved to <Badge variant="warning">Inbound exception</Badge> — admin notified (demo).
+          </p>
+          <Button variant="primary" onClick={() => { setExceptionDone(false); setDevice(null); setCode(''); }}>
+            Scan another
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (confirmed && device) {
     return (
@@ -99,7 +149,8 @@ const InboundScan: React.FC = () => {
           />
           <p className="text-caption text-text-muted">
             Demo block: <span className="font-mono">350000000000099</span> (inspecting) ·{' '}
-            <span className="font-mono">350000000000088</span> (quote pending)
+            <span className="font-mono">350000000000088</span> (quote pending) ·{' '}
+            <span className="font-mono">350000000000089</span> (wrong warehouse)
           </p>
           <Button
             variant="primary"
@@ -148,9 +199,54 @@ const InboundScan: React.FC = () => {
             >
               Confirm inbound
             </Button>
+            <Button
+              variant="ghost"
+              size="lg"
+              className="w-full text-dobara-warning"
+              icon={<AlertTriangle size={18} />}
+              data-testid="inbound-mark-exception"
+              onClick={() => setExceptionOpen(true)}
+            >
+              Mark exception
+            </Button>
           </CardContent>
         </Card>
       )}
+
+      <Modal open={exceptionOpen} onClose={() => setExceptionOpen(false)} title="Mark inbound exception" size="md">
+        <div className="space-y-3">
+          <label className="block text-caption text-text-muted">
+            Exception reason
+            <select
+              className="mt-1 block w-full h-10 px-2 rounded-md border border-border bg-surface text-body"
+              value={exceptionReason}
+              onChange={(e) => setExceptionReason(e.target.value)}
+              data-testid="exception-reason"
+            >
+              {EXCEPTION_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </label>
+          <label className="block text-caption text-text-muted">
+            Note (optional)
+            <textarea
+              className="mt-1 w-full min-h-[80px] p-2 rounded-md border border-border bg-surface text-body"
+              value={exceptionNote}
+              onChange={(e) => setExceptionNote(e.target.value)}
+              placeholder="Describe the mismatch (e.g. charger missing, body dent not in report)"
+              data-testid="exception-note"
+            />
+          </label>
+          <p className="text-caption text-text-muted">
+            Device will enter <b>Inbound exception</b> and admin will be notified.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="secondary" className="flex-1" onClick={() => setExceptionOpen(false)}>Cancel</Button>
+            <Button variant="primary" className="flex-1" data-testid="exception-submit" onClick={handleMarkException}>
+              Submit exception
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

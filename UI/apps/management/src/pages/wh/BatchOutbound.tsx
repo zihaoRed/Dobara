@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Card, CardContent, CardHeader, Button, Input, Badge } from '@dobara/ui';
+import { Card, CardContent, CardHeader, Button, Input, Badge, Modal } from '@dobara/ui';
 import {
   ArrowLeft,
   ArrowRight,
@@ -12,19 +12,23 @@ import {
   ScanLine,
   Printer,
   Package,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   batchCounts,
+  confirmBatchOutbound,
   getOrInitBatchProgress,
   getPickOrder,
   listB2BPickOrders,
+  markBatchLineMissing,
   retryFailedBatch,
   scanBatchImei,
   setBatchPaused,
+  type IBatchConfirmResult,
   type IBatchProgress,
 } from '../../lib/whStore';
 
-/** WH-P1-01 — B2B batch outbound with pause / retry / label gate */
+/** WH-P1-01 — B2B batch outbound with pause / retry / missing-mark / confirm summary */
 const BatchOutbound: React.FC = () => {
   const { orderId } = useParams<{ orderId?: string }>();
   if (!orderId) return <BatchOrderList />;
@@ -59,7 +63,7 @@ function BatchOrderList() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-body font-semibold">{order.orderId}</span>
                 <Badge variant="neutral">B2B</Badge>
-                <Badge variant={order.status === 'done' ? 'success' : 'warning'}>{order.status}</Badge>
+                <Badge variant={order.status === 'done' ? 'success' : order.status === 'partial' ? 'warning' : 'warning'}>{order.status}</Badge>
               </div>
               <p className="text-body text-text-secondary">
                 {order.deviceSummary} · {order.quantity} units
@@ -85,6 +89,8 @@ function BatchScanSession({ orderId }: { orderId: string }) {
   const [scanInput, setScanInput] = useState('');
   const [error, setError] = useState('');
   const [lastOk, setLastOk] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmResult, setConfirmResult] = useState<IBatchConfirmResult | null>(null);
 
   if (!progress || !orderMeta || orderMeta.channel !== 'B2B') {
     return (
@@ -96,8 +102,8 @@ function BatchScanSession({ orderId }: { orderId: string }) {
   }
 
   const counts = batchCounts(progress);
-  const allScanned = counts.total > 0 && counts.scanned === counts.total;
   const pct = counts.total ? Math.round((counts.scanned / counts.total) * 100) : 0;
+  const pendingLeft = counts.pending > 0;
 
   const handleScan = () => {
     setError('');
@@ -124,6 +130,17 @@ function BatchScanSession({ orderId }: { orderId: string }) {
       setProgress({ ...next });
       setError('');
     }
+  };
+
+  const onMarkMissing = (imei: string) => {
+    const next = markBatchLineMissing(orderId, imei);
+    if (next) setProgress({ ...next });
+  };
+
+  const onConfirmBatch = () => {
+    const result = confirmBatchOutbound(orderId);
+    if (result) setConfirmResult(result);
+    setConfirmOpen(false);
   };
 
   return (
@@ -159,7 +176,7 @@ function BatchScanSession({ orderId }: { orderId: string }) {
         </CardContent>
       </Card>
 
-      {!allScanned && (
+      {pendingLeft && (
         <Card>
           <CardHeader>
             <h3 className="text-h4 font-heading">Scan IMEI</h3>
@@ -228,11 +245,57 @@ function BatchScanSession({ orderId }: { orderId: string }) {
         </Card>
       )}
 
-      {allScanned && (
-        <Card data-testid="batch-complete">
+      {!pendingLeft && !confirmResult && (
+        <Card data-testid="batch-summary">
+          <CardContent className="space-y-3 py-4">
+            <CheckCircle size={40} className="text-primary-500 mx-auto" />
+            <p className="text-h4 font-heading text-center">Scan complete</p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-h4 font-heading text-primary-600">{counts.scanned}</p>
+                <p className="text-eyebrow text-text-muted">Success</p>
+              </div>
+              <div>
+                <p className="text-h4 font-heading text-dobara-error">{counts.failed}</p>
+                <p className="text-eyebrow text-text-muted">Failed</p>
+              </div>
+              <div>
+                <p className="text-h4 font-heading">{counts.pending}</p>
+                <p className="text-eyebrow text-text-muted">Pending</p>
+              </div>
+            </div>
+            {counts.failed > 0 && (
+              <p className="text-caption text-text-muted text-center">
+                Failed lines can be retried or skipped — only successful lines will ship.
+              </p>
+            )}
+            <Button
+              variant="primary"
+              size="lg"
+              className="w-full"
+              icon={<CheckCircle size={18} />}
+              data-testid="batch-confirm"
+              onClick={() => setConfirmOpen(true)}
+            >
+              Confirm batch outbound ({counts.scanned})
+            </Button>
+            {counts.failed > 0 && (
+              <Button variant="ghost" className="w-full" icon={<RotateCcw size={16} />} onClick={onRetry}>
+                Retry failed ({counts.failed})
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {confirmResult && (
+        <Card data-testid="batch-confirmed">
           <CardContent className="space-y-3 py-4 text-center">
             <CheckCircle size={40} className="text-primary-500 mx-auto" />
-            <p className="text-h4 font-heading">All IMEIs scanned</p>
+            <p className="text-h4 font-heading">{confirmResult.partial ? 'Partially shipped' : 'Batch shipped'}</p>
+            <p className="text-body text-text-secondary">
+              {confirmResult.shipped} shipped · {confirmResult.failed} failed · {confirmResult.pending} pending
+            </p>
             <Button
               variant="primary"
               size="lg"
@@ -241,7 +304,7 @@ function BatchScanSession({ orderId }: { orderId: string }) {
               data-testid="batch-print-label"
               onClick={() => navigate(`/wh/picking/${orderId}/label`)}
             >
-              Print shipping label
+              Print shipping labels
             </Button>
           </CardContent>
         </Card>
@@ -277,6 +340,16 @@ function BatchScanSession({ orderId }: { orderId: string }) {
                   <p className="text-eyebrow text-dobara-error truncate">{line.failReason}</p>
                 )}
               </div>
+              {line.status === 'pending' && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  data-testid={`batch-missing-${line.imei}`}
+                  onClick={() => onMarkMissing(line.imei)}
+                >
+                  Missing
+                </Button>
+              )}
               <Badge
                 variant={
                   line.status === 'scanned' ? 'success' : line.status === 'failed' ? 'error' : 'neutral'
@@ -288,6 +361,24 @@ function BatchScanSession({ orderId }: { orderId: string }) {
           ))}
         </CardContent>
       </Card>
+
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Confirm batch outbound" size="sm">
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 p-3 bg-surface-low rounded-md">
+            <AlertTriangle size={20} className="text-dobara-warning shrink-0 mt-0.5" />
+            <p className="text-body text-text-secondary">
+              Confirm {counts.scanned} device(s) as outbound. This cannot be undone.
+              {counts.failed > 0 && ' Failed lines will remain in the outbound task.'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" className="flex-1" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+            <Button variant="primary" className="flex-1" data-testid="batch-confirm-submit" onClick={onConfirmBatch}>
+              Confirm
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

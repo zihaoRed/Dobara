@@ -56,7 +56,9 @@ import PickingList from './pages/wh/PickingList';
 import PickingDetail from './pages/wh/PickingDetail';
 import PickingScan from './pages/wh/PickingScan';
 import LabelPrint from './pages/wh/LabelPrint';
+import PrinterSettings from './pages/wh/PrinterSettings';
 import InventoryQuery from './pages/wh/InventoryQuery';
+import InventoryDetail from './pages/wh/InventoryDetail';
 import BatchOutbound from './pages/wh/BatchOutbound';
 import Stocktake from './pages/wh/Stocktake';
 import ReviewList from './pages/wh/ReviewList';
@@ -306,8 +308,10 @@ function AppRoutes() {
           <Route path="picking/:orderId/scan" element={<PickingScan />} />
           <Route path="picking/:orderId/label" element={<LabelPrint />} />
           <Route path="picking/:orderId" element={<PickingDetail />} />
+          <Route path="printer" element={<PrinterSettings />} />
           <Route path="batch" element={<BatchOutbound />} />
           <Route path="inventory" element={<InventoryQuery />} />
+          <Route path="inventory/:imei" element={<InventoryDetail />} />
           <Route path="stocktake" element={<Stocktake />} />
           <Route path="review" element={<ReviewList />} />
           <Route path="review/:imei" element={<ReviewDetail />} />

@@ -1,23 +1,39 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, Badge, Button, Input, Modal } from '@dobara/ui';
-import { ArrowLeft, Search } from 'lucide-react';
-import { getDevice, inventoryBrands, queryInventory, type IWhDevice } from '../../lib/whStore';
+import { Card, CardContent, Button, Input, GradeBadge } from '@dobara/ui';
+import { ArrowLeft, Search, RefreshCw } from 'lucide-react';
+import {
+  inventoryBrands,
+  inventoryStorages,
+  inventoryStores,
+  queryInventory,
+} from '../../lib/whStore';
 
-/** WH-P0-05 */
+/** WH-P0-05 — multi-dimension stock query, FIFO list, detail page on click */
 const InventoryQuery: React.FC = () => {
   const navigate = useNavigate();
   const [imei, setImei] = useState('');
   const [brand, setBrand] = useState('');
   const [model, setModel] = useState('');
   const [grade, setGrade] = useState('');
-  const [detail, setDetail] = useState<IWhDevice | null>(null);
+  const [storage, setStorage] = useState('');
+  const [store, setStore] = useState('');
+  const [shelf, setShelf] = useState('');
 
   const brands = useMemo(() => inventoryBrands(), []);
+  const storages = useMemo(() => inventoryStorages(), []);
+  const stores = useMemo(() => inventoryStores(), []);
+
   const results = useMemo(
-    () => queryInventory({ imei, brand: brand || undefined, model, grade: grade || undefined }),
-    [imei, brand, model, grade],
+    () => queryInventory({ imei, brand: brand || undefined, model, grade: grade || undefined, storage: storage || undefined, storeName: store || undefined, shelfCode: shelf || undefined }),
+    [imei, brand, model, grade, storage, store, shelf],
   );
+
+  const daysInStock = (iso?: string): string => {
+    if (!iso) return '—';
+    const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+    return `${d} days`;
+  };
 
   return (
     <div className="space-y-4" data-testid="inventory-query">
@@ -27,7 +43,7 @@ const InventoryQuery: React.FC = () => {
         </button>
         <div>
           <h2 className="text-h3 font-heading">Inventory</h2>
-          <p className="text-caption text-text-muted">IMEI / brand / model / grade · {results.length} hits</p>
+          <p className="text-caption text-text-muted">WH-P0-05 · FIFO · {results.length} hits</p>
         </div>
       </div>
 
@@ -50,9 +66,7 @@ const InventoryQuery: React.FC = () => {
                 className="h-[40px] px-3 rounded-md border border-border bg-surface-container text-body"
               >
                 <option value="">All</option>
-                {brands.map((b) => (
-                  <option key={b} value={b}>{b}</option>
-                ))}
+                {brands.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
             <div className="flex flex-col gap-1">
@@ -64,43 +78,85 @@ const InventoryQuery: React.FC = () => {
                 className="h-[40px] px-3 rounded-md border border-border bg-surface-container text-body"
               >
                 <option value="">All</option>
-                {['A', 'B', 'C', 'D'].map((g) => (
-                  <option key={g} value={g}>{g}</option>
-                ))}
+                {['A', 'B', 'C', 'D'].map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-caption font-semibold text-text-secondary">Storage</label>
+              <select
+                data-testid="inv-storage"
+                value={storage}
+                onChange={(e) => setStorage(e.target.value)}
+                className="h-[40px] px-3 rounded-md border border-border bg-surface-container text-body"
+              >
+                <option value="">All</option>
+                {storages.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-caption font-semibold text-text-secondary">Source store</label>
+              <select
+                data-testid="inv-store"
+                value={store}
+                onChange={(e) => setStore(e.target.value)}
+                className="h-[40px] px-3 rounded-md border border-border bg-surface-container text-body"
+              >
+                <option value="">All</option>
+                {stores.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>
-          <Input
-            data-testid="inv-model"
-            label="Model"
-            value={model}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setModel(e.target.value)}
-            placeholder="e.g. iPhone"
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              data-testid="inv-model"
+              label="Model"
+              value={model}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setModel(e.target.value)}
+              placeholder="e.g. iPhone"
+            />
+            <Input
+              data-testid="inv-shelf"
+              label="Shelf"
+              value={shelf}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setShelf(e.target.value)}
+              placeholder="e.g. A-03"
+            />
+          </div>
         </CardContent>
       </Card>
 
       <div className="space-y-2">
-        {results.map((d) => (
-          <Card
-            key={d.imei}
-            variant="hover"
-            data-testid={`inv-row-${d.imei}`}
-            onClick={() => setDetail(getDevice(d.imei) || d)}
-          >
-            <CardContent className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="text-body font-semibold">{d.brand} {d.model}</p>
-                <p className="text-caption font-mono text-text-muted">{d.imei}</p>
-                <p className="text-caption text-text-body">{d.color} · {d.storage}</p>
-              </div>
-              <div className="text-right shrink-0">
-                <Badge variant="accent">{d.grade}</Badge>
-                <p className="text-caption font-semibold mt-1">₹{d.offerPrice.toLocaleString('en-IN')}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {results.map((d) => {
+          const refurbished = (d.refurbHistory?.length || 0) > 1;
+          const mall = d.mallPrice ?? Math.round(d.offerPrice * 1.35);
+          return (
+            <Card
+              key={d.imei}
+              variant="hover"
+              data-testid={`inv-row-${d.imei}`}
+              onClick={() => navigate(`/wh/inventory/${d.imei}`)}
+            >
+              <CardContent>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-body font-semibold">{d.brand} {d.model}</p>
+                      {refurbished && <RefreshCw size={13} className="text-dobara-info" />}
+                    </div>
+                    <p className="text-caption font-mono text-text-muted">{d.imei}</p>
+                    <p className="text-caption text-text-body">{d.color} · {d.storage} · {d.storeName}</p>
+                    <p className="text-caption text-text-muted">Shelf {d.shelfCode || '—'} · In stock {daysInStock(d.inboundAt)}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <GradeBadge grade={d.grade} />
+                    <p className="text-caption font-semibold mt-1">₹{d.offerPrice.toLocaleString('en-IN')}</p>
+                    <p className="text-eyebrow text-text-muted">Mall ₹{mall.toLocaleString('en-IN')}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
         {results.length === 0 && (
           <p className="text-center text-text-muted py-6 flex flex-col items-center gap-2">
             <Search size={20} />
@@ -109,19 +165,9 @@ const InventoryQuery: React.FC = () => {
         )}
       </div>
 
-      <Modal open={!!detail} onClose={() => setDetail(null)} title={detail ? `${detail.brand} ${detail.model}` : ''} size="md">
-        {detail && (
-          <div className="space-y-2 text-body">
-            <p className="font-mono text-caption">{detail.imei}</p>
-            <p>{detail.color} · {detail.storage}</p>
-            <p>Grade <Badge variant="accent">{detail.grade}</Badge></p>
-            <p>Offer ₹{detail.offerPrice.toLocaleString('en-IN')}</p>
-            <p className="text-caption text-text-muted">Status: {detail.status}</p>
-            <p className="text-caption text-text-muted">HW faults: {detail.hardware.filter((h) => !h.ok).length}</p>
-            <Button className="w-full mt-2" variant="secondary" onClick={() => setDetail(null)}>Close</Button>
-          </div>
-        )}
-      </Modal>
+      <Button variant="secondary" className="w-full" onClick={() => navigate('/wh/stocktake')}>
+        Start stocktake from inventory
+      </Button>
     </div>
   );
 };

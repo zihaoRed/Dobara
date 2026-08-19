@@ -18,7 +18,8 @@ export type TDeviceLifecycle =
   | 'pending_ops_review' // submitted to ops — not mall yet
   | 'in_stock'
   | 'shipped'
-  | 'rejected';
+  | 'rejected'
+  | 'inbound_exception'; // physical mismatch during inbound — SA intervention
 
 export type TGrade = 'A' | 'B' | 'C' | 'D';
 
@@ -36,6 +37,30 @@ export interface IAppearanceCheck {
   selected: number;
 }
 
+/** WH-P0-00 accessory completeness check (SIM tray / charger / cable / box) */
+export interface IAccessoryCheck {
+  id: string;
+  item: string;
+  present: boolean;
+}
+
+/** WH-P0-00 versioned QC snapshot — store v1 vs each refurbish pass */
+export interface IRefurbHistoryEntry {
+  grade: TGrade;
+  offerPrice: number;
+  mallPrice: number;
+  at: string;
+  source: 'store' | 'refurbish';
+}
+
+/** WH-P0-01 inbound exception record */
+export interface IInboundException {
+  reason: string;
+  note?: string;
+  at: string;
+  operator: string;
+}
+
 export interface IWhDevice {
   imei: string;
   sessionId: string;
@@ -51,8 +76,15 @@ export interface IWhDevice {
   photos: string[];
   hardware: IHwCheck[];
   appearance: IAppearanceCheck[];
+  accessories?: IAccessoryCheck[];
   refurbDecision?: 'pass' | 'refurbish' | null;
   inboundAt?: string;
+  inboundOperator?: string;
+  refurbHistory?: IRefurbHistoryEntry[];
+  refurbPriceDiffPct?: number;
+  exception?: IInboundException;
+  shelfCode?: string;
+  mallPrice?: number;
 }
 
 export type TChannel = 'B2C' | 'B2B' | 'AFTERSALE';
@@ -80,7 +112,7 @@ export interface IPickOrder {
   quantity: number;
   address: string;
   city: string;
-  status: 'ready' | 'picking' | 'done';
+  status: 'ready' | 'picking' | 'done' | 'partial';
   lines: IPickLine[];
   paidAt: string;
   /** B2C = paidAt + 24h; others set per channel policy */
@@ -103,6 +135,11 @@ const STOCK_KEY = 'dobara_mgmt_wh_stock';
 const BATCH_KEY = 'dobara_mgmt_wh_batch';
 const STOCKTAKE_KEY = 'dobara_mgmt_wh_stocktake';
 const DEMO_WH_USER = 'wh-demo';
+/** The warehouse this demo WH session is bound to (ROLE-WH org). */
+export const CURRENT_WH_ID = 'WH-MH-0001';
+export const CURRENT_WH_NAME = 'Mumbai Central Warehouse';
+/** Map ops-review `warehouseId` (wh-mum) → WH org id used by this console. */
+export const CURRENT_WH_OPS_ID = 'wh-mum';
 
 export type TBatchLineStatus = 'pending' | 'scanned' | 'failed';
 
@@ -131,13 +168,30 @@ export interface IStocktakeLine {
   status: TStocktakeLineStatus;
 }
 
+export type TStocktakeScopeType = 'all' | 'brand' | 'grade';
+
 export interface IStocktakeSession {
   id: string;
   warehouseId: string;
   createdAt: string;
-  status: 'in_progress' | 'confirmed';
+  operator: string;
+  scopeType: TStocktakeScopeType;
+  scopeLabel: string;
+  status: 'in_progress' | 'pending_review' | 'confirmed';
   lines: IStocktakeLine[];
   confirmedAt?: string;
+  reviewedAt?: string;
+}
+
+export interface IStocktakeDiff {
+  bookTotal: number;
+  scanned: number;
+  missing: number;
+  extra: number;
+  diff: number;
+  diffRatePct: number;
+  missingImeis: string[];
+  extraImeis: string[];
 }
 
 function isoOffsetHours(hours: number): string {
@@ -155,11 +209,23 @@ function syncItems(lines: IPickLine[]): IPickItem[] {
 const DEFAULT_HW = (): IHwCheck[] => [
   { id: 'bat', name: 'Battery Health', ok: true, note: '87%' },
   { id: 'touch', name: 'Screen Touch', ok: true, note: 'All zones OK' },
-  { id: 'sensors', name: 'Sensors', ok: true, note: 'All responsive' },
-  { id: 'storage', name: 'Storage', ok: true, note: '128GB OK' },
+  { id: 'deadpixel', name: 'Dead Pixels', ok: true, note: 'Pure-color clean' },
   { id: 'cam', name: 'Camera', ok: false, note: 'Rear cam blur' },
-  { id: 'audio', name: 'Speaker/Mic', ok: true, note: 'Both OK' },
-  { id: 'btn', name: 'Buttons', ok: true, note: 'All responsive' },
+  { id: 'buttons', name: 'Buttons', ok: true, note: 'Vol/Power 5× OK' },
+  { id: 'biometric', name: 'Face / Touch ID', ok: true, note: 'Unlock OK' },
+  { id: 'audio', name: 'Speaker / Mic', ok: true, note: 'Both OK' },
+  { id: 'sensors', name: 'Sensors', ok: true, note: 'All responsive' },
+  { id: 'vibration', name: 'Vibration Motor', ok: true, note: 'Normal' },
+  { id: 'wireless', name: 'Wi-Fi / BT / GPS', ok: true, note: 'All connect' },
+  { id: 'cellular', name: 'Cellular Call', ok: true, note: 'Call quality OK' },
+  { id: 'teardown', name: 'Board / Water Seal', ok: true, note: 'No repair marks' },
+];
+
+const DEFAULT_ACCESSORIES = (): IAccessoryCheck[] => [
+  { id: 'sim', item: 'SIM Tray', present: true },
+  { id: 'charger', item: 'Original Charger', present: true },
+  { id: 'cable', item: 'Original Cable', present: true },
+  { id: 'box', item: 'Retail Box', present: true },
 ];
 
 const DEFAULT_APPEARANCE = (): IAppearanceCheck[] => [
@@ -249,6 +315,22 @@ function seedDevices(): IWhDevice[] {
       storeName: 'Fonfix Koramangala',
       warehouseId: 'WH-MH-0001',
       status: 'quote_pending', // cannot inbound
+      photos: ['Front', 'Back'],
+      hardware: DEFAULT_HW(),
+      appearance: DEFAULT_APPEARANCE(),
+    },
+    {
+      imei: '350000000000089',
+      sessionId: 'sess-wh-089',
+      brand: 'Apple',
+      model: 'iPhone 13',
+      color: 'Pink',
+      storage: '128GB',
+      grade: 'A',
+      offerPrice: 36000,
+      storeName: 'GadgetMart CP',
+      warehouseId: 'WH-DL-0001', // wrong warehouse — demonstrates warehouse mismatch
+      status: 'verified_complete',
       photos: ['Front', 'Back'],
       hardware: DEFAULT_HW(),
       appearance: DEFAULT_APPEARANCE(),
@@ -371,12 +453,18 @@ function seedStock(): IWhDevice[] {
       storage: '128GB',
       grade: 'A',
       offerPrice: 52000,
-      storeName: '—',
+      storeName: 'Dobara - Mumbai Andheri',
       warehouseId: 'WH-MH-0001',
       status: 'in_stock',
       photos: ['Front', 'Back'],
       hardware: DEFAULT_HW().map((h) => ({ ...h, ok: true })),
       appearance: DEFAULT_APPEARANCE(),
+      shelfCode: 'A-01-01',
+      inboundAt: isoOffsetHours(-12),
+      refurbHistory: [
+        { grade: 'B', offerPrice: 48000, mallPrice: 64800, at: isoOffsetHours(-36), source: 'store' },
+        { grade: 'A', offerPrice: 52000, mallPrice: 70200, at: isoOffsetHours(-12), source: 'refurbish' },
+      ],
     },
     {
       imei: '350000000000702',
@@ -387,12 +475,14 @@ function seedStock(): IWhDevice[] {
       storage: '256GB',
       grade: 'B',
       offerPrice: 41000,
-      storeName: '—',
+      storeName: 'GadgetMart CP',
       warehouseId: 'WH-MH-0001',
       status: 'in_stock',
       photos: ['Front', 'Back'],
       hardware: DEFAULT_HW(),
       appearance: DEFAULT_APPEARANCE(),
+      shelfCode: 'B-04-11',
+      inboundAt: isoOffsetHours(-48),
     },
     {
       imei: '350000000000703',
@@ -403,22 +493,35 @@ function seedStock(): IWhDevice[] {
       storage: '64GB',
       grade: 'C',
       offerPrice: 18000,
-      storeName: '—',
+      storeName: 'Fonfix Koramangala',
       warehouseId: 'WH-MH-0001',
       status: 'in_stock',
       photos: ['Front', 'Back'],
       hardware: DEFAULT_HW(),
       appearance: DEFAULT_APPEARANCE(),
+      shelfCode: 'C-01-07',
+      inboundAt: isoOffsetHours(-96),
     },
   ];
+}
+
+function normalizeDevice(d: IWhDevice): IWhDevice {
+  return {
+    ...d,
+    accessories: d.accessories?.length ? d.accessories : DEFAULT_ACCESSORIES(),
+    mallPrice: d.mallPrice ?? Math.round(d.offerPrice * 1.35),
+    refurbHistory: d.refurbHistory ?? [
+      { grade: d.grade, offerPrice: d.offerPrice, mallPrice: d.mallPrice ?? Math.round(d.offerPrice * 1.35), at: d.inboundAt || '', source: 'store' },
+    ],
+  };
 }
 
 function loadDevices(): IWhDevice[] {
   try {
     const raw = localStorage.getItem(DEV_KEY);
-    if (raw) return JSON.parse(raw) as IWhDevice[];
+    if (raw) return (JSON.parse(raw) as IWhDevice[]).map(normalizeDevice);
   } catch { /* ignore */ }
-  const seed = seedDevices();
+  const seed = seedDevices().map(normalizeDevice);
   localStorage.setItem(DEV_KEY, JSON.stringify(seed));
   return seed;
 }
@@ -444,9 +547,9 @@ function saveOrders(list: IPickOrder[]) {
 function loadStock(): IWhDevice[] {
   try {
     const raw = localStorage.getItem(STOCK_KEY);
-    if (raw) return JSON.parse(raw) as IWhDevice[];
+    if (raw) return (JSON.parse(raw) as IWhDevice[]).map(normalizeDevice);
   } catch { /* ignore */ }
-  const seed = seedStock();
+  const seed = seedStock().map(normalizeDevice);
   localStorage.setItem(STOCK_KEY, JSON.stringify(seed));
   return seed;
 }
@@ -471,6 +574,7 @@ function inboundToWhDevice(item: IDemoInbound): IWhDevice {
     photos: ['Front', 'Back', 'Left', 'Right', 'Screen On'],
     hardware: DEFAULT_HW(),
     appearance: DEFAULT_APPEARANCE(),
+    accessories: DEFAULT_ACCESSORIES(),
   };
 }
 
@@ -524,7 +628,7 @@ function submitDeviceToOps(device: IWhDevice) {
     price: mallPrice,
     originalPrice: device.offerPrice,
     city: 'Mumbai',
-    warehouseId: device.warehouseId || 'wh-mum',
+    warehouseId: CURRENT_WH_OPS_ID,
   };
   pushReviewDevice(payload);
   void fetch('/api/ops/review/submit', {
@@ -584,7 +688,15 @@ function mergePickOrdersFromBus(): IPickOrder[] {
 }
 
 export function listPendingInbound(): IWhDevice[] {
-  return mergeInboundFromBus().filter((d) => d.status === 'verified_complete');
+  return mergeInboundFromBus().filter(
+    (d) => d.status === 'verified_complete' && d.warehouseId === CURRENT_WH_ID,
+  );
+}
+
+/** Devices inbound-confirmed today (WH-P0-01 首页今日入库台数). */
+export function todayInboundCount(): number {
+  const today = new Date().toDateString();
+  return loadDevices().filter((d) => d.inboundAt && new Date(d.inboundAt).toDateString() === today).length;
 }
 
 export function getDevice(imei: string): IWhDevice | undefined {
@@ -605,6 +717,9 @@ export function lookupForInbound(code: string): {
   if (!device) {
     return { ok: false, error: 'Device not found for this warehouse inbound queue.' };
   }
+  if (device.warehouseId !== CURRENT_WH_ID) {
+    return { ok: false, error: `Device belongs to ${device.warehouseId} — send to the correct warehouse.` };
+  }
   if (device.status !== 'verified_complete') {
     const reason =
       device.status === 'inspecting'
@@ -614,10 +729,12 @@ export function lookupForInbound(code: string): {
           : device.status === 'pending_listing'
             || device.status === 'pending_ops_review'
             || device.status === 'in_stock'
-            ? 'Already inbound / in stock / awaiting ops.'
-            : device.status === 'shipped'
-              ? 'Device already shipped.'
-              : `Status "${device.status}" is not eligible for inbound.`;
+            ? `Already inbound${device.inboundAt ? ` (${new Date(device.inboundAt).toLocaleString()} by ${device.inboundOperator || 'WH'})` : ''}.`
+            : device.status === 'inbound_exception'
+              ? `Inbound exception flagged — awaiting admin. ${device.exception?.reason || ''}`
+              : device.status === 'shipped'
+                ? 'Device already shipped.'
+                : `Status "${device.status}" is not eligible for inbound.`;
     return { ok: false, error: reason };
   }
   return { ok: true, device };
@@ -630,15 +747,48 @@ export function confirmInbound(imei: string): { ok: true; device: IWhDevice } | 
   if (list[idx].status !== 'verified_complete') {
     return { ok: false, error: 'Device is not eligible for inbound.' };
   }
+  const now = new Date().toISOString();
   list[idx] = {
     ...list[idx],
     status: 'pending_listing',
-    inboundAt: new Date().toISOString(),
+    inboundAt: now,
+    inboundOperator: DEMO_WH_USER,
     refurbDecision: null,
+    refurbHistory: [
+      { grade: list[idx].grade, offerPrice: list[idx].offerPrice, mallPrice: Math.round(list[idx].offerPrice * 1.35), at: now, source: 'store' },
+    ],
   };
   saveDevices(list);
   consumeInbound(imei);
   return { ok: true, device: list[idx] };
+}
+
+/** WH-P0-01 — flag physical mismatch during inbound → device enters "inbound_exception". */
+export function markInboundException(
+  imei: string,
+  reason: string,
+  note?: string,
+): { ok: true; device: IWhDevice } | { ok: false; error: string } {
+  const list = mergeInboundFromBus();
+  const idx = list.findIndex((d) => d.imei === imei);
+  if (idx < 0) return { ok: false, error: 'Not found' };
+  list[idx] = {
+    ...list[idx],
+    status: 'inbound_exception',
+    exception: {
+      reason,
+      note: note?.trim() || undefined,
+      at: new Date().toISOString(),
+      operator: DEMO_WH_USER,
+    },
+  };
+  saveDevices(list);
+  return { ok: true, device: list[idx] };
+}
+
+/** Devices flagged as inbound exception — surfaced for admin follow-up. */
+export function listInboundExceptions(): IWhDevice[] {
+  return mergeInboundFromBus().filter((d) => d.status === 'inbound_exception');
 }
 
 export function decidePassThrough(imei: string): IWhDevice | null {
@@ -669,11 +819,26 @@ export function updateDeviceChecks(
   imei: string,
   hardware: IHwCheck[],
   appearance: IAppearanceCheck[],
+  accessories?: IAccessoryCheck[],
 ): IWhDevice | null {
   const list = loadDevices();
   const idx = list.findIndex((d) => d.imei === imei);
   if (idx < 0) return null;
-  list[idx] = { ...list[idx], hardware, appearance };
+  list[idx] = {
+    ...list[idx],
+    hardware,
+    appearance,
+    accessories: accessories ?? list[idx].accessories,
+  };
+  saveDevices(list);
+  return list[idx];
+}
+
+export function updateAccessories(imei: string, accessories: IAccessoryCheck[]): IWhDevice | null {
+  const list = loadDevices();
+  const idx = list.findIndex((d) => d.imei === imei);
+  if (idx < 0) return null;
+  list[idx] = { ...list[idx], accessories };
   saveDevices(list);
   return list[idx];
 }
@@ -696,13 +861,25 @@ export function completeRefurbish(imei: string): IWhDevice | null {
   const list = loadDevices();
   const idx = list.findIndex((d) => d.imei === imei);
   if (idx < 0) return null;
-  const priced = recalculatePricing(list[idx]);
+  const prev = list[idx];
+  const priced = recalculatePricing(prev);
+  const prevOffer = prev.refurbHistory?.length
+    ? prev.refurbHistory[prev.refurbHistory.length - 1].offerPrice
+    : prev.offerPrice;
+  const diffPct = prevOffer ? Math.round(((priced.offerPrice - prevOffer) / prevOffer) * 100) : 0;
+  const now = new Date().toISOString();
   const next: IWhDevice = {
-    ...list[idx],
+    ...prev,
     grade: priced.grade,
     offerPrice: priced.offerPrice,
+    mallPrice: Math.round(priced.offerPrice * 1.35),
     status: 'pending_ops_review',
     refurbDecision: 'refurbish',
+    refurbHistory: [
+      ...(prev.refurbHistory || []),
+      { grade: priced.grade, offerPrice: priced.offerPrice, mallPrice: Math.round(priced.offerPrice * 1.35), at: now, source: 'refurbish' as const },
+    ],
+    refurbPriceDiffPct: diffPct,
   };
   list[idx] = next;
   saveDevices(list);
@@ -795,9 +972,10 @@ export function searchPickOrders(
 
 export type TScanResult =
   | { ok: true; line: IPickLine; order: IPickOrder; allDone: boolean }
-  | { ok: false; error: string; code?: 'not_found' | 'other_order' | 'locked' | 'already' | 'order' };
+  | { ok: false; error: string; code?: 'not_found' | 'other_order' | 'locked' | 'already' | 'order'; otherOrderId?: string };
 
-export function scanPickImei(orderId: string, imeiRaw: string): TScanResult {
+/** Validate an IMEI against an outbound order WITHOUT persisting (for confirm step). */
+export function previewPickScan(orderId: string, imeiRaw: string): TScanResult {
   const imei = imeiRaw.trim();
   const list = mergePickOrdersFromBus();
   const idx = list.findIndex((o) => o.orderId === orderId);
@@ -822,19 +1000,34 @@ export function scanPickImei(orderId: string, imeiRaw: string): TScanResult {
           ok: false,
           error: `IMEI already scanned/shipped on ${elsewhere.orderId}.`,
           code: 'other_order',
+          otherOrderId: elsewhere.orderId,
         };
       }
       return {
         ok: false,
         error: `IMEI belongs to another order (${elsewhere.orderId}).`,
         code: 'other_order',
+        otherOrderId: elsewhere.orderId,
       };
     }
-    return { ok: false, error: 'IMEI not found.', code: 'not_found' };
+    return { ok: false, error: 'IMEI not found — this device has no outbound task.', code: 'not_found' };
   }
   if (line.scanned || line.shipped) {
     return { ok: false, error: 'This IMEI was already scanned for this order.', code: 'already' };
   }
+  return { ok: true, line, order, allDone: false };
+}
+
+/** Commit a previously previewed scan — mutates order state. */
+export function commitPickScan(orderId: string, imeiRaw: string): TScanResult {
+  const imei = imeiRaw.trim();
+  const list = mergePickOrdersFromBus();
+  const idx = list.findIndex((o) => o.orderId === orderId);
+  if (idx < 0) return { ok: false, error: 'Order not found', code: 'order' };
+  const order = list[idx];
+  const line = order.lines.find((l) => l.imei === imei);
+  if (!line) return { ok: false, error: 'IMEI not found', code: 'not_found' };
+  if (line.scanned || line.shipped) return { ok: false, error: 'Already scanned', code: 'already' };
   order.lines = order.lines.map((l) => (l.imei === imei ? { ...l, scanned: true } : l));
   order.items = syncItems(order.lines);
   order.status = 'picking';
@@ -847,6 +1040,13 @@ export function scanPickImei(orderId: string, imeiRaw: string): TScanResult {
   list[idx] = order;
   saveOrders(list);
   return { ok: true, line: order.lines.find((l) => l.imei === imei)!, order, allDone };
+}
+
+/** Back-compat: preview + commit in one step. */
+export function scanPickImei(orderId: string, imeiRaw: string): TScanResult {
+  const preview = previewPickScan(orderId, imeiRaw);
+  if (!preview.ok) return preview;
+  return commitPickScan(orderId, imeiRaw);
 }
 
 /** Mark shelf exception when picker can't find the device */
@@ -862,27 +1062,42 @@ export function reportShelfException(orderId: string): IPickOrder | null {
   return list[idx];
 }
 
-export function markLabelPrinted(orderId: string, reprintReason?: string): IPickOrder | null {
+export const MAX_LABEL_REPRINTS = 3;
+
+export function markLabelPrinted(
+  orderId: string,
+  reprintReason?: string,
+): { ok: true; order: IPickOrder } | { ok: false; error: string } {
   const list = loadOrders();
   const idx = list.findIndex((o) => o.orderId === orderId);
-  if (idx < 0) return null;
+  if (idx < 0) return { ok: false, error: 'Order not found' };
   const reasons = list[idx].labelReprintReasons || [];
-  if (reprintReason) reasons.push(reprintReason);
+  if (reprintReason) {
+    if (reasons.length >= MAX_LABEL_REPRINTS) {
+      return { ok: false, error: `Reprint limit reached (${MAX_LABEL_REPRINTS}) — contact SA to unlock.` };
+    }
+    reasons.push(reprintReason);
+  }
   list[idx] = {
     ...list[idx],
     labelPrinted: true,
     labelReprintReasons: reasons,
   };
   saveOrders(list);
-  return list[idx];
+  return { ok: true, order: list[idx] };
 }
 
-export function queryInventory(filters: {
+export interface IInventoryFilters {
   imei?: string;
   brand?: string;
   model?: string;
   grade?: string;
-}): IWhDevice[] {
+  storage?: string;
+  storeName?: string;
+  shelfCode?: string;
+}
+
+export function queryInventory(filters: IInventoryFilters): IWhDevice[] {
   let list = loadStock().filter((d) => d.status === 'in_stock');
   const imei = filters.imei?.trim();
   if (imei) list = list.filter((d) => d.imei.includes(imei));
@@ -892,11 +1107,37 @@ export function queryInventory(filters: {
     list = list.filter((d) => d.model.toLowerCase().includes(m));
   }
   if (filters.grade) list = list.filter((d) => d.grade === filters.grade);
-  return list;
+  if (filters.storage) list = list.filter((d) => d.storage === filters.storage);
+  if (filters.storeName) list = list.filter((d) => d.storeName === filters.storeName);
+  if (filters.shelfCode?.trim()) {
+    const sc = filters.shelfCode.trim().toLowerCase();
+    list = list.filter((d) => (d.shelfCode || '').toLowerCase().includes(sc));
+  }
+  // Default FIFO — oldest inbound first
+  return [...list].sort(
+    (a, b) => new Date(a.inboundAt || 0).getTime() - new Date(b.inboundAt || 0).getTime(),
+  );
 }
 
 export function inventoryBrands(): string[] {
   return [...new Set(loadStock().map((d) => d.brand))];
+}
+
+export function inventoryStorages(): string[] {
+  return [...new Set(loadStock().filter((d) => d.status === 'in_stock').map((d) => d.storage))].sort();
+}
+
+export function inventoryStores(): string[] {
+  return [...new Set(loadStock().filter((d) => d.status === 'in_stock').map((d) => d.storeName).filter(Boolean))].sort();
+}
+
+export function updateShelfCode(imei: string, code: string): IWhDevice | null {
+  const list = loadStock();
+  const idx = list.findIndex((d) => d.imei === imei);
+  if (idx < 0) return null;
+  list[idx] = { ...list[idx], shelfCode: code };
+  saveStock(list);
+  return list[idx];
 }
 
 export function statusLabel(s: TDeviceLifecycle): string {
@@ -909,6 +1150,7 @@ export function statusLabel(s: TDeviceLifecycle): string {
     in_stock: 'In stock',
     shipped: 'Shipped',
     rejected: 'Rejected',
+    inbound_exception: 'Inbound exception',
   };
   return map[s];
 }
@@ -1080,6 +1322,59 @@ export function batchCounts(progress: IBatchProgress) {
   return { total, scanned, failed, pending };
 }
 
+/** Mark a batch line as physically missing (WH-P1-01 "实物缺失"). */
+export function markBatchLineMissing(orderId: string, imei: string): IBatchProgress | null {
+  const map = loadBatchMap();
+  const cur = map[orderId] || getOrInitBatchProgress(orderId);
+  if (!cur) return null;
+  const next = {
+    ...cur,
+    lines: cur.lines.map((l) =>
+      l.imei === imei && l.status !== 'scanned'
+        ? { ...l, status: 'failed' as const, failReason: 'Missing on shelf (manual)' }
+        : l,
+    ),
+    updatedAt: new Date().toISOString(),
+  };
+  map[orderId] = next;
+  saveBatchMap(map);
+  return next;
+}
+
+export interface IBatchConfirmResult {
+  shipped: number;
+  failed: number;
+  pending: number;
+  partial: boolean;
+}
+
+/** Confirm batch outbound — ship scanned, keep failed/pending → partial ship. */
+export function confirmBatchOutbound(orderId: string): IBatchConfirmResult | null {
+  const progress = getBatchProgress(orderId);
+  if (!progress) return null;
+  const counts = batchCounts(progress);
+  const orders = loadOrders();
+  const oIdx = orders.findIndex((o) => o.orderId === orderId);
+  if (oIdx >= 0) {
+    const order = orders[oIdx];
+    const scannedImeis = new Set(progress.lines.filter((l) => l.status === 'scanned').map((l) => l.imei));
+    order.lines = order.lines.map((l) =>
+      scannedImeis.has(l.imei) ? { ...l, scanned: true, shipped: true } : l,
+    );
+    order.items = syncItems(order.lines);
+    const partial = counts.failed > 0 || counts.pending > 0;
+    order.status = partial ? 'partial' : 'done';
+    orders[oIdx] = order;
+    saveOrders(orders);
+  }
+  return {
+    shipped: counts.scanned,
+    failed: counts.failed,
+    pending: counts.pending,
+    partial: counts.failed > 0 || counts.pending > 0,
+  };
+}
+
 /* ── WH-P2-01 Stocktake ── */
 
 function loadStocktakes(): IStocktakeSession[] {
@@ -1106,14 +1401,26 @@ export function getActiveStocktake(): IStocktakeSession | undefined {
   return loadStocktakes().find((s) => s.status === 'in_progress');
 }
 
-export function createStocktake(warehouseId = 'WH-MH-0001'): IStocktakeSession {
+export function createStocktake(
+  warehouseId = 'WH-MH-0001',
+  scope?: { type?: TStocktakeScopeType; value?: string },
+): IStocktakeSession {
   const existing = getActiveStocktake();
   if (existing) return existing;
-  const stock = loadStock().filter((d) => d.status === 'in_stock' && d.warehouseId === warehouseId);
+  let stock = loadStock().filter((d) => d.status === 'in_stock' && d.warehouseId === warehouseId);
+  const type = scope?.type || 'all';
+  const value = scope?.value;
+  if (type === 'brand' && value) stock = stock.filter((d) => d.brand === value);
+  if (type === 'grade' && value) stock = stock.filter((d) => d.grade === value);
+  const scopeLabel =
+    type === 'all' ? 'All warehouse' : `${type === 'brand' ? 'Brand' : 'Grade'} · ${value}`;
   const session: IStocktakeSession = {
     id: `STK-${Date.now().toString(36).toUpperCase()}`,
     warehouseId,
     createdAt: new Date().toISOString(),
+    operator: DEMO_WH_USER,
+    scopeType: type,
+    scopeLabel,
     status: 'in_progress',
     lines: stock.map((d) => ({
       imei: d.imei,
@@ -1138,7 +1445,12 @@ export function scanStocktakeImei(
   const list = loadStocktakes();
   const idx = list.findIndex((s) => s.id === sessionId);
   if (idx < 0) return { ok: false, error: 'Stocktake not found' };
-  if (list[idx].status !== 'in_progress') return { ok: false, error: 'Stocktake already confirmed' };
+  if (list[idx].status !== 'in_progress') {
+    return {
+      ok: false,
+      error: list[idx].status === 'pending_review' ? 'Stocktake submitted — awaiting admin review' : 'Stocktake already confirmed',
+    };
+  }
 
   const lineIdx = list[idx].lines.findIndex((l) => l.imei === imei);
   if (lineIdx >= 0) {
@@ -1160,27 +1472,67 @@ export function scanStocktakeImei(
   return { ok: true, session: list[idx] };
 }
 
-/** Mark remaining expected as missing, then apply inventory adjustments */
-export function confirmStocktake(sessionId: string): {
+/** Compute book-vs-physical diff for a stocktake session. */
+export function getStocktakeDiff(session: IStocktakeSession): IStocktakeDiff {
+  const bookTotal = session.lines.filter((l) => l.status !== 'extra').length;
+  const scanned = session.lines.filter((l) => l.status === 'scanned').length;
+  const missing = session.lines.filter((l) => l.status === 'missing').length;
+  const extra = session.lines.filter((l) => l.status === 'extra').length;
+  const diff = scanned + extra - bookTotal;
+  const diffRatePct = bookTotal ? Math.round((Math.abs(diff) / bookTotal) * 100) : 0;
+  return {
+    bookTotal,
+    scanned,
+    missing,
+    extra,
+    diff,
+    diffRatePct,
+    missingImeis: session.lines.filter((l) => l.status === 'missing').map((l) => l.imei),
+    extraImeis: session.lines.filter((l) => l.status === 'extra').map((l) => l.imei),
+  };
+}
+
+/** Finalize scan → mark remaining expected as missing → submit to admin review. */
+export function submitStocktake(sessionId: string): {
+  ok: true; session: IStocktakeSession; diff: IStocktakeDiff;
+} | { ok: false; error: string } {
+  const list = loadStocktakes();
+  const idx = list.findIndex((s) => s.id === sessionId);
+  if (idx < 0) return { ok: false, error: 'Stocktake not found' };
+  if (list[idx].status !== 'in_progress') return { ok: false, error: 'Already submitted' };
+
+  const lines = list[idx].lines.map((l) =>
+    l.status === 'expected' ? { ...l, status: 'missing' as const } : l,
+  );
+  const next = {
+    ...list[idx],
+    lines,
+    status: 'pending_review' as const,
+    confirmedAt: new Date().toISOString(),
+  };
+  list[idx] = next;
+  saveStocktakes(list);
+  return { ok: true, session: next, diff: getStocktakeDiff(next) };
+}
+
+/** Admin-approved: apply inventory adjustments (remove missing, add extras). */
+export function applyStocktake(sessionId: string): {
   ok: true; session: IStocktakeSession; removed: number; added: number;
 } | { ok: false; error: string } {
   const list = loadStocktakes();
   const idx = list.findIndex((s) => s.id === sessionId);
   if (idx < 0) return { ok: false, error: 'Stocktake not found' };
-  if (list[idx].status !== 'in_progress') return { ok: false, error: 'Already confirmed' };
+  if (list[idx].status !== 'pending_review') {
+    return { ok: false, error: 'Only pending-review stocktakes can be applied' };
+  }
 
-  const lines = list[idx].lines.map((l) =>
-    l.status === 'expected' ? { ...l, status: 'missing' as const } : l,
-  );
-  const missing = lines.filter((l) => l.status === 'missing');
-  const extras = lines.filter((l) => l.status === 'extra');
+  const missing = list[idx].lines.filter((l) => l.status === 'missing');
+  const extras = list[idx].lines.filter((l) => l.status === 'extra');
 
   let stock = loadStock();
-  // Remove missing from inventory
   for (const m of missing) {
     stock = stock.filter((d) => d.imei !== m.imei);
   }
-  // Add extras as in_stock demo devices if not already present
   let added = 0;
   for (const e of extras) {
     if (stock.some((d) => d.imei === e.imei)) continue;
@@ -1199,17 +1551,16 @@ export function confirmStocktake(sessionId: string): {
       photos: [],
       hardware: DEFAULT_HW().map((h) => ({ ...h, ok: true })),
       appearance: DEFAULT_APPEARANCE(),
+      accessories: DEFAULT_ACCESSORIES(),
+      inboundAt: new Date().toISOString(),
+      shelfCode: 'PENDING',
     });
     added += 1;
   }
   saveStock(stock);
 
-  list[idx] = {
-    ...list[idx],
-    lines,
-    status: 'confirmed',
-    confirmedAt: new Date().toISOString(),
-  };
+  const next = { ...list[idx], status: 'confirmed' as const, reviewedAt: new Date().toISOString() };
+  list[idx] = next;
   saveStocktakes(list);
-  return { ok: true, session: list[idx], removed: missing.length, added };
+  return { ok: true, session: next, removed: missing.length, added };
 }

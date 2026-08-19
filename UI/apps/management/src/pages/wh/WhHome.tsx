@@ -2,12 +2,14 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Badge } from '@dobara/ui';
 import { ArrowRight, Package, Truck, Printer, Search, ClipboardCheck } from 'lucide-react';
-import { listPendingInbound, listPickOrders } from '../../lib/whStore';
+import { listPendingInbound, listPickOrders, todayInboundCount, listInboundExceptions } from '../../lib/whStore';
 
 const WhHome: React.FC = () => {
   const navigate = useNavigate();
   const pending = useMemo(() => listPendingInbound(), []);
   const openOrders = useMemo(() => listPickOrders(false), []);
+  const todayInbound = useMemo(() => todayInboundCount(), []);
+  const exceptions = useMemo(() => listInboundExceptions(), []);
   const b2cFirst = openOrders.filter((o) => o.channel === 'B2C').length;
 
   return (
@@ -61,6 +63,42 @@ const WhHome: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Card variant="flat">
+        <CardContent className="grid grid-cols-3 gap-2 text-center py-3">
+          <div>
+            <p className="text-h4 font-heading text-primary-600">{pending.length}</p>
+            <p className="text-eyebrow text-text-muted">Awaiting inbound</p>
+          </div>
+          <div>
+            <p className="text-h4 font-heading">{todayInbound}</p>
+            <p className="text-eyebrow text-text-muted">Inbound today</p>
+          </div>
+          <div>
+            <p className={`text-h4 font-heading ${exceptions.length ? 'text-dobara-warning' : ''}`}>{exceptions.length}</p>
+            <p className="text-eyebrow text-text-muted">Exceptions</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {exceptions.length > 0 && (
+        <Card variant="flat">
+          <CardHeader>
+            <h3 className="text-h4 font-heading">Inbound exceptions ({exceptions.length})</h3>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {exceptions.map((d) => (
+              <div key={d.imei} className="flex items-center justify-between p-2 rounded-md bg-dobara-warning-light">
+                <div>
+                  <p className="text-body font-medium">{d.brand} {d.model} · {d.imei}</p>
+                  <p className="text-caption text-text-muted">{d.exception?.reason}</p>
+                </div>
+                <Badge variant="warning">Exception</Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

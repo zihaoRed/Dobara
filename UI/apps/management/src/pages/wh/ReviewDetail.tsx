@@ -17,6 +17,16 @@ const PHOTO_ANGLES = [
   'Corners', 'Ports', 'Screen close', 'Camera',
 ];
 
+/** SA-maintained refined library images (SA-P2-02 品类管理). */
+const LIBRARY_IMAGES = [
+  'iphone13-hero.jpg',
+  'iphone14-hero.jpg',
+  'galaxys22-hero.jpg',
+  'nord2-hero.jpg',
+  'mi11-hero.jpg',
+  'reno6-hero.jpg',
+];
+
 const ReviewDetail: React.FC = () => {
   const { imei } = useParams<{ imei: string }>();
   const navigate = useNavigate();
@@ -233,15 +243,33 @@ const ReviewDetail: React.FC = () => {
                 <p className="text-body text-text-muted mb-2">
                   {mainImageName || 'JPG/PNG · min 800×800 · from library or local upload'}
                 </p>
-                <label className="inline-flex">
-                  <span className="sr-only">Upload</span>
-                  <input
-                    type="file"
-                    accept=".jpg,.jpeg,.png"
-                    className="text-caption"
-                    onChange={(e) => onPickImage(e.target.files?.[0] ?? null)}
-                  />
-                </label>
+                <div className="flex flex-col items-center gap-3">
+                  <select
+                    className="h-9 px-2 rounded-md border border-border bg-surface text-body"
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setMainImageName(e.target.value);
+                        setMainImagePreview('');
+                        setError('');
+                      }
+                    }}
+                    data-testid="library-select"
+                  >
+                    <option value="">Choose from library…</option>
+                    {LIBRARY_IMAGES.map((img) => <option key={img} value={img}>{img}</option>)}
+                  </select>
+                  <label className="inline-flex text-caption text-primary-600 cursor-pointer">
+                    <span className="sr-only">Upload</span>
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png"
+                      className="text-caption"
+                      onChange={(e) => onPickImage(e.target.files?.[0] ?? null)}
+                    />
+                    or upload local
+                  </label>
+                </div>
               </div>
             </CardContent>
           </Card>

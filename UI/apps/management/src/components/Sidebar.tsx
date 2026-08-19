@@ -24,6 +24,7 @@ import {
   ShoppingBag,
   SlidersHorizontal,
   PackageSearch,
+  Printer,
 } from 'lucide-react';
 import { Modal, Button } from '@dobara/ui';
 import { useAuth } from '../lib/AuthContext';
@@ -63,6 +64,7 @@ const whNav: NavItem[] = [
   { label: 'Batch outbound', path: '/wh/batch', icon: <Layers size={18} /> },
   { label: 'Inventory', path: '/wh/inventory', icon: <Search size={18} /> },
   { label: 'Stocktake', path: '/wh/stocktake', icon: <ClipboardCheck size={18} /> },
+  { label: 'Printer', path: '/wh/printer', icon: <Printer size={18} /> },
 ];
 
 const dbNav: NavItem[] = [

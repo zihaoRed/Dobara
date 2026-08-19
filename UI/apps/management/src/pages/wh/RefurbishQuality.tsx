@@ -6,6 +6,7 @@ import {
   getDevice,
   recalculatePricing,
   updateDeviceChecks,
+  type IAccessoryCheck,
   type IAppearanceCheck,
   type IHwCheck,
 } from '../../lib/whStore';
@@ -16,6 +17,7 @@ const RefurbishQuality: React.FC = () => {
   const base = useMemo(() => getDevice(imei), [imei]);
   const [hardware, setHardware] = useState<IHwCheck[]>(base?.hardware || []);
   const [appearance, setAppearance] = useState<IAppearanceCheck[]>(base?.appearance || []);
+  const [accessories, setAccessories] = useState<IAccessoryCheck[]>(base?.accessories || []);
 
   if (!base) {
     return (
@@ -38,8 +40,12 @@ const RefurbishQuality: React.FC = () => {
     setAppearance((prev) => prev.map((a) => (a.id === id ? { ...a, selected } : a)));
   };
 
+  const toggleAccessory = (id: string) => {
+    setAccessories((prev) => prev.map((a) => (a.id === id ? { ...a, present: !a.present } : a)));
+  };
+
   const onContinue = () => {
-    updateDeviceChecks(imei, hardware, appearance);
+    updateDeviceChecks(imei, hardware, appearance, accessories);
     navigate(`/wh/inbound/${imei}/refurbish/upload`);
   };
 
@@ -142,6 +148,28 @@ const RefurbishQuality: React.FC = () => {
                 ))}
               </div>
             </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <h3 className="text-h4 font-heading">Accessories (tap to toggle)</h3>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {accessories.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              data-testid={`acc-${a.id}`}
+              onClick={() => toggleAccessory(a.id)}
+              className={`w-full flex items-center justify-between p-2 rounded-md border text-left ${
+                a.present ? 'border-border bg-surface-low' : 'border-dobara-error bg-dobara-error-light'
+              }`}
+            >
+              <span className="text-body">{a.item}</span>
+              <Badge variant={a.present ? 'success' : 'error'}>{a.present ? 'Present' : 'Missing'}</Badge>
+            </button>
           ))}
         </CardContent>
       </Card>

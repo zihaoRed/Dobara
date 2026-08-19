@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, Button, Input, Badge } from '@dobara/ui';
 import { ArrowLeft, CheckCircle, Printer } from 'lucide-react';
-import { getPickOrder, markLabelPrinted } from '../../lib/whStore';
+import { getPickOrder, markLabelPrinted, MAX_LABEL_REPRINTS } from '../../lib/whStore';
 
 /** WH-P0-04 — simulate Bluetooth label print + reprint reason */
 const LabelPrint: React.FC = () => {
@@ -27,14 +27,16 @@ const LabelPrint: React.FC = () => {
     setPrinting(true);
     setToast('');
     await new Promise((r) => setTimeout(r, 700));
-    const next = markLabelPrinted(orderId, reason);
+    const result = markLabelPrinted(orderId, reason);
     setPrinting(false);
-    if (next) {
-      setOrder({ ...next });
-      setToast(reason ? `Reprint sent · reason logged: ${reason}` : 'Label sent to Bluetooth printer (demo).');
-      setShowReprint(false);
-      setReprintReason('');
+    if (!result.ok) {
+      setToast(result.error);
+      return;
     }
+    setOrder({ ...result.order });
+    setToast(reason ? `Reprint sent · reason logged: ${reason}` : 'Label sent to Bluetooth printer (demo).');
+    setShowReprint(false);
+    setReprintReason('');
   };
 
   return (
@@ -99,15 +101,22 @@ const LabelPrint: React.FC = () => {
       ) : (
         <div className="space-y-2">
           {!showReprint ? (
-            <Button
-              variant="secondary"
-              size="lg"
-              className="w-full"
-              data-testid="reprint-label"
-              onClick={() => setShowReprint(true)}
-            >
-              Reprint label
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="w-full"
+                data-testid="reprint-label"
+                disabled={(order.labelReprintReasons?.length || 0) >= MAX_LABEL_REPRINTS}
+                onClick={() => setShowReprint(true)}
+              >
+                Reprint label
+              </Button>
+              <p className="text-caption text-text-muted text-center">
+                {(order.labelReprintReasons?.length || 0)}/{MAX_LABEL_REPRINTS} reprints used
+                {(order.labelReprintReasons?.length || 0) >= MAX_LABEL_REPRINTS && ' · limit reached, contact SA to unlock'}
+              </p>
+            </>
           ) : (
             <>
               <Input
@@ -131,6 +140,10 @@ const LabelPrint: React.FC = () => {
           )}
         </div>
       )}
+
+      <Button variant="secondary" className="w-full" onClick={() => navigate('/wh/printer')}>
+        Printer settings
+      </Button>
 
       <Button variant="ghost" className="w-full" onClick={() => navigate('/wh/picking')}>
         Done · back to picking

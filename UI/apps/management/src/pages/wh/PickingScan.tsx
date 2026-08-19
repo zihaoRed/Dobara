@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardContent, Button, Input, Badge } from '@dobara/ui';
-import { ArrowLeft, CheckCircle, ScanLine, Package, AlertCircle, Clock, MapPin } from 'lucide-react';
+import { Card, CardHeader, CardContent, Button, Input, Badge, Modal } from '@dobara/ui';
+import { ArrowLeft, CheckCircle, ScanLine, Package, AlertCircle, Clock, MapPin, AlertTriangle } from 'lucide-react';
 import {
+  commitPickScan,
   formatSlaCountdown,
   getPickOrder,
   isOrderLocked,
+  previewPickScan,
   reportShelfException,
-  scanPickImei,
   slaUrgency,
   type IPickOrder,
   type TChannel,
@@ -35,6 +36,9 @@ const PickingScan: React.FC = () => {
   const [lastOk, setLastOk] = useState('');
   const [toast, setToast] = useState('');
   const [completed, setCompleted] = useState(order?.status === 'done');
+  const [pendingConfirm, setPendingConfirm] = useState('');
+  const [otherOrderId, setOtherOrderId] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const lines = order?.lines || [];
   const scannedCount = lines.filter((i) => i.scanned).length;
@@ -46,12 +50,27 @@ const PickingScan: React.FC = () => {
     setError('');
     setLastOk('');
     setToast('');
+    setOtherOrderId('');
     if (order && isOrderLocked(order).locked) {
       const l = isOrderLocked(order);
       setError(`Order locked by ${l.by}. Cannot scan.`);
       return;
     }
-    const result = scanPickImei(orderId, scanInput);
+    const result = previewPickScan(orderId, scanInput);
+    if (!result.ok) {
+      setError(result.error);
+      if (result.code === 'other_order' && result.otherOrderId) {
+        setOtherOrderId(result.otherOrderId);
+      }
+      return;
+    }
+    setPendingConfirm(scanInput.trim());
+    setConfirmOpen(true);
+  };
+
+  const handleConfirm = () => {
+    const result = commitPickScan(orderId, pendingConfirm);
+    setConfirmOpen(false);
     if (!result.ok) {
       setError(result.error);
       return;
@@ -59,6 +78,7 @@ const PickingScan: React.FC = () => {
     setOrder({ ...result.order });
     setLastOk(`${result.line.brand} ${result.line.model} · ${result.line.imei}`);
     setScanInput('');
+    setPendingConfirm('');
     if (result.allDone) setCompleted(true);
   };
 
@@ -213,6 +233,16 @@ const PickingScan: React.FC = () => {
               <p className="text-caption font-semibold">{error}</p>
             </div>
           )}
+          {otherOrderId && (
+            <Button
+              variant="secondary"
+              className="w-full"
+              data-testid="jump-to-order"
+              onClick={() => navigate(`/wh/picking/${otherOrderId}`)}
+            >
+              Go to order {otherOrderId}
+            </Button>
+          )}
           {lastOk && (
             <div className="flex gap-2 p-3 rounded-md bg-dobara-success-light text-[#064e3b]" data-testid="pick-ok">
               <CheckCircle size={18} className="shrink-0" />
@@ -251,6 +281,23 @@ const PickingScan: React.FC = () => {
           ))}
         </CardContent>
       </Card>
+
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Confirm outbound" size="sm">
+        <div className="space-y-3">
+          <div className="flex items-start gap-3 p-3 bg-surface-low rounded-md">
+            <AlertTriangle size={20} className="text-dobara-warning shrink-0 mt-0.5" />
+            <p className="text-body text-text-secondary">
+              Verify physical IMEI <span className="font-mono">{pendingConfirm}</span> matches the outbound task. This action cannot be undone.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" className="flex-1" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+            <Button variant="primary" className="flex-1" data-testid="confirm-scan" onClick={handleConfirm}>
+              Confirm outbound
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
