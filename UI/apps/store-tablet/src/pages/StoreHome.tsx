@@ -39,8 +39,8 @@ export default function StoreHome() {
         <h2 className="text-h4 font-heading text-text-primary mb-4">Inspection Flow</h2>
         <Stepper steps={steps} current={0} />
         <p className="text-caption text-text-muted mt-3">
-          After photos &amp; video: continue or reject → manual appearance checklist → hardware OTG →
-          optional invoice → upload → report.
+          After photos &amp; video: continue or reject → AI pre-fills appearance checklist (review &amp; correct) →
+          hardware OTG → optional invoice → submit → report.
         </p>
       </Card>
 

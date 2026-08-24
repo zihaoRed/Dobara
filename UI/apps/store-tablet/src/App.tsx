@@ -12,7 +12,7 @@ import AppearanceInspect from './pages/AppearanceInspect';
 import HardwareResults from './pages/HardwareResults';
 import RejectDevice from './pages/RejectDevice';
 import InvoiceCapture from './pages/InvoiceCapture';
-import DataUpload from './pages/DataUpload';
+import Submit from './pages/Submit';
 import InspectionReport from './pages/InspectionReport';
 import VerificationStatus from './pages/VerificationStatus';
 import NotificationList from './pages/NotificationList';
@@ -37,7 +37,7 @@ const INSPECTION_STEPS: { key: TInspectionStep; label: string }[] = [
   { key: 'inspect', label: 'Inspect' },
   { key: 'hardware', label: 'Hardware' },
   { key: 'invoice', label: 'Invoice' },
-  { key: 'upload', label: 'Upload' },
+  { key: 'submit', label: 'Submit' },
   { key: 'report', label: 'Report' },
 ];
 
@@ -262,7 +262,7 @@ export default function App() {
           <Route path="/session/:sessionId/hardware" element={<RequireClerk><StepGuard step="hardware"><HardwareResults /></StepGuard></RequireClerk>} />
           <Route path="/session/:sessionId/reject" element={<RequireClerk><RejectDevice /></RequireClerk>} />
           <Route path="/session/:sessionId/invoice" element={<RequireClerk><StepGuard step="invoice"><InvoiceCapture /></StepGuard></RequireClerk>} />
-          <Route path="/session/:sessionId/upload" element={<RequireClerk><StepGuard step="upload"><DataUpload /></StepGuard></RequireClerk>} />
+          <Route path="/session/:sessionId/submit" element={<RequireClerk><StepGuard step="submit"><Submit /></StepGuard></RequireClerk>} />
           <Route path="/session/:sessionId/report" element={<RequireClerk><StepGuard step="report"><InspectionReport /></StepGuard></RequireClerk>} />
           <Route path="/session/:sessionId/verification" element={<RequireClerk><VerificationStatus /></RequireClerk>} />
           <Route path="/notifications" element={<RequireClerk><NotificationList /></RequireClerk>} />

@@ -27,9 +27,9 @@ export default function InvoiceCapture() {
     return Number(raw).toLocaleString('en-IN');
   };
 
-  const goUpload = (skipped: boolean) => {
+  const goSubmit = (skipped: boolean) => {
     markStepComplete(sessionId, 'invoice');
-    navigate(`/session/${sessionId}/upload`, { state: { invoiceSkipped: skipped } });
+    navigate(`/session/${sessionId}/submit`, { state: { invoiceSkipped: skipped } });
   };
 
   const handleContinue = () => {
@@ -117,7 +117,7 @@ export default function InvoiceCapture() {
 
           <div className="flex justify-center gap-4">
             <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/hardware`)}>Back</Button>
-            <Button variant="secondary" size="lg" onClick={() => goUpload(true)}>Skip</Button>
+            <Button variant="secondary" size="lg" onClick={() => goSubmit(true)}>Skip</Button>
             <Button variant="primary" size="lg" data-testid="invoice-continue" onClick={handleContinue}>
               Preview & Continue
             </Button>
@@ -136,7 +136,7 @@ export default function InvoiceCapture() {
             data-testid="invoice-skip"
             onClick={() => {
               setGateOpen(false);
-              goUpload(true);
+              goSubmit(true);
             }}
           >
             Skip
@@ -168,7 +168,7 @@ export default function InvoiceCapture() {
             data-testid="invoice-confirm"
             onClick={() => {
               setPreviewOpen(false);
-              goUpload(false);
+              goSubmit(false);
             }}
           >
             Confirm

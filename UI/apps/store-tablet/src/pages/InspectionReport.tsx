@@ -184,7 +184,7 @@ export default function InspectionReport() {
       </Card>
 
       <div className="flex justify-center gap-4 pointer-events-auto">
-        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/upload`)} disabled={expired}>
+        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/submit`)} disabled={expired}>
           Back
         </Button>
         <Button

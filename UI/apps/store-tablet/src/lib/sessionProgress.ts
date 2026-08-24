@@ -8,7 +8,7 @@ export const INSPECTION_STEP_KEYS = [
   'inspect',
   'hardware',
   'invoice',
-  'upload',
+  'submit',
   'report',
 ] as const;
 

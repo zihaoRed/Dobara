@@ -1,17 +1,21 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Card, Modal, Tabs } from '@dobara/ui';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, Sparkles } from 'lucide-react';
 import { PHOTO_ANGLES } from '@dobara/utils';
 import { APPEARANCE_DIMENSIONS, ALL_APPEARANCE_ITEMS } from '../lib/appearanceItems';
+import { mockAiAppearanceAnalysis, type TAiAppearanceResult } from '../lib/aiAnalysis';
 import { markStepComplete } from '../lib/sessionProgress';
 
-/** TAB-P0-13 MVP — optional checklist; skip = system auto-inspect */
+/** TAB-P0-13 — AI "Thinking" pre-fills the checklist from photos; clerk reviews & corrects. */
 export default function AppearanceInspect() {
   const { sessionId = '' } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const [dim, setDim] = useState(APPEARANCE_DIMENSIONS[0].key);
   const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [aiAnswers, setAiAnswers] = useState<Record<string, number>>({});
+  const [thinking, setThinking] = useState(true);
+  const [thinkingProgress, setThinkingProgress] = useState(0);
   const [helpCode, setHelpCode] = useState<string | null>(null);
   const [photoIdx, setPhotoIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -32,6 +36,28 @@ export default function AppearanceInspect() {
     return d.items.filter((i) => answers[i.code] != null).length;
   };
 
+  // AI "Thinking" phase — upload photos to the server, recognise condition, pre-fill checklist.
+  useEffect(() => {
+    let cancelled = false;
+    const started = Date.now();
+    const DURATION = 2400;
+    const iv = setInterval(() => {
+      setThinkingProgress(Math.min(100, ((Date.now() - started) / DURATION) * 100));
+    }, 80);
+    mockAiAppearanceAnalysis(sessionId).then((results: TAiAppearanceResult) => {
+      if (cancelled) return;
+      clearInterval(iv);
+      setAiAnswers(results);
+      setAnswers(results);
+      setThinkingProgress(100);
+      setTimeout(() => setThinking(false), 250);
+    });
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+    };
+  }, [sessionId]);
+
   const proceedToHardware = async () => {
     setSubmitting(true);
     // Unselected items → system auto-inspect (default to first / "None·Normal" grade)
@@ -42,12 +68,55 @@ export default function AppearanceInspect() {
     try {
       sessionStorage.setItem(
         `dobara_inspect_${sessionId}`,
-        JSON.stringify({ answers: resolved, autoFilled: answeredCount < ALL_APPEARANCE_ITEMS.length }),
+        JSON.stringify({ answers: resolved, aiAnswers, autoFilled: answeredCount < ALL_APPEARANCE_ITEMS.length }),
       );
     } catch { /* ignore */ }
     markStepComplete(sessionId, 'inspect');
     navigate(`/session/${sessionId}/hardware`);
   };
+
+  if (thinking) {
+    const status =
+      thinkingProgress < 25
+        ? 'Uploading photos…'
+        : thinkingProgress < 55
+        ? 'Detecting screen & glass…'
+        : thinkingProgress < 80
+        ? 'Detecting body, back & ports…'
+        : 'Filling the checklist…';
+    return (
+      <div className="flex flex-col justify-center items-center p-6 min-h-full" data-testid="inspect-thinking">
+        <div
+          className="relative overflow-hidden rounded-2xl text-white w-full max-w-md"
+          style={{ background: '#0c1613' }}
+        >
+          <div
+            className="absolute inset-x-0 top-0 h-px"
+            style={{ background: 'linear-gradient(90deg, transparent, #c9a227, transparent)' }}
+          />
+          <div className="p-8 text-center">
+            <span className="relative flex h-3 w-3 mx-auto mb-4">
+              <span className="dobara-pulse-dot absolute inline-flex h-full w-full rounded-full bg-accent-500" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-accent-500" />
+            </span>
+            <p className="text-eyebrow tracking-[0.14em] text-[#d7c48a] mb-2">Thinking</p>
+            <p className="text-body text-white/85">AI is analysing your photos</p>
+            <p className="text-caption text-white/45 mt-1">{status}</p>
+            <div className="h-[3px] rounded-full bg-white/10 overflow-hidden mt-6">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${thinkingProgress}%`,
+                  background: 'linear-gradient(90deg, #3fa37b, #c9a227)',
+                  transition: 'width 80ms linear',
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-full" data-testid="appearance-inspect">
@@ -55,8 +124,16 @@ export default function AppearanceInspect() {
         <div className="mb-4">
           <h1 className="text-h3 font-heading text-text-primary">Appearance Checklist</h1>
           <p className="text-caption text-text-muted mt-1">
-            Optional notes for the clerk. Leave blank and continue — the system will run appearance QC automatically.
+            AI pre-filled the checklist from your photos. Review and correct any item before continuing.
           </p>
+        </div>
+
+        <div className="mb-4 rounded-lg bg-dobara-info-light text-[#1e3a8a] px-4 py-3 text-caption font-medium flex items-center gap-2">
+          <Sparkles size={16} className="shrink-0" />
+          <span>
+            AI detected {Object.values(aiAnswers).filter((v) => v !== 0).length} wear item(s) and pre-filled all
+            {ALL_APPEARANCE_ITEMS.length} checks. Items marked <b>AI</b> are suggestions — tap to correct.
+          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] lg:grid-cols-[220px_1fr] gap-4 mb-4">
@@ -106,7 +183,9 @@ export default function AppearanceInspect() {
                     >
                       <p className="text-caption font-semibold text-text-primary">
                         {item.code} · {item.name}
-                        <span className="ml-2 text-eyebrow text-text-muted font-normal">optional</span>
+                        {aiAnswers[item.code] != null && (
+                          <span className="ml-2 text-eyebrow font-normal text-accent-600">AI-suggested</span>
+                        )}
                       </p>
                     </button>
                     <button
@@ -143,6 +222,9 @@ export default function AppearanceInspect() {
                         }`}
                       >
                         {opt.label}
+                        {aiAnswers[item.code] === oi && (
+                          <span className="ml-1 text-[9px] font-bold uppercase text-accent-600">AI</span>
+                        )}
                       </button>
                     ))}
                   </div>
