@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Button, PriceDisplay, Countdown, ProgressBar, GradeBadge, Modal, EstimateSearchPanel } from '@dobara/ui';
 import { CheckCircle, XCircle, AlertTriangle, Camera, Video, Clock } from 'lucide-react';
 import type { IHardwareResult, TGrade } from '@dobara/utils';
-import { imeiLast4 } from '@dobara/utils';
+import { imeiLast4, GRADE_INFO } from '@dobara/utils';
 
 interface ReportData {
   deviceSummary: { brand: string; model: string; imei: string };
@@ -155,6 +155,12 @@ export function InspectionReport() {
           </div>
         </div>
         <GradeBadge grade={report.grade} size="md" />
+        <div className="mt-3 pt-3 border-t border-border">
+          <p className="text-caption font-semibold text-text-secondary">
+            Condition Grade · {GRADE_INFO[report.grade].name}
+          </p>
+          <p className="text-caption text-text-muted mt-1">{GRADE_INFO[report.grade].description}</p>
+        </div>
       </Card>
 
       <Card>

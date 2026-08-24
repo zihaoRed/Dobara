@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, Tabs, Badge, GradeBadge, PriceDisplay, Button, SkeletonCard, ProgressBar, Modal } from '@dobara/ui';
 import { Camera, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { IDevice, IModel, IBrand } from '@dobara/utils';
-import { imeiLast4 } from '@dobara/utils';
+import { imeiLast4, GRADE_INFO } from '@dobara/utils';
 
 /* ── Demo fallback data ── */
 const DEMO_BRANDS: Record<string, IBrand> = {
@@ -234,12 +234,10 @@ export function ProductDetail() {
                 <span className="text-body text-text-secondary">Grade</span>
                 <GradeBadge grade={device.grade} size="md" />
               </div>
-              <p className="text-caption text-text-muted">
-                {device.grade === 'A' && 'A — Like New (99% new)'}
-                {device.grade === 'B' && 'B — Excellent (minor signs of use)'}
-                {device.grade === 'C' && 'C — Good (visible wear)'}
-                {device.grade === 'D' && 'D — Fair (heavy use)'}
+              <p className="text-caption font-semibold text-text-secondary">
+                {device.grade} · {GRADE_INFO[device.grade].name}
               </p>
+              <p className="text-caption text-text-muted">{GRADE_INFO[device.grade].description}</p>
             </div>
           </Card>
           <Card>

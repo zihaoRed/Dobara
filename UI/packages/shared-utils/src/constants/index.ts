@@ -15,6 +15,42 @@ export const GRADE_LABELS = {
   D: 'Fair (Heavy use)',
 };
 
+export interface IGradeInfo {
+  /** Short badge label, e.g. "Like New". */
+  label: string;
+  /** PRD tier name, e.g. "99 New". */
+  name: string;
+  /** Consumer-facing 说明文字 for the inspection report / product detail. */
+  description: string;
+}
+
+export const GRADE_INFO: Record<'A' | 'B' | 'C' | 'D', IGradeInfo> = {
+  A: {
+    label: 'Like New',
+    name: '99 New',
+    description:
+      'No scratches or dents — screen and body look as new. All-original parts with no repair history. Battery health ≥90% and all functions working.',
+  },
+  B: {
+    label: 'Excellent',
+    name: '95 New',
+    description:
+      'Light scratches (covered by a screen protector) and minor edge paint wear. All-original parts, no repairs. Battery ≥85%, all functions working.',
+  },
+  C: {
+    label: 'Good',
+    name: '90 New',
+    description:
+      'Visible scratches and dents on the body. May have non-core repairs such as battery or back-cover replacement. Battery ≥80%, up to 1 functional issue.',
+  },
+  D: {
+    label: 'Fair',
+    name: '85 New',
+    description:
+      'Heavy wear — cracked screen or display fault, bent frame or cracked back, or screen/mainboard replacement. Battery below 80%, or 2 or more functional issues.',
+  },
+};
+
 export const HARDWARE_CHECK_ITEMS = [
   'IMEI / Serial Number',
   'Brand & Model',

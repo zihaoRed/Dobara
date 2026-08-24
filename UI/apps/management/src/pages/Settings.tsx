@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Input, Badge, Modal } from '@dobara/ui';
+import { Button, Card, Input, Badge, Modal, Tabs } from '@dobara/ui';
+import type { TRoleCode } from '@dobara/utils';
 import { useAuth } from '../lib/AuthContext';
 import { DEMO_USERS, isValidPassword } from '../lib/auth';
+import { NOTIF_GROUPS, groupForRole, INTERNAL_ROLE_ORDER } from '../lib/notifPrefs';
 
 interface IDeviceRow {
   id: string;
@@ -40,6 +42,15 @@ const I18N = {
     clearCache: 'Clear cache',
     deleteAccount: 'Delete account',
     tabletDevices: 'Tablet devices',
+    notificationPrefs: 'Notification preferences',
+    notifInapp: 'In-app (message center)',
+    notifInappDesc: 'Always recorded as history',
+    alwaysOn: 'Always on',
+    notifSecurity: 'Security notifications',
+    notifSecurityDesc: 'New device, password & phone changes',
+    notifSecurityLocked: 'Always on — cannot be disabled',
+    dnd: 'Do not disturb',
+    dndDesc: 'Mute push & SMS during this window',
   },
   hi: {
     settings: 'सेटिंग्स',
@@ -55,6 +66,15 @@ const I18N = {
     clearCache: 'कैश साफ़ करें',
     deleteAccount: 'खाता हटाएँ',
     tabletDevices: 'टैबलेट डिवाइस',
+    notificationPrefs: 'अधिसूचना प्राथमिकताएँ',
+    notifInapp: 'इन-ऐप (संदेश केंद्र)',
+    notifInappDesc: 'हमेशा इतिहास के रूप में दर्ज',
+    alwaysOn: 'हमेशा चालू',
+    notifSecurity: 'सुरक्षा सूचनाएँ',
+    notifSecurityDesc: 'नया डिवाइस, पासवर्ड और फ़ोन परिवर्तन',
+    notifSecurityLocked: 'हमेशा चालू — बंद नहीं किया जा सकता',
+    dnd: 'परेशान न करें',
+    dndDesc: 'इस अवधि में पुश और एसएमएस म्यूट करें',
   },
 } as const;
 
@@ -97,10 +117,44 @@ export default function Settings() {
   const [devices, setDevices] = useState(DEMO_DEVICES);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [tablets, setTablets] = useState<ITabletRow[]>([]);
+  const [notifRole, setNotifRole] = useState<TRoleCode | null>(null);
+  const [roleNotif, setRoleNotif] = useState<
+    Record<string, Record<string, { push: boolean; sms: boolean }>>
+  >(() => {
+    const init: Record<string, Record<string, { push: boolean; sms: boolean }>> = {};
+    for (const g of NOTIF_GROUPS) {
+      init[g.roleCode] = {};
+      for (const c of g.categories) init[g.roleCode][c.key] = { ...c.channels };
+    }
+    return init;
+  });
+  const [dnd, setDnd] = useState(false);
+  const [dndStart, setDndStart] = useState('22:00');
+  const [dndEnd, setDndEnd] = useState('08:00');
 
   const t = I18N[lang];
+  const userRoles = useMemo(() => {
+    const own = session?.roles.map((r) => r.roleCode) ?? [];
+    // Admin (SA) sees and configures the full matrix for all four roles.
+    if (own.includes('ROLE-SA')) return [...INTERNAL_ROLE_ORDER];
+    const set = new Set(own);
+    return INTERNAL_ROLE_ORDER.filter((rc) => set.has(rc));
+  }, [session]);
+  const activeNotifRole = notifRole && userRoles.includes(notifRole) ? notifRole : userRoles[0];
+  const activeNotifGroup = activeNotifRole ? groupForRole(activeNotifRole) : undefined;
   const isOwner = !!session?.roles.some((r) => r.roleCode === 'ROLE-OWN');
   const storeId = session?.roles.find((r) => r.roleCode === 'ROLE-OWN')?.orgId || 'ST-MH-0001';
+
+  const toggleChannel = (roleCode: TRoleCode, catKey: string, channel: 'push' | 'sms') => {
+    setRoleNotif((prev) => {
+      const cur = prev[roleCode]?.[catKey];
+      if (!cur) return prev;
+      return {
+        ...prev,
+        [roleCode]: { ...prev[roleCode], [catKey]: { ...cur, [channel]: !cur[channel] } },
+      };
+    });
+  };
 
   useEffect(() => {
     if (!session) navigate('/login', { replace: true });
@@ -188,6 +242,114 @@ export default function Settings() {
           >
             हिन्दी
           </Button>
+        </div>
+      </Card>
+
+      <Card className="p-4 space-y-3" data-testid="notif-prefs">
+        <h3 className="text-h4 font-heading">{t.notificationPrefs}</h3>
+        <p className="text-caption text-text-muted">UA-P0-03 · per-role category preferences</p>
+
+        {userRoles.length > 1 && (
+          <Tabs
+            tabs={userRoles.map((rc) => {
+              const g = groupForRole(rc);
+              return { key: rc, label: lang === 'en' ? g?.label ?? rc : g?.labelHi ?? rc };
+            })}
+            activeTab={activeNotifRole}
+            onChange={(k) => setNotifRole(k as TRoleCode)}
+          />
+        )}
+
+        {activeNotifGroup && (
+          <div className="space-y-1">
+            {userRoles.length === 1 && (
+              <div className="text-caption font-semibold text-text-secondary">
+                {lang === 'en' ? activeNotifGroup.label : activeNotifGroup.labelHi}
+              </div>
+            )}
+            {activeNotifGroup.categories.map((c) => {
+              const pref = roleNotif[activeNotifGroup.roleCode]?.[c.key] ?? c.channels;
+              return (
+                <div
+                  key={c.key}
+                  className="flex items-center justify-between gap-3 py-2 border-b border-border/50 last:border-0"
+                >
+                  <div className="min-w-0">
+                    <div className="text-body font-medium">{lang === 'en' ? c.label : c.labelHi}</div>
+                    <div className="text-caption text-text-muted truncate">{lang === 'en' ? c.desc : c.descHi}</div>
+                  </div>
+                  <div className="flex items-center gap-4 shrink-0">
+                    <label className="flex items-center gap-1.5 text-caption text-text-secondary cursor-pointer">
+                      Push
+                      <input
+                        type="checkbox"
+                        checked={pref.push}
+                        onChange={() => toggleChannel(activeNotifGroup.roleCode, c.key, 'push')}
+                        className="accent-primary-500 w-4 h-4"
+                      />
+                    </label>
+                    <label className="flex items-center gap-1.5 text-caption text-text-secondary cursor-pointer">
+                      SMS
+                      <input
+                        type="checkbox"
+                        checked={pref.sms}
+                        onChange={() => toggleChannel(activeNotifGroup.roleCode, c.key, 'sms')}
+                        className="accent-primary-500 w-4 h-4"
+                      />
+                    </label>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+          <div>
+            <div className="text-body font-semibold">{t.notifInapp}</div>
+            <div className="text-caption text-text-muted">{t.notifInappDesc}</div>
+          </div>
+          <Badge variant="neutral">{t.alwaysOn}</Badge>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <div>
+            <div className="text-body font-semibold">{t.notifSecurity}</div>
+            <div className="text-caption text-text-muted">{t.notifSecurityDesc}</div>
+          </div>
+          <Badge variant="neutral">{t.notifSecurityLocked}</Badge>
+        </div>
+
+        <div className="border-t border-border pt-3 space-y-2">
+          <label className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-body font-semibold">{t.dnd}</div>
+              <div className="text-caption text-text-muted">{t.dndDesc}</div>
+            </div>
+            <input
+              type="checkbox"
+              checked={dnd}
+              onChange={(e) => setDnd(e.target.checked)}
+              className="accent-primary-500 w-4 h-4"
+            />
+          </label>
+          {dnd && (
+            <div className="flex items-center gap-2">
+              <input
+                type="time"
+                value={dndStart}
+                onChange={(e) => setDndStart(e.target.value)}
+                className="h-[36px] px-2 rounded-md border border-border bg-surface-container text-body"
+              />
+              <span className="text-caption text-text-muted">–</span>
+              <input
+                type="time"
+                value={dndEnd}
+                onChange={(e) => setDndEnd(e.target.value)}
+                className="h-[36px] px-2 rounded-md border border-border bg-surface-container text-body"
+              />
+            </div>
+          )}
         </div>
       </Card>
 
