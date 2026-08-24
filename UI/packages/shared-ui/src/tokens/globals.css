@@ -134,7 +134,7 @@ a, button, input, select, textarea {
   color: var(--color-text-primary);
 }
 
-/* ── Estimate search (Doubao-style market radar) ── */
+/* ── Estimate analysis (valuation "thinking" animation) ── */
 @keyframes dobara-radar-sweep {
   0% { transform: translateY(-120%); opacity: 0; }
   18% { opacity: 0.55; }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Button, PriceDisplay, Countdown, ProgressBar, GradeBadge, Modal, EstimateSearchPanel } from '@dobara/ui';
+import { Card, Button, PriceDisplay, Countdown, ProgressBar, GradeBadge, Modal } from '@dobara/ui';
 import { CheckCircle, XCircle, AlertTriangle, Camera, Video, Clock } from 'lucide-react';
 import type { IHardwareResult, TGrade } from '@dobara/utils';
 import { imeiLast4, GRADE_INFO } from '@dobara/utils';
@@ -161,15 +161,6 @@ export function InspectionReport() {
           </p>
           <p className="text-caption text-text-muted mt-1">{GRADE_INFO[report.grade].description}</p>
         </div>
-      </Card>
-
-      <Card>
-        <EstimateSearchPanel
-          compact
-          running={false}
-          deviceLabel={`${report.deviceSummary.brand} ${report.deviceSummary.model}`}
-          estimate={report.price}
-        />
       </Card>
 
       <Card>

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, EstimateSearchPanel } from '@dobara/ui';
+import { Card, Button, EstimateThinkingPanel } from '@dobara/ui';
+import type { IEstimateDeduction } from '@dobara/ui';
 import { ArrowRight, Smartphone, Info, MapPin, Clock } from 'lucide-react';
 import type { IBrand, IModel, IStore } from '@dobara/utils';
 
@@ -83,6 +84,8 @@ export function Appointment() {
   const [selRepairs, setSelRepairs] = useState<string[]>([]);
   const [selIssues, setSelIssues] = useState<string[]>([]);
   const [estimate, setEstimate] = useState<number | null>(null);
+  const [deductions, setDeductions] = useState<IEstimateDeduction[]>([]);
+  const [appearance, setAppearance] = useState<string[]>([]);
   const [searching, setSearching] = useState(false);
   const [city, setCity] = useState('Mumbai');
   const [selStore, setSelStore] = useState('');
@@ -137,16 +140,25 @@ export function Appointment() {
     const bodyOpts = CONDITIONS[0].options;
     const screenOpts = CONDITIONS[1].options;
     const displayOpts = CONDITIONS[2].options;
-    price -= Math.max(0, bodyOpts.indexOf(selBodyCondition)) * 2500;
-    price -= Math.max(0, screenOpts.indexOf(selScreenCondition)) * 2000;
-    price -= Math.max(0, displayOpts.indexOf(selDisplay)) * 3000;
-    price -= Math.max(0, BATTERY_OPTIONS.indexOf(selBattery)) * 1500;
-    price -= Math.max(0, USAGE_OPTIONS.indexOf(selUsage)) * 800;
-    if (selWarranty === 'No') price -= 1500;
-    const realRepairs = selRepairs.filter((r) => r !== 'Never repaired');
-    price -= realRepairs.length * 1000;
-    const realIssues = selIssues.filter((i) => i !== 'All working');
-    price -= realIssues.length * 800;
+
+    const nextDeductions: IEstimateDeduction[] = [];
+    const push = (label: string, detail: string | undefined, amount: number) => {
+      if (amount <= 0) return;
+      nextDeductions.push({ label, detail, amount });
+      price -= amount;
+    };
+
+    push('Body condition', selBodyCondition, Math.max(0, bodyOpts.indexOf(selBodyCondition)) * 2500);
+    push('Screen condition', selScreenCondition, Math.max(0, screenOpts.indexOf(selScreenCondition)) * 2000);
+    push('Display', selDisplay, Math.max(0, displayOpts.indexOf(selDisplay)) * 3000);
+    push('Battery health', selBattery, Math.max(0, BATTERY_OPTIONS.indexOf(selBattery)) * 1500);
+    push('Usage period', selUsage, Math.max(0, USAGE_OPTIONS.indexOf(selUsage)) * 800);
+    if (selWarranty === 'No') push('Out of warranty', undefined, 1500);
+    selRepairs.filter((r) => r !== 'Never repaired').forEach((r) => push('Repair', r, 1000));
+    selIssues.filter((i) => i !== 'All working').forEach((i) => push('Issue', i, 800));
+
+    setDeductions(nextDeductions);
+    setAppearance([selBodyCondition, selScreenCondition, selDisplay].filter(Boolean));
     setEstimate(Math.max(3000, Math.round(price / 100) * 100));
     setSelDate(nextDays[0] || '');
     setSearching(true);
@@ -330,15 +342,17 @@ export function Appointment() {
       {searching && estimate != null && (
         <div className="space-y-3" data-testid="estimate-searching">
           <div>
-            <h2 className="text-h4 font-heading">Reading the market</h2>
+            <h2 className="text-h4 font-heading">Analysing your device</h2>
             <p className="text-caption text-text-muted mt-1">
-              Pulling live-style buyback boards for {deviceLabel}. Tap a source anytime.
+              Working out the value of your {deviceLabel} from its condition.
             </p>
           </div>
-          <EstimateSearchPanel
+          <EstimateThinkingPanel
             running
             deviceLabel={deviceLabel}
             estimate={estimate}
+            deductions={deductions}
+            appearance={appearance}
             durationMs={5000}
             onComplete={() => {
               setSearching(false);
@@ -503,11 +517,17 @@ export function Appointment() {
                 ₹{new Intl.NumberFormat('en-IN').format(estimate)}
               </p>
               <p className="text-caption text-text-muted mt-1">
-                Median of Cashify / CeX / Flipkart, then your reported condition. Final price after in-store inspection.
+                Based on your reported condition. Final price confirmed after in-store inspection.
               </p>
             </div>
             <div className="mt-4 pt-4 border-t border-border">
-              <EstimateSearchPanel compact deviceLabel={deviceLabel} estimate={estimate} running={false} />
+              <EstimateThinkingPanel
+                compact
+                deviceLabel={deviceLabel}
+                estimate={estimate}
+                deductions={deductions}
+                appearance={appearance}
+              />
             </div>
           </Card>
 
