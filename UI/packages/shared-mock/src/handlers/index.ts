@@ -9,6 +9,8 @@ import {
   brands,
   stores,
   users,
+  appointments,
+  todayLocal,
   orderStore,
   recycleOrderStore,
   addressStore,
@@ -322,6 +324,18 @@ export const handlers = [
       return HttpResponse.json({ success: true, userId: user?.id || `u-new-${Date.now()}`, isNew: !user });
     }
     return HttpResponse.json({ error: 'Invalid OTP' }, { status: 400 });
+  }),
+
+  // Appointments — TAB-P1-02 auto-load by phone (latest first)
+  http.get('/api/appointments', async ({ request }) => {
+    await simulateDelay();
+    const url = new URL(request.url);
+    const phone = (url.searchParams.get('phone') || '').replace(/\D/g, '').slice(-10);
+    const today = todayLocal();
+    const list = appointments
+      .filter((a) => a.phone === phone && a.date === today)
+      .sort((a, b) => (a.time < b.time ? 1 : -1));
+    return HttpResponse.json({ appointments: list });
   }),
 
   // Sessions — create appointment → Exchange order (appointment_pending)

@@ -381,6 +381,79 @@ export const users: IUser[] = [
   { id: 'u-8', phone: '+919876543208', name: 'Sunita Verma', role: 'finance' },
 ];
 
+export interface IAppointmentRecord {
+  id: string;
+  phone: string; // 10-digit, no country code
+  date: string; // YYYY-MM-DD (local)
+  time: string; // HH:mm (24h) — used for "latest first" ordering
+  slot: string; // human-readable slot, e.g. "15:00–16:00"
+  brand: string;
+  model: string;
+  color: string;
+  storage: string;
+  estimateMin: number;
+  estimateMax: number;
+  notes?: string;
+}
+
+/** Local YYYY-MM-DD so "today" matches the clerk's timezone, not UTC */
+export function todayLocal() {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${m}-${day}`;
+}
+
+/**
+ * TAB-P1-02 — appointment records queried by phone. The demo customer
+ * (9876543210) has three same-day appointments so the tablet shows the
+ * latest one + a "View Other Appointments (2)" entry.
+ */
+export const appointments: IAppointmentRecord[] = [
+  {
+    id: 'ap-1',
+    phone: '9876543210',
+    date: todayLocal(),
+    time: '09:30',
+    slot: '09:30–10:30',
+    brand: 'Samsung',
+    model: 'Galaxy S21',
+    color: 'Phantom Gray',
+    storage: '128GB',
+    estimateMin: 18000,
+    estimateMax: 22000,
+    notes: 'Screen flicker under low brightness',
+  },
+  {
+    id: 'ap-2',
+    phone: '9876543210',
+    date: todayLocal(),
+    time: '13:30',
+    slot: '13:30–14:30',
+    brand: 'Xiaomi',
+    model: 'Mi 11',
+    color: 'Midnight Gray',
+    storage: '256GB',
+    estimateMin: 16000,
+    estimateMax: 20000,
+    notes: 'Battery drains faster than expected',
+  },
+  {
+    id: 'ap-3',
+    phone: '9876543210',
+    date: todayLocal(),
+    time: '15:00',
+    slot: '15:00–16:00',
+    brand: 'Apple',
+    model: 'iPhone 13',
+    color: 'Midnight',
+    storage: '128GB',
+    estimateMin: 28000,
+    estimateMax: 32000,
+    notes: 'Minor scratches claimed',
+  },
+];
+
 // Compute available devices
 export const getAvailableDevices = () => {
   return devices.filter((d) => d.status === 'available');
