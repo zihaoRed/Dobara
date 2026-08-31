@@ -116,7 +116,7 @@ export default function InvoiceCapture() {
           </Card>
 
           <div className="flex justify-center gap-4">
-            <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/hardware`)}>Back</Button>
+            <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/condition`)}>Back</Button>
             <Button variant="secondary" size="lg" onClick={() => goSubmit(true)}>Skip</Button>
             <Button variant="primary" size="lg" data-testid="invoice-continue" onClick={handleContinue}>
               Preview & Continue

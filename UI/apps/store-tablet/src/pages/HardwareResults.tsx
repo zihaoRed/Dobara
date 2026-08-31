@@ -203,10 +203,10 @@ export default function HardwareResults() {
           data-testid="hardware-continue"
           onClick={() => {
             markStepComplete(sessionId, 'hardware');
-            navigate(`/session/${sessionId}/invoice`);
+            navigate(`/session/${sessionId}/condition`);
           }}
         >
-          Continue to Invoice
+          Continue to Condition
         </Button>
       </div>
 

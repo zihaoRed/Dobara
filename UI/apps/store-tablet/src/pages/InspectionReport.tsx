@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Card, CardHeader, CardContent, GradeBadge, PriceDisplay, Countdown, EstimateThinkingPanel } from '@dobara/ui';
-import { Smartphone, Cpu, Camera, ChevronDown, ChevronUp } from 'lucide-react';
-import { imeiLast4 } from '@dobara/utils';
+import { Button, Card, CardHeader, CardContent, GradeBadge, PriceDisplay, Countdown, EstimateThinkingPanel, Badge } from '@dobara/ui';
+import { Smartphone, Cpu, Camera, ChevronDown, ChevronUp, Wrench } from 'lucide-react';
+import { imeiLast4, REPAIR_HISTORY_OPTIONS, ACCESSORY_OPTIONS, FUNCTIONAL_DEFECT_OPTIONS } from '@dobara/utils';
 import { markStepComplete } from '../lib/sessionProgress';
 
 type TGrade = 'A' | 'B' | 'C' | 'D';
@@ -24,6 +24,11 @@ export default function InspectionReport() {
   const [hwOpen, setHwOpen] = useState(false);
   const [expired, setExpired] = useState(false);
   const [radarDone, setRadarDone] = useState(false);
+  const [condition, setCondition] = useState<{
+    repairHistory: string[];
+    accessoriesMissing: string[];
+    functionalDefects: string[];
+  } | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -57,6 +62,13 @@ export default function InspectionReport() {
     load();
   }, [sessionId]);
 
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(`dobara_condition_${sessionId}`);
+      if (raw) setCondition(JSON.parse(raw));
+    } catch { /* ignore */ }
+  }, [sessionId]);
+
   if (loading) {
     return (
       <div className="p-6">
@@ -70,6 +82,8 @@ export default function InspectionReport() {
   if (!report) return null;
 
   const deviceLabel = `${report.deviceSummary.brand} ${report.deviceSummary.model}`;
+  const labelFor = (options: readonly { key: string; label: string }[], key: string) =>
+    options.find((o) => o.key === key)?.label ?? key;
 
   if (!radarDone) {
     return (
@@ -166,6 +180,57 @@ export default function InspectionReport() {
           </div>
         </CardContent>
       </Card>
+
+      {condition && (
+        <Card className="mb-4">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Wrench size={18} className="text-text-muted" />
+              <span className="text-eyebrow text-text-muted uppercase">Condition Summary</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div>
+                <span className="text-caption text-text-muted block mb-1">Repair history</span>
+                {condition.repairHistory.length === 0 ? (
+                  <span className="text-caption text-text-secondary">No repair record</span>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {condition.repairHistory.map((k) => (
+                      <Badge key={k} variant="warning">{labelFor(REPAIR_HISTORY_OPTIONS, k)}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <span className="text-caption text-text-muted block mb-1">Accessories missing</span>
+                {condition.accessoriesMissing.length === 0 ? (
+                  <span className="text-caption text-text-secondary">Complete</span>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {condition.accessoriesMissing.map((k) => (
+                      <Badge key={k} variant="neutral">{labelFor(ACCESSORY_OPTIONS, k)}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div>
+                <span className="text-caption text-text-muted block mb-1">Functional defects</span>
+                {condition.functionalDefects.length === 0 ? (
+                  <span className="text-caption text-text-secondary">All functions normal</span>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {condition.functionalDefects.map((k) => (
+                      <Badge key={k} variant="error">{labelFor(FUNCTIONAL_DEFECT_OPTIONS, k)}</Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="mb-6">
         <CardContent>

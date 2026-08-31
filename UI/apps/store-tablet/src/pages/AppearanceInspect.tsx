@@ -249,7 +249,7 @@ export default function AppearanceInspect() {
               : `${answeredCount}/${ALL_APPEARANCE_ITEMS.length} marked · rest will auto-QC`}
           </p>
           <div className="flex gap-2 shrink-0">
-            <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/decision`)}>
+            <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/admission`)}>
               Back
             </Button>
             <Button

@@ -329,7 +329,7 @@ const ReviewDetail: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
-              {(['appearance', 'hardware'] as const).map((kind) => (
+              {(['appearance', 'hardware', 'functional', 'repair', 'accessory'] as const).map((kind) => (
                 <div key={kind}>
                   <p className="text-caption font-semibold text-text-secondary mb-2 capitalize">{kind}</p>
                   <div className="space-y-2">

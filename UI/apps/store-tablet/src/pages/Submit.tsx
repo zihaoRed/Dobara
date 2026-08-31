@@ -9,7 +9,9 @@ const packageItems = [
   { name: '360° video', type: 'Video' },
   { name: 'AI analysis results', type: 'Data' },
   { name: 'Appearance checklist', type: 'Data' },
+  { name: 'Admission checks', type: 'Data' },
   { name: 'Hardware diagnostics', type: 'Data' },
+  { name: 'Condition & accessories', type: 'Data' },
   { name: 'Invoice', type: 'Image (optional)' },
 ];
 

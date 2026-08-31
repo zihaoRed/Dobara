@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button, Card, Modal, Input } from '@dobara/ui';
 import { Camera, AlertTriangle, X } from 'lucide-react';
 import { REJECTION_REASONS } from '@dobara/utils';
@@ -12,6 +12,9 @@ const MAX_PHOTOS = 10;
 export default function RejectDevice() {
   const { sessionId = '' } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Rejection can be triggered from appearance decision (default) or admission checks.
+  const fromStep = (location.state as { from?: string } | null)?.from === 'admission' ? 'admission' : 'decision';
   const [photos, setPhotos] = useState<(string | null)[]>([]);
   const [selectedReason, setSelectedReason] = useState('');
   const [otherText, setOtherText] = useState('');
@@ -40,7 +43,7 @@ export default function RejectDevice() {
     setSubmitting(true);
     try {
       await new Promise((r) => setTimeout(r, 600));
-      markStepComplete(sessionId, 'decision', { rejected: true });
+      markStepComplete(sessionId, fromStep, { rejected: true });
       setShowConfirm(false);
       setDone(true);
     } finally {
@@ -173,7 +176,7 @@ export default function RejectDevice() {
       </Card>
 
       <div className="flex justify-center gap-4">
-        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/decision`)}>
+        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/${fromStep}`)}>
           Back
         </Button>
         <Button

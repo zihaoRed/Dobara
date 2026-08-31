@@ -111,6 +111,30 @@ export interface IInspection {
   appearanceChecks: IAppearanceCheck[];
   rejectionReason?: string;
   rejectionPhotos?: string[];
+  admission?: IAdmissionCheck;
+  condition?: IConditionCheck;
+}
+
+/** ADM-01~07 admission gate result + motherboard visual checks. */
+export interface IAdmissionCheck {
+  checks: { checkType: string; status: 'pass' | 'fail' | 'unverified'; detail: string }[];
+  motherboard: IMotherboardCheck;
+}
+
+export interface IMotherboardCheck {
+  /** ADM-03 — reject */
+  corrosion: boolean;
+  /** ADM-03 — reject */
+  lci: boolean;
+  /** HW-MB-01 — deduction, not reject */
+  repairTraces: boolean;
+}
+
+/** CO-RPR / CO-ACC / CO-FNC clerk point-check results. */
+export interface IConditionCheck {
+  repairHistory: string[];
+  accessoriesMissing: string[];
+  functionalDefects: string[];
 }
 
 export interface IHardwareResult {

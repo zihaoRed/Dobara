@@ -8,6 +8,51 @@ export const REJECTION_REASONS = [
   { value: 'other', label: 'Other (description required)' },
 ];
 
+/** Admission gate (ADM-01~07) — pre-pricing, run after device connects. */
+export const ADMISSION_CHECKS = [
+  { key: 'blacklist', label: 'IMEI blacklist', source: 'Server lookup' },
+  { key: 'icloud', label: 'iCloud / FRP lock', source: 'Device read' },
+  { key: 'water_damage', label: 'Water damage / corrosion', source: 'LCI + clerk visual' },
+  { key: 'no_power', label: 'No power / will not boot', source: 'Device read' },
+  { key: 'lost_stolen', label: 'Reported lost / stolen (CEIR)', source: 'Server lookup' },
+  { key: 'emi', label: 'Still under EMI / financing', source: 'NBFC API / self-declare' },
+  { key: 'carrier_lock', label: 'Carrier / network lock', source: 'Server lookup' },
+] as const;
+
+/** Motherboard visual checks (clerk). corrosion/LCI = reject (ADM-03); repair traces = deduction (HW-MB-01). */
+export const MOTHERBOARD_CHECKS = [
+  { key: 'corrosion', label: 'Corrosion on motherboard', reject: true },
+  { key: 'lci', label: 'LCI water indicator triggered', reject: true },
+  { key: 'repairTraces', label: 'Repair traces (solder / jumper / missing shield)', reject: false },
+] as const;
+
+/** Repair history (CO-RPR-01~04) — multi-select, ≥3 triggers penalty. */
+export const REPAIR_HISTORY_OPTIONS = [
+  { key: 'screen', label: 'Screen replaced' },
+  { key: 'battery', label: 'Battery replaced' },
+  { key: 'camera', label: 'Camera replaced' },
+  { key: 'other', label: 'Other repair' },
+] as const;
+
+/** Accessories missing (CO-ACC-01~03) — multi-select. */
+export const ACCESSORY_OPTIONS = [
+  { key: 'charger', label: 'Missing original charger' },
+  { key: 'cable', label: 'Missing original cable' },
+  { key: 'box', label: 'Missing original box' },
+] as const;
+
+/** Functional defects (CO-FNC-01~08) — multi-select. */
+export const FUNCTIONAL_DEFECT_OPTIONS = [
+  { key: 'flash', label: 'Flash not working' },
+  { key: 'charging_port', label: 'Charging port issue' },
+  { key: 'buttons', label: 'Buttons not working' },
+  { key: 'mic', label: 'Microphone issue' },
+  { key: 'speaker', label: 'Speaker issue' },
+  { key: 'camera_focus', label: 'Camera focus fail' },
+  { key: 'vibration', label: 'Vibration motor not working' },
+  { key: 'wireless', label: 'GPS / WiFi / Bluetooth issue' },
+] as const;
+
 export const GRADE_LABELS = {
   A: 'Like New (99% New)',
   B: 'Excellent (Minor signs of use)',

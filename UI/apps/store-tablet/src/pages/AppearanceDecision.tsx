@@ -33,14 +33,14 @@ export default function AppearanceDecision() {
           data-testid="continue-inspect"
           onClick={() => {
             markStepComplete(sessionId, 'decision');
-            navigate(`/session/${sessionId}/inspect`);
+            navigate(`/session/${sessionId}/admission`);
           }}
           className="rounded-2xl bg-dobara-success text-white p-6 text-left shadow-card hover:opacity-95 transition-opacity"
         >
           <CheckCircle size={32} className="mb-3" />
           <p className="text-h4 font-bold">Continue Inspection</p>
           <p className="text-caption text-white/85 mt-1">
-            Appearance OK — proceed to defect checklist, then hardware audit
+            Appearance OK — proceed to admission checks, then defect checklist & hardware audit
           </p>
         </button>
 
