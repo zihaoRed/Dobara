@@ -1,5 +1,5 @@
 # 云端中台 - 服务端 PRD
-**文档版本：** v1.3 | **更新日期：** 2026-08-12
+**文档版本：** v1.5 | **更新日期：** 2026-08-31
 **模块编号：** CLOUD | **平台：** 服务端 API
 **使用角色：** 管理员、系统、后端开发、QA、架构师
 **文档说明：** Dobara平台核心业务逻辑中枢，负责定价计算、核销确认、库存管理、支付集成、订单路由、国际化等全链路服务端业务处理。所有前端客户端均通过本模块的 RESTful API 进行数据交互。每条功能编号格式为 `CLOUD-Px-xx`。
@@ -8,6 +8,8 @@
 
 | 日期 | 版本 | 更新内容 | 更新人 |
 |------|------|----------|--------|
+| 2026-08-31 | v1.5 | 短信网关确定为 MSG91，补充 DLT 三要素 / Route 映射 / OTP Flow / 语音兜底接入细节（2.13.5） | 何子豪 |
+| 2026-08-31 | v1.4 | 新增 CLOUD-P0-15 通知模板规范（6 条 SMS/WhatsApp 模板，覆盖 OTP/预约/报告/客服/账号邀请） | 何子豪 |
 | 2026-08-12 | v1.3 | CLOUD-P0-03 设备状态机新增"已签收"和"已完成"状态（14状态）；SM-02 补充签收→发货异常回退 | 何子豪 |
 | 2026-08-10 | v1.2 | OTP 有效期从 60 秒延长至 3 分钟（冷却/锁定/重发保持 60 秒不变） | 何子豪 |
 | 2026-08-06 | v1.1 | 完善门店账号体系（编码/注册/邀请/权限矩阵/生命周期）+ 新增运营配置中心 CLOUD-P0-13（80+可动态配置参数） | 何子豪 |
@@ -32,6 +34,8 @@
    - [2.9 CLOUD-P0-10 到店会话创建](#29-cloud-p0-10-到店会话创建otp-验证后)
    - [2.10 CLOUD-P0-12 OTP 验证服务](#210-cloud-p0-12-otp-验证服务)
    - [2.11 CLOUD-P0-13 H5 会话跟踪页面](#211-cloud-p0-13-h5-会话跟踪页面)
+   - [2.12 CLOUD-P0-14 统一登录与多角色会话管理](#212-cloud-p0-14-统一登录与多角色会话管理)
+   - [2.13 CLOUD-P0-15 通知模板规范](#213-cloud-p0-15-通知模板规范)
 3. [P1 功能详细设计](#3-p1-功能详细设计)
    - [3.1 CLOUD-P1-01 换购预约管理](#31-cloud-p1-01-换购预约管理)
    - [3.2 CLOUD-P1-02 同城货源算法](#32-cloud-p1-02-同城货源算法)
@@ -53,7 +57,7 @@
 | 消息队列 | RabbitMQ / Kafka (异步任务：路由分发、通知推送、审计日志) |
 | 对象存储 | AWS S3 / MinIO (影像文件、语言资源包) |
 | 支付网关 | Razorpay (UPI Intent / 原路退款) |
-| 短信网关 | Twilio / MSG91 / WhatsApp Business API |
+| 短信网关 | MSG91（SMS + DLT 模板注册）+ WhatsApp Business API |
 | 部署架构 | 微服务或模块化单体，水平可扩展 |
 ## 1.3 通用设计原则
 
@@ -1417,19 +1421,13 @@ OTP 验证通过
 
 | 设计点 | 说明 |
 |--------|------|
+| 发送网关 | MSG91（SMS + DLT）；WhatsApp Business API（备选） |
 | 发送渠道 | SMS（优先），WhatsApp Business API（备选） |
-| SMS 模板 | 见下方 |
+| 语音兜底 | SMS 送达失败时，MSG91 自动以语音电话播报 OTP（`retrytype=voice`）兜底 |
+| SMS 模板 | TPL-01（见 2.13 CLOUD-P0-15） |
 | 送达时间 | 3 秒内 |
-| 发送失败处理 | 自动切换至备用渠道（WhatsApp），两者均失败则提示店员"发送失败，请重试" |
-**SMS 模板：**
-
-```
-[Platform] OTP: XXXXXX
-Track: bott.in/s/abc123
-Valid 60s. Do not share.
-आपका OTP: XXXXXX
-
-```
+| 发送失败处理 | 依次尝试：SMS → MSG91 语音 OTP → WhatsApp；均失败则提示店员"发送失败，请重试" |
+**SMS 模板：** 见 [2.13 CLOUD-P0-15 通知模板规范](#213-cloud-p0-15-通知模板规范) 的 TPL-01（到店 OTP + H5 跟踪短链），OTP 有效期 3 分钟。
 
 ## 2.10.3 OTP 验证流程
 
@@ -1466,7 +1464,7 @@ Valid 60s. Do not share.
 | OTP-02 | 有效期 | 3 分钟，过期需重新发送 |
 | OTP-03 | 最大重试 | 3 次；超过后锁定 60 秒 |
 | OTP-04 | 每日上限 | 同一手机号每日最多 5 次发送 |
-| OTP-05 | 发送渠道 | SMS（优先）；WhatsApp Business API（备选） |
+| OTP-05 | 发送渠道 | MSG91 SMS（优先）；WhatsApp Business API（备选） |
 | OTP-06 | OTP 即授权 | OTP 验证通过即表示用户同意质检，不再需要单独授权页 |
 | OTP-07 | 冷却锁定 | 3 次错误后锁定 60 秒，60 秒后自动解除，可重新发送 |
 | OTP-08 | 每日重置 | 每日上限以 UTC+5:30 (IST) 自然日重置 |
@@ -1957,6 +1955,234 @@ ALTER TABLE users ADD COLUMN deleted_at TIMESTAMP;         -- 注销30天冷静�
 ALTER TABLE users ADD COLUMN registered_source VARCHAR(30) DEFAULT 'admin_created';
   -- admin_created | offline_otp | store_owner_invite | app_self_register
 ```
+
+---
+
+## 2.13 CLOUD-P0-15 通知模板规范
+
+**优先级：** P0
+
+**功能描述：**
+统一管理平台所有短信（SMS）与 WhatsApp Business 通知模板，覆盖到店 OTP 验证、App 登录/注册 OTP、质检报告通知、预约提醒、客服回复、账号邀请等场景。所有模板在印度 DLT 平台预注册、按 Template ID 发送，支持英语 + 印地语双语。
+
+### 2.13.1 模板总览
+
+| 模板编号 | 模板名 | 触发场景 | DLT 类别 | MSG91 Route | 渠道 | 语言 |
+|---------|--------|----------|----------|-------------|------|------|
+| TPL-01 | 到店 OTP + H5 跟踪短链 | 店员输入手机号发起到店验证（CLOUD-P0-12） | Transactional | OTP（Flow） | SMS + WhatsApp | EN / HI |
+| TPL-02 | App 登录/注册 OTP | 用户获取登录/注册/注销验证码（APP-01） | Transactional | OTP（Flow） | SMS + WhatsApp | EN / HI |
+| TPL-03 | 质检报告就绪 | 质检完成、报告可查看（CLOUD-P0-13） | Transactional | Transactional | SMS + WhatsApp | EN / HI |
+| TPL-04 | 预约提醒 | 预约时间前 1 小时（CLOUD-P1-01） | Service | Transactional | SMS | EN / HI |
+| TPL-05 | 客服留言回复 | 非工作时段留言后回复（APP-06） | Transactional | Transactional | SMS | EN / HI |
+| TPL-06 | 账号邀请 | SA 创建店老板/库管/DB 账号（CLOUD-P0-14） | Transactional | Transactional | SMS + WhatsApp | EN / HI |
+
+### 2.13.2 通用规范
+
+| 规范项 | 说明 |
+|--------|------|
+| 认证 | MSG91 使用 `authkey` 认证，配置于服务端环境变量，禁止写入日志 |
+| Sender ID | SMS 使用 DLT 注册的 Header `DOBARA`（MSG91 Sender ID，6 位字母）；WhatsApp 使用验证后的 WhatsApp Business 号码 |
+| DLT 注册 | 每条模板在 TRAI DLT 平台注册，取得三项：Principal Entity ID、Header ID、Template ID；MSG91 发送时必须传 Template ID，否则短信被运营商拦截 |
+| Route | MSG91 发送 route 分 OTP / Transactional / Promotional；OTP 类走 OTP route（高速投递），事务/服务类走 Transactional route，营销类 P2 走 Promotional |
+| Flow | OTP 类模板（TPL-01/02）在 MSG91 以 Flow 管理，绑定 OTP 模板 + Sender + 配置，通过 Flow ID 发送/重发/校验 |
+| 变量占位 | 统一使用 `{{变量名}}` 双花括号占位；变量值与 Template ID 一并提交网关 |
+| 双语 | 所有模板提供 EN / HI 两版；按用户语言偏好（用户档案或 `Accept-Language`）选择，无偏好默认英文 |
+| 渠道降级 | SMS 优先，发送失败 3 秒内自动切换 WhatsApp（TPL-04/05 暂仅 SMS） |
+| 有效期提示 | OTP 类模板统一标注"3 分钟内有效，勿泄露" |
+| 退订 | 事务性/服务性模板无需退订；营销性（Promotional）模板必须附退订方式（P2 引入营销时补充） |
+| 幂等 | 通知发送带幂等键，防止消息队列重试导致重复下发 |
+
+### 2.13.3 模板详情
+
+#### TPL-01 到店 OTP + H5 跟踪短链
+
+- 触发：店员在平板输入用户手机号，系统发送 OTP + H5 跟踪短链
+- DLT 类别：Transactional
+- 变量：`{{otp}}`、`{{h5_link}}`
+- WhatsApp 模板名：`dobara_otp_track`
+
+```
+EN: {{otp}} is your Dobara verification code. Track your trade-in: {{h5_link}}  Valid 3 mins. Do not share.
+HI: आपका Dobara OTP: {{otp}} है। अपनी ट्रेड-इन स्थिति देखें: {{h5_link}}  3 मिनट में समाप्त। साझा न करें।
+```
+
+#### TPL-02 App 登录/注册 OTP
+
+- 触发：用户点击"获取验证码"（注册/登录/注销共用）
+- DLT 类别：Transactional
+- 变量：`{{otp}}`
+- WhatsApp 模板名：`dobara_app_otp`
+
+```
+EN: {{otp}} is your Dobara login code. Valid 3 mins. Do not share.
+HI: आपका Dobara लॉगिन कोड: {{otp}}। 3 मिनट में समाप्त। साझा न करें।
+```
+
+#### TPL-03 质检报告就绪
+
+- 触发：质检完成、报告可查看，通知用户点击 H5 短链
+- DLT 类别：Transactional
+- 变量：`{{h5_link}}`
+- WhatsApp 模板名：`dobara_report_ready`
+
+```
+EN: Your device inspection is complete. View your report & quote: {{h5_link}}
+HI: आपके डिवाइस की जांच पूरी हुई। रिपोर्ट और कीमत देखें: {{h5_link}}
+```
+
+#### TPL-04 预约提醒
+
+- 触发：预约时间前 1 小时
+- DLT 类别：Service
+- 变量：`{{store_name}}`、`{{appointment_time}}`
+
+```
+EN: Reminder: your Dobara trade-in appointment at {{store_name}} is at {{appointment_time}}.
+HI: याद दिलाना: {{store_name}} पर आपकी Dobara ट्रेड-इन अपॉइंटमेंट {{appointment_time}} पर है।
+```
+
+#### TPL-05 客服留言回复
+
+- 触发：非工作时段留言，客服回复后通知用户
+- DLT 类别：Transactional
+- 变量：`{{reply_summary}}`
+
+```
+EN: Dobara support replied: {{reply_summary}}. Open the app to view details.
+HI: Dobara सहायता ने उत्तर दिया: {{reply_summary}}। विवरण के लिए ऐप खोलें।
+```
+
+#### TPL-06 账号邀请
+
+- 触发：SA 创建店老板/库管/DB 账号，系统发送临时密码 + App 下载链接
+- DLT 类别：Transactional
+- 变量：`{{role}}`、`{{temp_password}}`、`{{download_link}}`
+- WhatsApp 模板名：`dobara_account_invite`
+
+```
+EN: You've been invited to Dobara as {{role}}. Temp password: {{temp_password}}. App: {{download_link}}
+HI: आपको Dobara में {{role}} के रूप में आमंत्रित किया गया है। अस्थायी पासवर्ड: {{temp_password}}। ऐप: {{download_link}}
+```
+
+### 2.13.4 数据模型与 API
+
+**通知发送记录表（notification_send_log）：**
+
+```sql
+CREATE TABLE notification_send_log (
+  id UUID PRIMARY KEY,
+  template_id VARCHAR(30) NOT NULL,      -- TPL-01 ~ TPL-06
+  channel VARCHAR(10) NOT NULL,          -- sms | whatsapp
+  route VARCHAR(20) NOT NULL,            -- otp | transactional | promotional
+  recipient_phone VARCHAR(20) NOT NULL,  -- 加密存储
+  variables JSONB NOT NULL,              -- {otp, h5_link, ...}
+  dlt_entity_id VARCHAR(60),             -- DLT Principal Entity ID
+  dlt_template_id VARCHAR(60),           -- DLT 平台注册的 Template ID
+  flow_id VARCHAR(60),                   -- MSG91 OTP Flow ID（OTP 类）
+  status VARCHAR(20) NOT NULL,           -- pending | sent | delivered | failed
+  idempotency_key VARCHAR(64) UNIQUE NOT NULL,
+  created_at TIMESTAMP NOT NULL,
+  delivered_at TIMESTAMP
+);
+```
+
+**发送 API：**
+
+```
+POST /api/v1/notifications/send
+Body: {
+  "template_id": "TPL-01",
+  "recipient_phone": "+919876543210",
+  "variables": { "otp": "123456", "h5_link": "https://bott.in/s/abc123" },
+  "idempotency_key": "uuid"
+}
+```
+
+**业务规则：**
+
+| 编号 | 规则项 | 说明 |
+|------|--------|------|
+| NTF-01 | 模板白名单 | 仅允许发送 TPL-01~TPL-06 已注册模板，未注册模板禁止发送 |
+| NTF-02 | 渠道降级 | SMS 发送失败 3 秒内自动切换 WhatsApp（TPL-04/05 除外） |
+| NTF-03 | 幂等 | 同一 `idempotency_key` 重复请求直接返回首次结果，不重复下发 |
+| NTF-04 | 语言选择 | 按用户语言偏好（en/hi）选择模板版本，无偏好默认英文 |
+| NTF-05 | 安全 | 手机号与变量中的 PII 加密存储，日志脱敏，OTP 值不写入日志 |
+| NTF-06 | 退订 | 事务性/服务性模板不附退订；营销模板 P2 补充 |
+
+**验收标准：**
+- [ ] TPL-01 ~ TPL-06 六条模板均在 DLT 注册并可发送
+- [ ] 每条模板 EN/HI 双语文案正确渲染变量
+- [ ] SMS 失败自动切换 WhatsApp（TPL-04/05 除外）
+- [ ] 同一幂等键重复请求不重复发送
+- [ ] OTP 值不出现在任何日志中
+- [ ] 未注册模板发送被拦截并记录告警
+
+### 2.13.5 MSG91 接入说明
+
+**DLT 注册三要素**（MSG91 控制台完成，一次性配置）：
+
+| 要素 | 说明 |
+|------|------|
+| Principal Entity ID | 企业在 TRAI DLT 注册的主体 ID |
+| Header ID（Sender ID） | 短信签名 Header 的注册 ID，对应 Sender `DOBARA` |
+| Template ID | 每条模板的注册 ID，发送时必传，否则被运营商拦截 |
+
+**Route 映射：**
+
+| DLT 类别 | MSG91 Route | 说明 |
+|----------|-------------|------|
+| Transactional（OTP 类） | OTP | 走 MSG91 OTP Flow，高速投递 |
+| Transactional（事务/服务类） | Transactional | 常规事务短信 |
+| Promotional | Promotional | P2 营销短信，受 DND 限制 |
+
+**OTP 发送（TPL-01/02 走 MSG91 OTP Flow）：**
+
+```
+发送 OTP：
+GET https://control.msg91.com/api/v5/otp
+  ?template_id=<OTP_TEMPLATE_ID>
+  &mobile=91XXXXXXXXXX
+  &authkey=<AUTHKEY>
+  &otp_length=6
+  &otp_expiry=3
+  &retrytype=text        // text | voice | mix
+
+重发 OTP（语音兜底）：
+GET https://control.msg91.com/api/v5/otp/retry
+  ?authkey=<AUTHKEY>&retrytype=voice&mobile=91XXXXXXXXXX
+
+校验 OTP：
+GET https://control.msg91.com/api/v5/otp/verify
+  ?authkey=<AUTHKEY>&mobile=91XXXXXXXXXX&otp=123456
+```
+
+- `retrytype=voice`：SMS 送达失败时，MSG91 自动以语音电话播报 OTP 兜底（印度市场 SMS 送达率波动时的关键容错）。
+- OTP 校验以服务端 Redis 中的值为准（见 2.10.5），MSG91 校验结果仅作辅助。
+
+**普通短信发送（TPL-03/04/05/06 走 Send SMS API）：**
+
+```
+GET https://control.msg91.com/api/v5/send
+  ?authkey=<AUTHKEY>
+  &sender=DOBARA
+  &route=transactional
+  &DLT_TE_ID=<ENTITY_ID>
+  &template_id=<TEMPLATE_ID>
+  &mobiles=91XXXXXXXXXX
+  &var1=...&var2=...       // 对应模板 {{变量名}} 占位
+```
+
+**关键参数对照表：**
+
+| 参数 | 说明 |
+|------|------|
+| `authkey` | MSG91 账户认证 key |
+| `sender` | DLT 注册的 Sender ID（Header），本项目为 `DOBARA` |
+| `route` | otp / transactional / promotional |
+| `DLT_TE_ID` | Principal Entity ID |
+| `template_id` | DLT Template ID，与消息模板一一对应 |
+| `otp_length` / `otp_expiry` | OTP 位数 / 过期分钟数（6 位 / 3 分钟） |
+| `retrytype` | text（默认）/ voice / mix，OTP 语音兜底 |
 
 ---
 
