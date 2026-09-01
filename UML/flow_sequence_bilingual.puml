@@ -247,13 +247,87 @@ Central -> Warehouse: (30) 向对应仓库下发出库通知\nSend outbound noti
 activate Warehouse
 deactivate Central
 
-Warehouse -> Warehouse: (31) 从货架取机，扫码核销 IMEI\nPick device from shelf, scan IMEI to verify
-Warehouse -> Central: 打印快递面单并确认出库\nPrint shipping label & confirm outbound
+Warehouse -> Warehouse: (31) 从货架取机，扫码核销 IMEI\n贴防拆标签 + 快照留档 (拍照 ≥3 张)\nPick device from shelf, scan IMEI to verify\nApply anti-tamper label + snapshot archive (≥3 photos)
+Warehouse -> Central: 打印快递面单并确认出库 (出库快照留档)\nPrint shipping label & confirm outbound (snapshot archived)
 activate Central
 Central -> Central: 状态机变更为 [已发货]\nStatus → [Shipped]
 Central --> Warehouse: 出库成功\nOutbound successful
 deactivate Central
 deactivate Warehouse
+
+== 售后退货/拒收退回流 (B2C)\nAfter-Sales Return / Delivery Rejection Flow (B2C) ==
+
+alt 配送中拒收 (用户未签收，物流原路退回)\nDelivery Rejection (customer refuses, logistics returns)
+    Client -> Central: (R0) 用户当面拒收 / 物流派送失败退回\nCustomer rejects delivery / logistics returns
+    activate Central
+    Central -> Central: 订单状态 → [退回中]\n设备状态 → 退回原仓库\nOrder → [Returning]\nDevice → return to warehouse
+    Central -> Warehouse: 推送退回入库任务\nPush return inbound task
+    activate Warehouse
+    Warehouse -> WHManager: 退回入库任务 (待核验防拆标签)\nReturn inbound task (pending label check)
+    activate WHManager
+    WHManager -> Central: (R0a) 核验防拆标签 + 出库快照比对\nCheck anti-tamper label + compare outbound snapshot
+    alt 标签完整且一致\nLabel intact & consistent
+        Central -> Central: 复用翻新质检 → 重新上架\n设备状态 → [在库可售]\nReuse refurbishment → re-list\nDevice → [Available for Sale]
+    else 标签破损/疑似拆机/调包\nLabel damaged / tampered / swapped
+        Central -> Central: 设备状态 → 争议，通知管理员\nDevice → Dispute, notify admin
+    end
+    Central -> Razorpay: (R0b) 发起退款 (商品金额 + 税费 − 往返运费)\nRefund (product + tax − round-trip shipping)
+    activate Razorpay
+    Razorpay --> Central: 退款成功\nRefund success
+    deactivate Razorpay
+    Central --> Client: 退款已发起\nRefund initiated
+    deactivate WHManager
+    deactivate Warehouse
+    deactivate Central
+else 签收后退货 (7 天内)\nAfter-Sign Return (within 7 days)
+    Client -> Central: (R1) 用户签收后申请退货\n(7天内 + 选择退货原因)\nCustomer applies for return after signing\n(within 7 days + select reason)
+    activate Central
+    Central -> Central: 校验退货条件\n(7天内/防拆标签完好/未人为损坏)\nValidate return conditions\n(within 7 days / label intact / no manual damage)
+    alt 退货条件满足\nConditions met
+        Central --> Client: 退货申请已提交，推送退货指引\nReturn request submitted, push return guide
+        Central -> SA: 推送退货审核任务\nPush return review task
+        deactivate Central
+        activate SA
+        SA -> SA: (R2) 管理员审核退货申请\nAdmin reviews return request
+        alt 审核通过\nApproved
+            SA -> Central: 审核通过，通知用户寄回\nApproved, notify customer to ship back
+            activate Central
+            Central --> Client: (R3) 退货审核通过，请寄回设备\nReturn approved, please ship back device
+            deactivate Central
+            Client -> Warehouse: (R4) 用户寄回设备\nCustomer ships back device
+            activate Warehouse
+            Warehouse -> WHManager: 库管核验防拆标签 + 出库快照比对\nCheck anti-tamper label + compare outbound snapshot
+            activate WHManager
+            WHManager -> Central: 仓库收货 + 鉴定设备状态\nWarehouse received + inspect device
+            activate Central
+            Central -> Central: 比对寄回设备与原质检/出库记录\nCompare returned device vs original records
+            alt 设备一致，退款\nConsistent, refund
+                Central -> Razorpay: (R5) 发起原路退款\nRefund via original channel
+                activate Razorpay
+                Razorpay --> Central: 退款成功\nRefund success
+                deactivate Razorpay
+                Central -> Central: 设备状态 → [已退货]\n退回库存 (重新质检后上架)\nDevice → [Returned]\nBack to inventory (re-list after re-inspection)
+                Central --> Client: 退款已发起\nRefund initiated
+            else 设备不符 (人为损坏/调包)\nMismatch (manual damage / swap)
+                Central -> Central: 标记争议，扣减退款或拒绝退款\nMark dispute, deduct or reject refund
+                Central --> Client: 退款金额已调整\nRefund adjusted
+                Central -> SA: 推送争议处理结果\nPush dispute result
+            end
+            deactivate Central
+            deactivate WHManager
+            deactivate Warehouse
+        else 审核拒绝\nRejected
+            SA -> Central: 拒绝退货 (附原因)\nReject return (with reason)
+            activate Central
+            Central --> Client: 退货申请未通过\nReturn request rejected
+            deactivate Central
+        end
+        deactivate SA
+    else 不满足退货条件\nConditions not met
+        Central --> Client: 超出退货期限 / 设备已人为损坏\nPast return window / device manually damaged
+        deactivate Central
+    end
+end
 
 == 正向销售流 - B2B (C端App企业采购模块 · 门店批量下单)\nForward Sales Flow - B2B (Enterprise Purchase Module · Store Bulk Order) ==
 Client -> Central: (B1) 切换至企业采购模块，登录\nSwitch to Enterprise Purchase module, login

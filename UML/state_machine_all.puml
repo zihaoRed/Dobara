@@ -111,12 +111,12 @@ Paid --> Shipped : 仓库出库(扫码核销+面单)
 Paid --> Cancelled : 用户取消(待发货)\n→退款+释放库存
 
 Shipped --> Delivered : 物流签收
-Shipped --> Returning : 用户发起退货(签收前)
+Shipped --> Returning : 配送中拒收/物流退回\n(设备退回原仓库重新质检后上架)
 
 Delivered --> Returning : 用户发起退货(签收7天内)
 Delivered --> Completed : 超过7天未退货→自动完成
 
-Returning --> Returned : 退货审核通过+退款完成
+Returning --> Returned : 退款完成\n(设备重新上架)
 Returning --> Delivered : 退货审核拒绝
 
 @enduml
