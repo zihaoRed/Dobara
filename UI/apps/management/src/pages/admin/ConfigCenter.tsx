@@ -88,6 +88,7 @@ const CONFIG_ITEMS: ConfigItem[] = [
 
   // Group B — Appointment (numeric subset)
   { key: 'appointment.estimate_price_range_percent', label: 'Estimate price range (%)', type: 'number', default: 20, group: 'B' },
+  { key: 'appointment.estimate_mapping_coefficient', label: 'Estimate mapping coefficient (0.5-1.5)', type: 'number', default: 1, group: 'B' },
   { key: 'appointment.max_future_days', label: 'Max future booking days', type: 'number', default: 7, group: 'B' },
   { key: 'appointment.auto_cancel_no_show_hours', label: 'No-show auto-cancel (hours)', type: 'number', default: 24, group: 'B' },
 
@@ -147,6 +148,60 @@ const TABS = [
   { key: 'E', label: 'E · Security' },
   { key: 'F', label: 'F · Store' },
   { key: 'G', label: 'G · Other' },
+  { key: 'H', label: 'H · Estimate Mapping' },
+];
+
+/**
+ * 预约自报选项 ↔ 定价引擎扣款编码映射（CLOUD-P1-01 §3.1.2.1）
+ * 运营可维护：映射金额（初始取所映射编码默认值，粗档取保守上限）。
+ * 修改仅影响新产生的预估价，已生成预约不回溯；变更进入 Change log。
+ */
+interface MappingRow {
+  group: string;
+  option: string;
+  code: string;
+  key: string;
+  default: number;
+}
+
+const MAPPING_ROWS: MappingRow[] = [
+  // Battery — 1:1 with HW-BH tiers
+  { group: 'Battery', option: '90%+', code: 'HW-BH-01', key: 'mapping.battery.90_100', default: 0 },
+  { group: 'Battery', option: '85–90%', code: 'HW-BH-02', key: 'mapping.battery.85_90', default: 500 },
+  { group: 'Battery', option: '80–85%', code: 'HW-BH-03', key: 'mapping.battery.80_85', default: 1200 },
+  { group: 'Battery', option: '70–80%', code: 'HW-BH-04', key: 'mapping.battery.70_80', default: 2500 },
+  { group: 'Battery', option: 'Below 70%', code: 'HW-BH-05', default: 4000, key: 'mapping.battery.below_70' },
+  // Body
+  { group: 'Body', option: 'Like new, no scratch', code: '— (no deduction)', key: 'mapping.body.like_new', default: 0 },
+  { group: 'Body', option: 'Minor scratches', code: 'CO-BDY-01', key: 'mapping.body.minor', default: 200 },
+  { group: 'Body', option: 'Visible dents & scratches', code: 'CO-BDY-02', key: 'mapping.body.visible', default: 1000 },
+  { group: 'Body', option: 'Deformed / back cracked', code: 'CO-BDY-03/04 (conservative)', key: 'mapping.body.severe', default: 3000 },
+  // Screen cosmetic
+  { group: 'Screen', option: 'Like new', code: '— (no deduction)', key: 'mapping.screen.like_new', default: 0 },
+  { group: 'Screen', option: 'Minor scratches', code: 'CO-SCR-01', key: 'mapping.screen.minor', default: 300 },
+  { group: 'Screen', option: 'Visible scratches', code: 'CO-SCR-02', key: 'mapping.screen.visible', default: 1000 },
+  { group: 'Screen', option: 'Cracked', code: 'CO-SCR-03', key: 'mapping.screen.cracked', default: 3500 },
+  // Screen display
+  { group: 'Display', option: 'Perfect', code: '— (no deduction)', key: 'mapping.display.perfect', default: 0 },
+  { group: 'Display', option: 'Minor burn-in / bright spots', code: 'CO-SCR-04', key: 'mapping.display.burn_in', default: 1500 },
+  { group: 'Display', option: 'Dead pixels / color lines', code: 'CO-SCR-05', key: 'mapping.display.dead_pixel', default: 2000 },
+  { group: 'Display', option: 'Not displaying', code: 'CO-SCR-06', key: 'mapping.display.not_displaying', default: 4000 },
+  // Repair history
+  { group: 'Repair', option: 'Never repaired', code: '— (no deduction)', key: 'mapping.repair.none', default: 0 },
+  { group: 'Repair', option: 'Screen replaced', code: 'CO-RPR-01', key: 'mapping.repair.screen', default: 1500 },
+  { group: 'Repair', option: 'Battery replaced', code: 'CO-RPR-02', key: 'mapping.repair.battery', default: 800 },
+  { group: 'Repair', option: 'Camera replaced', code: 'CO-RPR-03', key: 'mapping.repair.camera', default: 500 },
+  { group: 'Repair', option: 'Other repair (incl. back glass)', code: 'CO-RPR-04', key: 'mapping.repair.other', default: 1000 },
+  { group: 'Repair', option: 'Multi-repair penalty (≥3)', code: 'CO-RPR-05', key: 'mapping.repair.multi_penalty', default: 2000 },
+  // Functional
+  { group: 'Functional', option: 'Flash issue', code: 'CO-FNC-01', key: 'mapping.functional.flash', default: 500 },
+  { group: 'Functional', option: 'Charging port issue', code: 'CO-FNC-02', key: 'mapping.functional.charging_port', default: 1000 },
+  { group: 'Functional', option: 'Buttons not working', code: 'CO-FNC-03', key: 'mapping.functional.buttons', default: 800 },
+  { group: 'Functional', option: 'Microphone issue', code: 'CO-FNC-04', key: 'mapping.functional.mic', default: 1200 },
+  { group: 'Functional', option: 'Speaker issue', code: 'CO-FNC-05', key: 'mapping.functional.speaker', default: 800 },
+  { group: 'Functional', option: 'Face ID / fingerprint not working', code: 'HW-BIO-01', key: 'mapping.functional.biometric', default: 2000 },
+  { group: 'Functional', option: 'Camera focus issue', code: 'CO-FNC-06', key: 'mapping.functional.camera_focus', default: 1500 },
+  { group: 'Functional', option: 'WiFi / Bluetooth / GPS issue', code: 'CO-FNC-08', key: 'mapping.functional.wireless', default: 2000 },
 ];
 
 function defaultsMap(): Record<string, boolean | number> {
@@ -198,6 +253,14 @@ const ConfigCenter: React.FC = () => {
       return item.key.toLowerCase().includes(q) || item.label.toLowerCase().includes(q);
     });
   }, [activeTab, search]);
+
+  const mappingRows = useMemo(() => {
+    return MAPPING_ROWS.filter((row) => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return row.option.toLowerCase().includes(q) || row.code.toLowerCase().includes(q) || row.key.toLowerCase().includes(q);
+    });
+  }, [search]);
 
   const saveItem = (item: ConfigItem) => {
     const oldValue = values[item.key] ?? item.default;
@@ -253,6 +316,16 @@ const ConfigCenter: React.FC = () => {
 
       <Tabs tabs={TABS} activeTab={activeTab} onChange={setActiveTab} />
 
+      {activeTab === 'H' && (
+        <Card variant="flat" className="mt-4 mb-4">
+          <p className="text-body text-text-secondary">
+            Appointment self-report option → pricing-engine deduction code mapping (CLOUD-P1-01 §3.1.2.1).
+            Amounts feed the pre-visit estimate only; the final in-store price is always computed from Tab A codes.
+            Changes apply to new estimates only — existing appointments are not recalculated.
+          </p>
+        </Card>
+      )}
+
       <Card variant="flat" className="mt-4 mb-4">
         <Input
           label="Search"
@@ -263,6 +336,97 @@ const ConfigCenter: React.FC = () => {
         />
       </Card>
 
+      {activeTab === 'H' && (
+        <Card variant="default" className="mb-4">
+          <CardContent>
+            {mappingRows.length === 0 ? (
+              <p className="text-body text-text-muted py-8 text-center">No mapping rows match.</p>
+            ) : (
+              (Object.entries(
+                mappingRows.reduce<Record<string, MappingRow[]>>((acc, row) => {
+                  (acc[row.group] ||= []).push(row);
+                  return acc;
+                }, {}),
+              ) as [string, MappingRow[]][]).map(([group, rows]) => (
+                <div key={group} className="mb-6 last:mb-0">
+                  <h4 className="text-eyebrow text-text-muted uppercase mb-2">{group}</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="px-3 py-2 text-eyebrow text-text-muted uppercase">Appointment option</th>
+                          <th className="px-3 py-2 text-eyebrow text-text-muted uppercase">Deduction code</th>
+                          <th className="px-3 py-2 text-eyebrow text-text-muted uppercase">Estimate amount (INR)</th>
+                          <th className="px-3 py-2 text-eyebrow text-text-muted uppercase">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((row) => {
+                          const current = Number(draft[row.key] ?? row.default);
+                          const saved = Number(values[row.key] ?? row.default);
+                          const dirty = current !== saved;
+                          const customized = saved !== row.default;
+                          return (
+                            <tr key={row.key} className="border-b border-border/50">
+                              <td className="px-3 py-2 text-caption text-text-primary">{row.option}</td>
+                              <td className="px-3 py-2 text-caption font-mono text-text-secondary">{row.code}</td>
+                              <td className="px-3 py-2">
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    type="number"
+                                    value={String(current)}
+                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                      const n = Number(e.target.value);
+                                      setDraft((d) => ({
+                                        ...d,
+                                        [row.key]: Number.isFinite(n) ? n : row.default,
+                                      }));
+                                    }}
+                                    className="w-28"
+                                  />
+                                  {customized ? <Badge variant="info">Customized</Badge> : <Badge variant="neutral">Default</Badge>}
+                                  {dirty && <Badge variant="warning">Unsaved</Badge>}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="primary"
+                                    icon={<Save size={14} />}
+                                    disabled={!dirty}
+                                    onClick={() =>
+                                      saveItem({ key: row.key, label: `${row.option} → ${row.code}`, type: 'number', default: row.default, group: 'H' })
+                                    }
+                                  >
+                                    Save
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    icon={<RotateCcw size={14} />}
+                                    onClick={() =>
+                                      resetItem({ key: row.key, label: `${row.option} → ${row.code}`, type: 'number', default: row.default, group: 'H' })
+                                    }
+                                  >
+                                    Reset
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {activeTab !== 'H' && (
       <Card variant="default" className="mb-4">
         <CardContent>
           <div className="space-y-3">
@@ -352,6 +516,7 @@ const ConfigCenter: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+      )}
 
       <Card variant="default">
         <CardContent>

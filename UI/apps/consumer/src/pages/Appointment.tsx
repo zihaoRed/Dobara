@@ -11,11 +11,46 @@ const CONDITIONS = [
   { key: 'screenDisplay', label: 'Display', options: ['Perfect', 'Minor spots/bleed', 'Visible spots', 'Dead pixels'] },
 ];
 
-const BATTERY_OPTIONS = ['90%+', '80-90%', '70-80%', 'Below 70%'];
-const WARRANTY_OPTIONS = ['Yes', 'No'];
-const USAGE_OPTIONS = ['Less than 1 year', '1-2 years', '2-3 years', 'More than 3 years'];
-const REPAIR_OPTIONS = ['Screen replaced', 'Battery replaced', 'Back glass replaced', 'Never repaired'];
-const FUNCTIONAL_OPTIONS = ['All working', 'WiFi issues', 'Bluetooth issues', 'Speaker issues', 'Charging issues', 'Camera issues'];
+// Options align with PRD 02 APP-P1-01 采集项:
+// 电池档位与定价引擎 HW-BH 分档一致（服务端 PRD §3.3.2.1）: 90+/85-90/80-85/70-80/70以下
+const BATTERY_OPTIONS = ['90%+', '85-90%', '80-85%', '70-80%', 'Below 70%'];
+const WARRANTY_OPTIONS = ['Yes', 'No', "Don't know"];
+// PRD 采集项为"使用情况"（账号退出状态），非使用年限；不参与估价计算，仅同步门店参考
+const ACCOUNT_STATUS_OPTIONS = ['Can access & sign out', 'Cannot access desktop', 'Already signed out'];
+// 对齐 PRD"机器维修情况"：其他维修含后盖更换/听筒/尾插等（映射 CO-RPR-04）
+const REPAIR_OPTIONS = ['Never repaired', 'Screen replaced', 'Battery replaced', 'Camera replaced', 'Other repair'];
+const FUNCTIONAL_OPTIONS = [
+  'All working', 'Flash issue', 'Charging port issue', 'Buttons not working',
+  'Microphone issue', 'Speaker issue', 'Face ID / fingerprint not working',
+  'Camera focus issue', 'WiFi / Bluetooth / GPS issue',
+];
+
+// 预估扣款映射（CLOUD-P1-01 §3.1.2.1 预约自报选项 ↔ 定价引擎扣款编码）
+// 金额取所映射编码的保守档默认值；粗档映射多编码时取上限。由运营在 Config Center 维护。
+const BATTERY_ESTIMATE: Record<string, { code: string; amount: number }> = {
+  '90%+': { code: 'HW-BH-01', amount: 0 },
+  '85-90%': { code: 'HW-BH-02', amount: 500 },
+  '80-85%': { code: 'HW-BH-03', amount: 1200 },
+  '70-80%': { code: 'HW-BH-04', amount: 2500 },
+  'Below 70%': { code: 'HW-BH-05', amount: 4000 },
+};
+const REPAIR_ESTIMATE: Record<string, { code: string; amount: number }> = {
+  'Screen replaced': { code: 'CO-RPR-01', amount: 1500 },
+  'Battery replaced': { code: 'CO-RPR-02', amount: 800 },
+  'Camera replaced': { code: 'CO-RPR-03', amount: 500 },
+  'Other repair': { code: 'CO-RPR-04', amount: 1000 },
+};
+const FUNCTIONAL_ESTIMATE: Record<string, { code: string; amount: number }> = {
+  'Flash issue': { code: 'CO-FNC-01', amount: 500 },
+  'Charging port issue': { code: 'CO-FNC-02', amount: 1000 },
+  'Buttons not working': { code: 'CO-FNC-03', amount: 800 },
+  'Microphone issue': { code: 'CO-FNC-04', amount: 1200 },
+  'Speaker issue': { code: 'CO-FNC-05', amount: 800 },
+  'Face ID / fingerprint not working': { code: 'HW-BIO-01', amount: 2000 },
+  'Camera focus issue': { code: 'CO-FNC-06', amount: 1500 },
+  'WiFi / Bluetooth / GPS issue': { code: 'CO-FNC-08', amount: 2000 },
+};
+const MULTI_REPAIR_PENALTY = { code: 'CO-RPR-05', amount: 2000 };
 
 const DEMO_BRANDS: IBrand[] = [
   { id: 'apple', name: 'Apple' },
@@ -76,7 +111,7 @@ export function Appointment() {
   const [selColor, setSelColor] = useState('');
   const [selStorage, setSelStorage] = useState('');
   const [selWarranty, setSelWarranty] = useState('');
-  const [selUsage, setSelUsage] = useState('');
+  const [selAccountStatus, setSelAccountStatus] = useState('');
   const [selBattery, setSelBattery] = useState('');
   const [selBodyCondition, setSelBodyCondition] = useState('');
   const [selScreenCondition, setSelScreenCondition] = useState('');
@@ -151,11 +186,20 @@ export function Appointment() {
     push('Body condition', selBodyCondition, Math.max(0, bodyOpts.indexOf(selBodyCondition)) * 2500);
     push('Screen condition', selScreenCondition, Math.max(0, screenOpts.indexOf(selScreenCondition)) * 2000);
     push('Display', selDisplay, Math.max(0, displayOpts.indexOf(selDisplay)) * 3000);
-    push('Battery health', selBattery, Math.max(0, BATTERY_OPTIONS.indexOf(selBattery)) * 1500);
-    push('Usage period', selUsage, Math.max(0, USAGE_OPTIONS.indexOf(selUsage)) * 800);
-    if (selWarranty === 'No') push('Out of warranty', undefined, 1500);
-    selRepairs.filter((r) => r !== 'Never repaired').forEach((r) => push('Repair', r, 1000));
-    selIssues.filter((i) => i !== 'All working').forEach((i) => push('Issue', i, 800));
+    // 保修/使用情况不计入定价引擎（CLOUD-P0-01 无对应扣款编码），仅随预约单同步门店参考
+    // 电池档位与 HW-BH 一一对应（90+/85-90/80-85/70-80/70以下），1:1 映射编码
+    const batteryHit = BATTERY_ESTIMATE[selBattery];
+    if (batteryHit) push(`Battery health (${batteryHit.code})`, selBattery, batteryHit.amount);
+    const repairHits = selRepairs
+      .filter((r) => r !== 'Never repaired')
+      .map((r) => REPAIR_ESTIMATE[r])
+      .filter(Boolean);
+    repairHits.forEach((hit, i) => push(`Repair ${i + 1} (${hit.code})`, undefined, hit.amount));
+    if (repairHits.length >= 3) push(`Multi-repair penalty (${MULTI_REPAIR_PENALTY.code})`, undefined, MULTI_REPAIR_PENALTY.amount);
+    selIssues.filter((i) => i !== 'All working').forEach((i) => {
+      const hit = FUNCTIONAL_ESTIMATE[i];
+      if (hit) push(`Issue (${hit.code})`, i, hit.amount);
+    });
 
     setDeductions(nextDeductions);
     setAppearance([selBodyCondition, selScreenCondition, selDisplay].filter(Boolean));
@@ -387,14 +431,14 @@ export function Appointment() {
             </div>
 
             <div>
-              <label className="text-caption text-text-muted block mb-1 font-semibold">Usage Period</label>
+              <label className="text-caption text-text-muted block mb-1 font-semibold">Account Status</label>
               <div className="flex flex-wrap gap-2">
-                {USAGE_OPTIONS.map((o) => (
+                {ACCOUNT_STATUS_OPTIONS.map((o) => (
                   <button
                     key={o}
-                    onClick={() => setSelUsage(o)}
+                    onClick={() => setSelAccountStatus(o)}
                     className={`px-3 py-1.5 rounded-md text-caption font-medium border transition-colors ${
-                      selUsage === o
+                      selAccountStatus === o
                         ? 'border-primary-500 bg-primary-50 text-primary-700'
                         : 'border-border text-text-secondary hover:bg-surface-high'
                     }`}
@@ -497,7 +541,7 @@ export function Appointment() {
                 variant="primary"
                 onClick={calculateEstimate}
                 className="flex-1"
-                disabled={!selWarranty || !selUsage || !selBattery || !selBodyCondition || !selScreenCondition || !selDisplay}
+                disabled={!selWarranty || !selAccountStatus || !selBattery || !selBodyCondition || !selScreenCondition || !selDisplay}
               >
                 Get Estimate
               </Button>

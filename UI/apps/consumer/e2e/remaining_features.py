@@ -109,7 +109,7 @@ def run():
             page.get_by_role("button", name="Next").click()
             # Step 2 fill required
             page.get_by_role("button", name="Yes").click()
-            page.get_by_role("button", name="1-2 years").click()
+            page.get_by_role("button", name="Already signed out").click()
             page.get_by_role("button", name="90%+").click()
             page.get_by_role("button", name="Like New").click()
             page.get_by_role("button", name="No scratches").click()
