@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>质检双检测方案评审 · 自检App vs H5自检 | Dobara</title>
+<style>
+:root{
+  /* 调色板（已通过 validate_palette 六项校验，light 模式） */
+  --surface:#fcfcfb; --page:#f9f9f7;
+  --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --baseline:#c3c2b7; --ring:rgba(11,11,11,.10);
+  --a:#2a78d6;            /* 方案A · 分类槽位1 蓝 */
+  --b:#1baf7a;            /* 方案B · 分类槽位2 青 */
+  --ord-600:#184f95;      /* 覆盖度有序色阶（单色相蓝，浅→深=覆盖低→高） */
+  --ord-400:#3987e5;
+  --ord-250:#86b6ef;
+  --neutral:#c3c2b7;      /* 双方案一致（中性灰） */
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; --good-ink:#006300;
+  --sans:system-ui,-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:#0d0d0d;font-family:var(--sans);overflow:hidden}
+
+/* ── 幻灯片框架 ─────────────────────────────── */
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+.slide{width:1280px;height:720px;background:var(--surface);color:var(--ink);
+  padding:56px 72px 64px;position:relative;overflow:hidden;
+  box-shadow:0 8px 40px rgba(0,0,0,.5);display:none;flex-direction:column}
+.slide.active{display:flex}
+#viewport{transform-origin:center center}
+
+.slide h1{font-size:44px;font-weight:700;letter-spacing:-.5px;line-height:1.2}
+.slide h2{font-size:30px;font-weight:700;letter-spacing:-.3px;margin-bottom:6px}
+.slide .sub{font-size:16px;color:var(--ink2);margin-bottom:22px}
+.slide .takeaway{margin-top:auto;font-size:16px;color:var(--ink);background:#f0efec;
+  border-left:4px solid var(--ink);padding:10px 16px;border-radius:0 6px 6px 0;font-weight:600}
+.foot{position:absolute;bottom:22px;left:72px;right:72px;display:flex;justify-content:space-between;
+  font-size:12px;color:var(--muted)}
+
+/* ── 通用组件 ─────────────────────────────── */
+table{border-collapse:collapse;width:100%}
+th{font-size:13px;color:var(--ink2);font-weight:600;text-align:left;
+  border-bottom:2px solid var(--baseline);padding:7px 10px;white-space:nowrap}
+td{font-size:14px;padding:7px 10px;border-bottom:1px solid var(--grid);vertical-align:top}
+tr:last-child td{border-bottom:none}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;white-space:nowrap}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.st{color:var(--ink)}              /* 状态文字用墨色，颜色由图标承载 */
+.ic-good{color:var(--good)} .ic-warn{color:#c98500} .ic-crit{color:var(--crit)} .ic-na{color:var(--muted)}
+
+.badge{display:inline-block;font-size:12px;font-weight:700;padding:2px 10px;border-radius:99px}
+.badge-a{background:var(--a);color:#fff}
+.badge-b{background:var(--b);color:#fff}
+.badge-gray{background:#f0efec;color:var(--ink2)}
+.badge-red{background:#fdeaea;color:#a02c2c}
+
+/* ── 封面 ─────────────────────────────── */
+.cover{justify-content:center}
+.cover .kicker{font-size:15px;font-weight:700;letter-spacing:3px;color:var(--a);margin-bottom:18px}
+.cover h1 span.ab{color:var(--a)} .cover h1 span.bb{color:var(--b)}
+.cover .meta{margin-top:36px;font-size:15px;color:var(--ink2);line-height:2}
+.cover .rule{width:64px;height:4px;background:var(--ink);margin:26px 0}
+
+/* ── 流程步骤 ─────────────────────────────── */
+.flow{display:grid;grid-template-columns:1fr 1fr;gap:10px 28px;flex:1;align-content:start}
+.step{display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid var(--grid);
+  border-radius:8px;padding:10px 14px;min-height:52px}
+.step .n{font-size:13px;font-weight:700;color:var(--muted);padding-top:2px;min-width:22px}
+.step .t{font-size:14.5px;line-height:1.45}
+.step .t small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.step.hot{border:1.5px solid var(--crit);background:#fff8f8}
+.step.cool{border:1.5px solid var(--good);background:#f6fcf4}
+.timebox{display:flex;gap:14px;margin-bottom:14px}
+.timebox .tb{flex:1;border:1px solid var(--grid);border-radius:8px;padding:10px 16px;display:flex;
+  align-items:baseline;gap:10px;background:#fff}
+.timebox .tb b{font-size:26px}
+.timebox .tb.a b{color:var(--a)} .timebox .tb.b b{color:#0e7a54}
+
+/* ── 能力矩阵 ─────────────────────────────── */
+.matrix td{padding:5px 10px;font-size:13.5px}
+.matrix th{padding:6px 10px}
+.matrix .num{color:var(--muted);font-variant-numeric:tabular-nums}
+.matrix tr.group td{background:#f0efec;font-weight:700;font-size:12.5px;color:var(--ink2);
+  letter-spacing:1px;padding:5px 10px}
+
+/* ── 图表 ─────────────────────────────── */
+.legend{display:flex;gap:22px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin:6px 0 14px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:14px;height:14px;border-radius:3px;flex:none}
+
+.chart{position:relative;margin:8px 0 4px}
+.bar-row{display:grid;grid-template-columns:120px 1fr 150px;align-items:center;gap:14px;margin:14px 0}
+.bar-row .name{font-size:15px;font-weight:600;text-align:right}
+.stack{display:flex;height:24px;background:transparent;position:relative}
+.stack .seg{height:24px;border-radius:0 4px 4px 0;margin-right:2px;display:flex;align-items:center;
+  justify-content:center;font-size:12.5px;font-weight:700}
+.stack .seg:first-child{border-radius:4px 0 0 4px}
+.stack .seg:last-child{margin-right:0;border-radius:0 4px 4px 0}
+.stack .seg.only{border-radius:4px}
+.axis{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);
+  border-top:1px solid var(--baseline);padding-top:5px;margin-left:134px;margin-right:164px;
+  font-variant-numeric:tabular-nums}
+
+.hbar-wrap{position:relative;height:24px;margin:14px 0 4px}
+.hbar{position:absolute;left:0;top:0;height:24px;border-radius:0 4px 4px 0}
+.whisker{position:absolute;top:-5px;height:34px;width:2px}
+.whisker::before,.whisker::after{content:"";position:absolute;left:-4px;width:10px;height:2px}
+.whisker::before{top:0} .whisker::after{bottom:0}
+.hbar-label{position:absolute;top:0;height:24px;display:flex;align-items:center;
+  font-size:14px;font-weight:700;padding-left:10px}
+
+/* 星级 */
+.stars{letter-spacing:2px;font-size:15px;color:var(--ink)}
+.stars .off{color:var(--grid)}
+
+/* 架构图 */
+.arch{display:flex;flex-direction:column;gap:0;flex:1;justify-content:center}
+.arch .cloud{border:2px solid var(--ink);border-radius:12px;padding:16px 24px;text-align:center;background:#fff}
+.arch .cloud b{font-size:18px}
+.arch .cloud small{display:block;color:var(--muted);font-size:13px;margin-top:4px}
+.arch .link{display:flex;justify-content:center;font-size:20px;color:var(--muted);padding:6px 0}
+.arch .pair{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.arch .node{border:1.5px solid var(--baseline);border-radius:12px;padding:14px 20px;background:#fff}
+.arch .node h3{font-size:16px;margin-bottom:8px}
+.arch .node li{font-size:13.5px;color:var(--ink2);margin-left:18px;line-height:1.7}
+.arch .node.diff{border:2px dashed var(--b);background:#f4fbf8}
+
+/* 打印 / PDF 导出 */
+@media print{
+  html,body{overflow:visible;background:#fff}
+  #stage{position:static;display:block}
+  #viewport{transform:none!important}
+  .slide{display:flex!important;box-shadow:none;page-break-after:always;margin:0}
+  .nav{display:none!important}
+  @page{size:1280px 720px;margin:0}
+}
+.nav{position:fixed;bottom:14px;right:18px;z-index:9;display:flex;gap:8px;align-items:center}
+.nav button{width:38px;height:38px;border-radius:8px;border:1px solid #555;background:#222;
+  color:#ddd;font-size:17px;cursor:pointer}
+.nav button:hover{background:#333}
+.nav .cnt{color:#aaa;font-size:13px;min-width:64px;text-align:center;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div id="stage"><div id="viewport">
+
+<!-- ═══ 1 · 封面 ═══ -->
+<section class="slide cover active">
+  <div class="kicker">DOBARA · 内部方案评审 · 请勿外传</div>
+  <h1>门店质检「用户旧机检测」<br>载体选型评审<br><span class="ab">方案A · 自检 App</span> vs <span class="bb">方案B · H5 免安装自检</span></h1>
+  <div class="rule"></div>
+  <div class="meta">
+    评审目标：确定用户旧机硬件检测的实现载体<br>
+    2026-09-01 · 何子豪
+  </div>
+  <div class="foot"><span>Dobara · 质检方案评审</span><span>1 / 13</span></div>
+</section>
+
+<!-- ═══ 2 · 三通道架构 ═══ -->
+<section class="slide">
+  <h2>三通道架构：两案共享，session_id 是唯一汇聚点</h2>
+  <div class="sub">方案 A / B 的差异仅存在于「通道 2 的载体」，架构不翻架子</div>
+  <div class="arch">
+    <div class="cloud"><b>云端中台（通道 3）</b>
+      <small>session_id 汇聚 · OCR 管线 · IMEI 反查（激活锁 / 黑名单 / EMI）· 定价引擎 · 去重指纹 · 状态机</small></div>
+    <div class="link">▲　　　　　　　　　　　　　▲　　　　　　　　　　　　　▲</div>
+    <div class="pair">
+      <div class="node">
+        <h3>通道 1 · 店员侧（两案相同）</h3>
+        <ul>
+          <li>OTP 验证 / 会话创建</li>
+          <li>外观采集 10 张 + 视频 → AI 检测</li>
+          <li>发票采集（可选）</li>
+          <li>IMEI 兜底：引导跳「设置→关于本机」重新截图 OCR / 手工</li>
+          <li>报告展示 / 核销状态</li>
+        </ul>
+      </div>
+      <div class="node diff">
+        <h3 style="color:#0e7a54">通道 2 · 用户旧机侧（★ 唯一差异点）</h3>
+        <ul>
+          <li><b>方案 A：</b>安装原生自检 App（Android APK 侧载 / iOS App Store）</li>
+          <li><b>方案 B：</b>点开 H5 自检页即测（OTP 短信短链 / 扫码直达）</li>
+          <li>硬件功能测试 + 截图采集（IMEI/SN、电池健康度）</li>
+          <li>结果带 session_id 上传 → 展示完成态 + 结果摘要</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="takeaway">无论选谁：宿主 App、服务端、定价引擎、状态机、统一数据契约全部不动 —— 选型只影响旧机检测载体本身</div>
+  <div class="foot"><span>Dobara · 质检方案评审</span><span>2 / 13</span></div>
+</section>
+
+<!-- ═══ 3 · 方案A流程 ═══ -->
+<section class="slide">
+  <h2><span class="badge badge-a">方案 A</span>　自检 App 全流程</h2>
+  <div class="timebox">
+    <div class="tb a"><b>5–8 分钟</b><span style="color:var(--ink2)">用户旧机侧耗时（④–⑦，含安装）</span></div>
+    <div class="tb"><b style="color:var(--ink2)">2–5 分钟</b><span style="color:var(--muted)">仅安装环节 ④ 的教学成本（Android 侧载授权 / iOS 需 Apple ID）</span></div>
+  </div>
+  <div class="flow">
+    <div class="step"><span class="n">①</span><span class="t">店员登录宿主 App</span></div>
+    <div class="step"><span class="n">⑥</span><span class="t">截图采集「设置→关于本机」「设置→电池」<small>截图导入 → OCR 提取 IMEI/SN + 电池健康度（端侧：ML Kit / Vision）</small></span></div>
+    <div class="step"><span class="n">②</span><span class="t">用户 OTP 验证<small>SMS 含 OTP + H5 短链（session 随短链下发）</small></span></div>
+    <div class="step"><span class="n">⑦</span><span class="t">结果上传云端<small>展示完成态 + 检测结果摘要</small></span></div>
+    <div class="step cool"><span class="n">③</span><span class="t"><b>用户打开短链 → 点「同意并开始质检」★ 操作授权锚点</b><small>落地页展示质检内容 + 隐私声明；合规留痕，此后旧机交店员操作</small></span></div>
+    <div class="step"><span class="n">⑧</span><span class="t">店员：外观 10+1 → 拒收判断 → AI 检测/人工点检</span></div>
+    <div class="step hot"><span class="n">④</span><span class="t"><b>旧机【安装自检 App】★ 最大摩擦点（授权后店员操作）</b><small>Android：落地页→下载 APK→授「允许安装未知应用」→安装<br>iOS：落地页→跳 App Store→需已登录 Apple ID；安装后深链自动绑定 session（免扫码）</small></span></div>
+    <div class="step"><span class="n">⑨</span><span class="t">发票（可选）→ 综合上传 → 云端准入 → 定价</span></div>
+    <div class="step"><span class="n">⑤</span><span class="t">自检 App 跑硬件测试<small>原生 API 全覆盖：触控/传感器/存储/前后摄/音视频/按键</small></span></div>
+    <div class="step"><span class="n">⑩</span><span class="t">报告展示 → 用户接受 / 拒绝</span></div>
+  </div>
+  <div class="takeaway">与方案 B 仅 ④⑤⑥ 三步不同（载体获取 / 检测执行 / OCR 位置）；其余步骤完全一致 —— 风险集中在 ④ 安装环节</div>
+  <div class="foot"><span>Dobara · 质检方案评审</span><span>3 / 13</span></div>
+</section>
+
+<!-- ═══ 4 · 方案B流程 ═══ -->
+<section class="slide">
+  <h2><span class="badge badge-b">方案 B</span>　H5 免安装自检全流程</h2>
+  <div class="timebox">
+    <div class="tb b"><b>2–4 分钟</b><span style="color:var(--ink2)">用户旧机侧耗时（④–⑦，零安装）</span></div>
+    <div class="tb"><b style="color:#0e7a54">0 秒</b><span style="color:var(--muted)">安装耗时 —— 入口复用 OTP 短信里已有的 H5 短链，或店员二维码</span></div>
+  </div>
+  <div class="flow">
+    <div class="step"><span class="n">①</span><span class="t">店员登录宿主 App</span></div>
+    <div class="step"><span class="n">⑥</span><span class="t">截图采集「设置→关于本机」「设置→电池」<small>截图上传 → 云端 OCR 提取 IMEI/SN + 电池健康度（复用服务端 OCR 管线）</small></span></div>
+    <div class="step"><span class="n">②</span><span class="t">用户 OTP 验证<small>SMS 含 OTP + H5 短链（session 随短链下发）</small></span></div>
+    <div class="step"><span class="n">⑦</span><span class="t">结果上传云端<small>展示完成态 + 检测结果摘要</small></span></div>
+    <div class="step cool"><span class="n">③</span><span class="t"><b>用户打开短链 → 点「同意并开始质检」★ 操作授权锚点</b><small>落地页展示质检内容 + 隐私声明；合规留痕，此后旧机交店员操作</small></span></div>
+    <div class="step"><span class="n">⑧</span><span class="t">店员：外观 10+1 → 拒收判断 → AI 检测/人工点检</span></div>
+    <div class="step cool"><span class="n">④</span><span class="t"><b>旧机打开 H5 自检页（店员操作）★ 零安装</b><small>店员出示二维码 / 输短码，链接自动携带 session_id</small></span></div>
+    <div class="step"><span class="n">⑨</span><span class="t">发票（可选）→ 综合上传 → 云端准入 → 定价</span></div>
+    <div class="step"><span class="n">⑤</span><span class="t">H5 能力探测 → 硬件测试<small>触控/显示/加计陀螺仪/前后摄/扬声器麦克风 + 型号存储电量推断；不支持项自动降级</small></span></div>
+    <div class="step"><span class="n">⑩</span><span class="t">报告展示 → 用户接受 / 拒绝</span></div>
+  </div>
+  <div class="takeaway">与方案 A 仅 ④⑤⑥ 三步不同（载体获取 / 检测执行 / OCR 位置）；其余步骤完全一致 —— 无安装环节，检测能力按机型降级</div>
+  <div class="foot"><span>Dobara · 质检方案评审</span><span>4 / 13</span></div>
+</section>
+
+<!-- ═══ 5 · 能力矩阵 ═══ -->
+<section class="slide">
+  <h2>检测项能力矩阵（15 项逐项对比）</h2>
+  <div class="sub"><b class="ic-good">✔</b> 自动可得且精确　<b class="ic-warn">▲</b> 可得但降级（推断/估算/部分平台）　<b class="ic-crit">✖</b> 该载体拿不到，走兜底通道</div>
+  <table class="matrix">
+    <tr><th style="width:34px">#</th><th>检测项</th><th style="width:200px">A · 自检 App</th><th style="width:200px">B · H5 自检</th><th>B 的降级路径</th></tr>
+    <tr class="group"><td colspan="5">硬件功能检测（11 项）</td></tr>
+    <tr><td class="num">1</td><td>品牌 & 型号</td><td><span class="pill"><span class="ic-good">✔</span><span class="st">精确型号代码</span></span></td><td><span class="pill"><span class="ic-warn">▲</span><span class="st">UA+GPU 推断</span></span></td><td>「关于本机」截图 OCR 交叉验证</td></tr>
+    <tr><td class="num">2</td><td>存储容量</td><td><span class="pill"><span class="ic-good">✔</span><span class="st">精确</span></span></td><td><span class="pill"><span class="ic-warn">▲</span><span class="st">估算到档位</span></span></td><td>定价按 64/128/256 档，OCR 交叉验证</td></tr>
+    <tr><td class="num">3</td><td>电量 %</td><td><span class="pill"><span class="ic-good">✔</span><span class="st">双平台精确</span></span></td><td><span class="pill"><span class="ic-warn">▲</span><span class="st">仅 Android</span></span></td><td>iOS → 店员目视录入</td></tr>
+    <tr><td class="num">4</td><td>屏幕触控</td><td><span class="pill"><span class="ic-good">✔</span><span class="st">多点网格</span></span></td><td><span class="pill"><span class="ic-good">✔</span><span class="st">等效</span></span></td><td>—</td></tr>
+    <tr><td class="num">5</td><td>屏幕显示/坏点</td><td><span class="pill"><span class="ic-good">✔</span><span class="st">纯色轮播</span></span></td><td><span class="pill"><span class="ic-good">✔</span><span class="st">等效</span></span></td><td>—</td></tr>
+    <tr><td class="num">6</td><td>加速度计/陀螺仪</td><td><span class="pill"><span class="ic-good">✔</span><span class="st">直读</span></span></td><td><span class="pill"><span class="ic-good">✔</span><span class="st">等效（iOS 弹窗）</span></span></td><td>拒绝授权 → 标记未测</td></tr>
+    <tr><td class="num">7</td><td>距离/光线传感器</td><td><span class="pill"><span class="ic-good">✔</span><span class="st">可测</span></span></td><td><span class="pill"><span class="ic-crit">✖</span><span class="st">无 Web API</span></span></td><td>转店员人工点检</td></tr>
+    <tr><td class="num">8</td><td>摄像头前/后</td><td><span class="pill"><span class="ic-good">✔</span><span class="st">实拍</span></span></td><td><span class="pill"><span class="ic-good">✔</span><span class="st">等效</span></span></td><td>—</td></tr>
+    <tr><td class="num">9</td><td>扬声器 & 麦克风</td><td><span class="pill"><span class="ic-good">✔</span><span class="st">播放+回采</span></span></td><td><span class="pill"><span class="ic-good">✔</span><span class="st">等效（授权）</span></span></td><td>拒绝授权 → 转人工</td></tr>
+    <tr><td class="num">10</td><td>按键（音量/电源）</td><td><span class="pill"><span class="ic-warn">▲</span><span class="st">音量键可测</span></span></td><td><span class="pill"><span class="ic-crit">✖</span><span class="st">事件不进网页</span></span></td><td>转店员人工点检（A 也只剩一半）</td></tr>
+    <tr><td class="num">11</td><td>振动马达</td><td><span class="pill"><span class="ic-warn">▲</span><span class="st">仅 Android</span></span></td><td><span class="pill"><span class="ic-warn">▲</span><span class="st">仅 Android</span></span></td><td>非扣款项，标记未测</td></tr>
+    <tr class="group"><td colspan="5">设备身份项（双方案都无法直读 · 兜底通道相同）</td></tr>
+    <tr><td class="num">12</td><td>IMEI / SN</td><td><span class="pill"><span class="ic-crit">✖</span><span class="st">截图+端侧OCR</span></span></td><td><span class="pill"><span class="ic-crit">✖</span><span class="st">截图+云端OCR</span></span></td><td>兜底链：「关于本机」截图 OCR（失败→引导重截）→ 手工录入（Luhn 校验）</td></tr>
+    <tr><td class="num">13</td><td>电池健康度 %</td><td><span class="pill"><span class="ic-crit">✖</span><span class="st">截图OCR</span></span></td><td><span class="pill"><span class="ic-crit">✖</span><span class="st">截图OCR</span></span></td><td>不可得 → 按中档扣款</td></tr>
+    <tr><td class="num">14</td><td>iOS 激活锁 / Android FRP</td><td><span class="pill"><span class="ic-crit">✖</span><span class="st">读不到</span></span></td><td><span class="pill"><span class="ic-crit">✖</span><span class="st">读不到</span></span></td><td>服务端 IMEI 反查 iCloud / GSMA</td></tr>
+    <tr><td class="num">15</td><td>黑名单 / EMI 分期锁</td><td><span class="pill"><span class="ic-crit">✖</span><span class="st">读不到</span></span></td><td><span class="pill"><span class="ic-crit">✖</span><span class="st">读不到</span></span></td><td>服务端查询（两案完全相同）</td></tr>
+  </table>
+  <div class="foot"><span>Dobara · 质检方案评审</span><span>5 / 13</span></div>
+</section>
+
+<!-- ═══ 6 · 覆盖统计图 ═══ -->
+<section class="slide">
+  <h2>能力覆盖对比：11 项硬检 + 4 项身份项</h2>
+  <div class="sub">色阶越深 = 自动化覆盖越强；灰色 = 双方案一致的共同兜底（不构成差异）</div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--ord-600)"></span>自动等效</span>
+    <span><span class="sw" style="background:var(--ord-400)"></span>自动降级可用（推断/估算/部分平台）</span>
+    <span><span class="sw" style="background:var(--ord-250)"></span>转店员人工</span>
+    <span><span class="sw" style="background:var(--neutral)"></span>双方案共同不可得 → OCR/服务端兜底</span>
+  </div>
+  <div class="chart">
+    <div class="bar-row">
+      <div class="name"><span class="badge badge-a">A · 自检App</span></div>
+      <div class="stack">
+        <div class="seg" style="width:60%;background:var(--ord-600);color:#fff">自动等效 9 项</div>
+        <div class="seg" style="width:13.3%;background:var(--ord-400);color:#fff">降级 2</div>
+        <div class="seg" style="width:26.7%;background:var(--neutral);color:var(--ink)">共同兜底 4</div>
+      </div>
+      <div></div>
+    </div>
+    <div class="bar-row">
+      <div class="name"><span class="badge badge-b">B · H5自检</span></div>
+      <div class="stack">
+        <div class="seg" style="width:33.3%;background:var(--ord-600);color:#fff">等效 5 项</div>
+        <div class="seg" style="width:26.7%;background:var(--ord-400);color:#fff">降级 4</div>
+        <div class="seg" style="width:13.3%;background:var(--ord-250);color:var(--ink)">转人工 2</div>
+        <div class="seg" style="width:26.7%;background:var(--neutral);color:var(--ink)">共同兜底 4</div>
+      </div>
+      <div></div>
+    </div>
+    <div class="axis"><span>0</span><span>3</span><span>6</span><span>9</span><span>12</span><span>15 项</span></div>
+  </div>
+  <table style="margin-top:10px">
+    <tr><th>层级</th><th>项目</th><th>结论</th></tr>
+    <tr><td>双方案等效</td><td>触控、显示坏点、加计/陀螺仪、前后摄、扬声器、麦克风（6 项）</td><td>功能性测试主体无差距</td></tr>
+    <tr><td>A 精确 / B 降级可用</td><td>型号、存储、电量（3 项）</td><td>OCR 交叉验证 + 店员确认可兜底，对定价影响可控</td></tr>
+    <tr><td>仅 A 可得</td><td>按键、距离/光线传感器 + 指纹分量（3 项）</td><td>B 转店员人工；均非核心扣款项</td></tr>
+  </table>
+  <div class="takeaway">A 比 B 多拿的只有「按键 + 2 个小传感器 + 精确指纹分量」；检测主体（6 项硬功能测试）两案完全等效</div>
+  <div class="foot"><span>Dobara · 质检方案评审</span><span>6 / 13</span></div>
+</section>
+
+<!-- ═══ 7 · 指纹差距 ═══ -->
+<section class="slide">
+  <h2>隐性差距最大的一项：服务端去重指纹</h2>
+  <div class="sub">场景：无发票 + IMEI OCR 失败时，服务端降级为「复合指纹」去重 —— 此时两案指纹强度不同</div>
+  <table>
+    <tr><th>指纹分量</th><th style="width:220px">A · 自检 App</th><th style="width:220px">B · H5 自检</th><th>影响</th></tr>
+    <tr><td>IMEI / SN（主键）</td><td><span class="pill"><span class="ic-good">✔</span><span class="st">OCR 获取</span></span></td><td><span class="pill"><span class="ic-good">✔</span><span class="st">OCR 获取</span></span></td><td>相同</td></tr>
+    <tr><td>ANDROID_ID / idFV</td><td><span class="pill"><span class="ic-good">✔</span><span class="st">可读</span></span></td><td><span class="pill"><span class="ic-crit">✖</span><span class="st">网页拿不到</span></span></td><td><b>B 缺失</b></td></tr>
+    <tr><td>WebGL / Canvas 指纹</td><td><span class="pill"><span class="ic-na">—</span><span class="st">可选</span></span></td><td><span class="pill"><span class="ic-warn">▲</span><span class="st">可用但稳定性弱</span></span></td><td>B 的替代分量</td></tr>
+    <tr><td>品牌型号 + 存储 + 电池</td><td><span class="pill"><span class="ic-good">✔</span><span class="st">精确值</span></span></td><td><span class="pill"><span class="ic-warn">▲</span><span class="st">推断/估算值</span></span></td><td>B 分量置信度略低</td></tr>
+  </table>
+  <table style="margin-top:22px">
+    <tr><th>风险量化</th><th>判定</th></tr>
+    <tr><td>IMEI OCR 成功率 ≥ 90%（预研项 #2）</td><td>指纹弱化影响可控 —— 降级指纹只是极小概率路径</td></tr>
+    <tr><td>「无发票 + IMEI 不可得」场景占比 &lt; 10%（预研项 #5）</td><td>B 可接受；超阈值 → 该场景进人工复核队列，或触发引导装 App（回到 A 的补充路径）</td></tr>
+  </table>
+  <div class="takeaway">指纹是 B 唯一的实质性数据劣势 —— 两个预研数据点（#2、#5）出来后即可定论，不阻塞今天的主选型</div>
+  <div class="foot"><span>Dobara · 质检方案评审</span><span>7 / 13</span></div>
+</section>
+
+<!-- ═══ 8 · 流程一致性 ═══ -->
+<section class="slide">
+  <h2>选 B 后，双端流程一致性怎么保证</h2>
+  <div class="sub">四个机制，把「平台差异」封装在后台 —— 用户和店员看到的始终是同一条 N/9 步进度条</div>
+  <table>
+    <tr><th style="width:60px">#</th><th style="width:200px">机制</th><th>说明</th></tr>
+    <tr><td class="num" style="color:var(--muted)">1</td><td><b>session_id 唯一汇聚</b></td><td>三通道全部向同一 session 上报 —— 解耦架构不翻架子</td></tr>
+    <tr><td class="num" style="color:var(--muted)">2</td><td><b>统一数据契约</b></td><td>每项输出 <code>{item, status, value, source, evidence, confidence}</code>；定价/去重/审计<b>只消费字段、不关心来源</b> → 下游零改动</td></tr>
+    <tr><td class="num" style="color:var(--muted)">3</td><td><b>能力探测 + 降级路由</b></td><td>每项声明所需能力 → H5 加载后 3 秒探测 → 自动生成该机型执行计划；不支持项走四类降级（重截OCR / 店员人工 / 手工录入 / 标记未测）</td></tr>
+    <tr><td class="num" style="color:var(--muted)">4</td><td><b>UI 层同一进度条</b></td><td>iOS / Android 用户看到同一条「N/9 步」进度；个别项的采集方式不同，但步骤数与顺序完全一致</td></tr>
+  </table>
+  <div class="takeaway">一致性的本质：差异被吸收在「能力矩阵 + 降级路由」这一层，而不是暴露为两套流程</div>
+  <div class="foot"><span>Dobara · 质检方案评审</span><span>8 / 13</span></div>
+</section>
+
+<!-- ═══ 9 · 优劣势 ═══ -->
+<section class="slide">
+  <h2>优劣势总览（8 维度）</h2>
+  <div class="sub">★★★★★ = 优　<span class="stars">★<span class="off">★★★</span></span> = 差</div>
+  <table>
+    <tr><th>维度</th><th style="width:190px;text-align:center">A · 自检 App</th><th style="width:190px;text-align:center">B · H5 自检</th><th>关键说明</th></tr>
+    <tr><td>检测覆盖</td><td style="text-align:center"><span class="stars">★★★★★</span></td><td style="text-align:center"><span class="stars">★★★<span class="off">★★</span></span></td><td>B 缺按键 + 2 传感器 + 指纹分量</td></tr>
+    <tr><td>数据精确度</td><td style="text-align:center"><span class="stars">★★★★★</span></td><td style="text-align:center"><span class="stars">★★★★<span class="off">★</span></span></td><td>型号推断（主流机型准确）、存储估算到档位</td></tr>
+    <tr><td>用户摩擦</td><td style="text-align:center"><span class="stars">★★<span class="off">★★★</span></span></td><td style="text-align:center"><span class="stars">★★★★★</span></td><td><b>安装环节是 A 的第一流失点</b></td></tr>
+    <tr><td>用户心理</td><td style="text-align:center"><span class="stars">★★<span class="off">★★★</span></span></td><td style="text-align:center"><span class="stars">★★★★★</span></td><td>「要卖的手机还要装App」vs 跑完即走</td></tr>
+    <tr><td>双端一致性</td><td style="text-align:center"><span class="stars">★★★<span class="off">★★</span></span></td><td style="text-align:center"><span class="stars">★★★★★</span></td><td>A 双端两套代码；B 一套代码</td></tr>
+    <tr><td>开发/维护成本</td><td style="text-align:center"><span class="stars">★★<span class="off">★★★</span></span></td><td style="text-align:center"><span class="stars">★★★★<span class="off">★</span></span></td><td>双端原生 + APK 分发设施 vs 单 H5 + 复用云端</td></tr>
+    <tr><td>弱网/离线</td><td style="text-align:center"><span class="stars">★★★★★</span></td><td style="text-align:center"><span class="stars">★★★<span class="off">★★</span></span></td><td>原生缓存 vs PWA 缓解、依赖门店网络</td></tr>
+    <tr><td>迭代速度</td><td style="text-align:center"><span class="stars">★★<span class="off">★★★</span></span></td><td style="text-align:center"><span class="stars">★★★★★</span></td><td>商店审核周期 vs 服务端发布即时生效</td></tr>
+  </table>
+  <div class="takeaway">A 用 2–3 个小项 + 指纹强度，换来整个安装环节的流失风险和双端原生成本；B 覆盖检测主体，代价是 3 个小项转人工和指纹降级</div>
+  <div class="foot"><span>Dobara · 质检方案评审</span><span>9 / 13</span></div>
+</section>
+
+<!-- ═══ 10 · 工作量与耗时图 ═══ -->
+<section class="slide">
+  <h2>成本与体验量化对比</h2>
+  <div class="sub">左：相对开发工作量（A = 100% 基准）；右：用户旧机侧耗时（含安装）</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;flex:1;align-content:start">
+    <div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:8px">相对工作量</div>
+      <div class="legend" style="margin:2px 0 0">
+        <span><span class="sw" style="background:var(--a)"></span>A</span>
+        <span><span class="sw" style="background:var(--b)"></span>B</span>
+      </div>
+      <div class="bar-row" style="grid-template-columns:34px 1fr;gap:12px">
+        <div class="name" style="font-size:15px">A</div>
+        <div class="hbar-wrap">
+          <div class="hbar" style="width:100%;background:var(--a)"></div>
+          <div class="hbar-label" style="left:calc(100% - 0px);transform:translateX(-100%);color:#fff;padding-right:12px">100%</div>
+        </div>
+      </div>
+      <div class="bar-row" style="grid-template-columns:34px 1fr;gap:12px;margin-top:22px">
+        <div class="name" style="font-size:15px">B</div>
+        <div class="hbar-wrap">
+          <div class="hbar" style="width:50%;background:var(--b)"></div>
+          <div class="whisker" style="left:40%;background:#0e7a54"></div>
+          <div class="whisker" style="left:60%;background:#0e7a54"></div>
+          <div class="hbar-label" style="left:calc(60% + 12px);color:var(--ink)">≈ 40–60%</div>
+        </div>
+      </div>
+      <div class="axis" style="margin-left:46px;margin-right:0"><span>0</span><span>25</span><span>50</span><span>75</span><span>100%</span></div>
+      <table style="margin-top:14px;font-size:13px">
+        <tr><td>A：Android + iOS 双端原生 + APK 下载服务器 + 热点直传 + 商店审核</td></tr>
+        <tr><td>B：单 H5 应用 + 能力探测框架，复用现有短链服务与云端 OCR 管线</td></tr>
+      </table>
+    </div>
+    <div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:8px">用户旧机侧耗时（分钟）</div>
+      <div class="legend" style="margin:2px 0 0">
+        <span><span class="sw" style="background:var(--a)"></span>A</span>
+        <span><span class="sw" style="background:var(--b)"></span>B</span>
+        <span>线段 = 区间范围</span>
+      </div>
+      <div class="bar-row" style="grid-template-columns:34px 1fr;gap:12px">
+        <div class="name" style="font-size:15px">A</div>
+        <div class="hbar-wrap">
+          <div class="hbar" style="width:65%;background:var(--a)"></div>
+          <div class="whisker" style="left:50%;background:var(--ink2)"></div>
+          <div class="whisker" style="left:80%;background:var(--ink2)"></div>
+          <div class="hbar-label" style="left:calc(80% + 12px)">5–8 分钟</div>
+        </div>
+      </div>
+      <div class="bar-row" style="grid-template-columns:34px 1fr;gap:12px;margin-top:22px">
+        <div class="name" style="font-size:15px">B</div>
+        <div class="hbar-wrap">
+          <div class="hbar" style="width:30%;background:var(--b)"></div>
+          <div class="whisker" style="left:20%;background:var(--ink2)"></div>
+          <div class="whisker" style="left:40%;background:var(--ink2)"></div>
+          <div class="hbar-label" style="left:calc(40% + 12px)">2–4 分钟</div>
+        </div>
+      </div>
+      <div class="axis" style="margin-left:46px;margin-right:0"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span></div>
+      <table style="margin-top:14px;font-size:13px">
+        <tr><td>差异全部来自「安装」：Android 侧载授权教学 2–5 分钟 / iOS App Store 下载</td></tr>
+        <tr><td>到店转化是 MVP 核心指标 —— 用户侧每多 1 分钟都是可预见的流失</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="takeaway">B 的工作量约为 A 的一半，用户侧耗时约为 A 的 1/2 – 2/5；A 的超额成本主要花在分发基础设施上</div>
+  <div class="foot"><span>Dobara · 质检方案评审</span><span>10 / 13</span></div>
+</section>
+
+<!-- ═══ 11 · 风险 ═══ -->
+<section class="slide">
+  <h2>风险清单</h2>
+  <div class="sub">等级最高的两条分别是 A 的安装流失与 B 的低端机型浏览器碎片化 —— 都有明确缓解路径</div>
+  <table>
+    <tr><th>风险</th><th style="width:70px">方案</th><th style="width:80px">等级</th><th>缓解措施</th></tr>
+    <tr><td>安装流失（侧载授权卡住 / iOS 无 Apple ID）</td><td>A</td><td><span class="badge badge-red">高</span></td><td>店员培训 + 图文引导 —— 仍不可完全消除</td></tr>
+    <tr><td>印度低端机型浏览器兼容碎片化</td><td>B</td><td><span class="badge badge-red">高</span></td><td>预研实测 Top 20 机型；能力探测自动降级；不达标机型走店员人工通道</td></tr>
+    <tr><td>App Store 审核拒签（质检类政策风险）</td><td>A</td><td><span class="badge badge-gray">中</span></td><td>规避私有 API；预留企业分发 / TestFlight</td></tr>
+    <tr><td>「关于本机」截图 OCR 准确率不足（反光、低质屏）</td><td>B</td><td><span class="badge badge-gray">中</span></td><td>引导重新截图（Android 可深链直达设置页）+ 云端 OCR 双引擎 + Luhn 校验兜底手工</td></tr>
+    <tr><td>弱网门店 H5 体验差</td><td>B</td><td><span class="badge badge-gray">中</span></td><td>PWA 预缓存检测页；检测逻辑本地执行、仅结果上报</td></tr>
+    <tr><td>无发票 + IMEI OCR 失败时去重指纹弱</td><td>B</td><td><span class="badge badge-gray">中</span></td><td>监控该场景占比；超阈值进人工复核队列</td></tr>
+    <tr><td>用户拒绝 iOS 传感器 / 麦克风授权</td><td>A / B</td><td><span class="badge badge-gray">低</span></td><td>引导文案 + 拒绝后转店员人工点检</td></tr>
+  </table>
+  <div class="takeaway">B 的高风险（兼容碎片化）可以用 1–2 周预研实测关闭；A 的高风险（安装流失）只能缓解、无法关闭</div>
+  <div class="foot"><span>Dobara · 质检方案评审</span><span>11 / 13</span></div>
+</section>
+
+<!-- ═══ 12 · 预研 ═══ -->
+<section class="slide">
+  <h2>预研验证清单（选型前的关键数据）</h2>
+  <div class="sub">今天只定方向，最终拍板挂在预研 #1 / #2 通过之后 —— 避免基于假设选型</div>
+  <table>
+    <tr><th style="width:34px">#</th><th>验证项</th><th style="width:300px">方法</th><th style="width:280px">判定标准</th><th style="width:70px">优先级</th></tr>
+    <tr><td>1</td><td>H5 API 在印度主流机型支持度</td><td>预期机型 Top 20 实测 getUserMedia / DeviceMotion / storage.estimate / vibrate</td><td>覆盖 ≥ 90% 机型核心 API 可用</td><td><b>P0</b></td></tr>
+    <tr><td>2</td><td>「关于本机」截图 OCR 准确率</td><td>50 台真机小样，云端 OCR</td><td>IMEI 提取成功率 ≥ 90%</td><td><b>P0</b></td></tr>
+    <tr><td>3</td><td>UA + GPU 机型推断覆盖率</td><td>印度在售 / 流通机型库比对</td><td>推断到具体型号 ≥ 85%，到品牌 100%</td><td>P1</td></tr>
+    <tr><td>4</td><td>IMEI 服务商选型（激活锁 / 黑名单 / EMI）</td><td>候选：DoT CEIR / GSMA / 第三方聚合服务，逐一询价验证</td><td>印度合规渠道可用、单次成本可接受</td><td><b>P0</b>（与 A/B 无关，必做）</td></tr>
+    <tr><td>5</td><td>「无发票 + IMEI 不可得」场景占比</td><td>线下门店人工统计 1–2 周</td><td>&lt; 10% 则 B 的指纹弱化可接受</td><td>P1</td></tr>
+  </table>
+  <div class="takeaway">若预研 #1 / #2 实测不达标 → 回退方案 A（本次评审因此不拍死结论）</div>
+  <div class="foot"><span>Dobara · 质检方案评审</span><span>12 / 13</span></div>
+</section>
+
+<!-- ═══ 13 · 方案建议 ═══ -->
+<section class="slide">
+  <h2>混合方案 C —— B 为主，A 留 P1</h2>
+  <div class="sub">五条理由 + 一个前置条件</div>
+  <table>
+    <tr><th style="width:44px">#</th><th>理由</th></tr>
+    <tr><td>1</td><td><b>安装摩擦是可预见的最大流失点</b>，与「到店转化」核心指标直接冲突；B 的入口（OTP 短链）天然存在，零额外成本</td></tr>
+    <tr><td>2</td><td>9 项硬检中 B 覆盖 <b>6 项等效 + 1 项降级可用</b>；转人工的仅按键 + 2 个小传感器，均非核心扣款项</td></tr>
+    <tr><td>3</td><td>开发量约为 A 的一半，且<b>一套代码天然保证双端流程一致</b></td></tr>
+    <tr><td>4</td><td>A 降级为 P1 增强路径：出现「指纹去重不足的高风险会话」或「深度诊断需求」时，再引导安装自检 App 补充采集</td></tr>
+    <tr><td>5</td><td>回退通道干净：预研 #1 / #2 不达标 → 整体回退方案 A，沉没成本仅预研投入</td></tr>
+  </table>
+  <div class="takeaway">前置条件：预研 #1（H5 兼容性）、#2（OCR 准确率）通过后再最终拍板 —— 今天定方向、留回退</div>
+  <div class="foot"><span>Dobara · 质检方案评审 · 2026-09-01</span><span>13 / 13</span></div>
+</section>
+
+</div></div>
+
+<div class="nav">
+  <button id="prev" title="上一页 (←)">‹</button>
+  <span class="cnt" id="cnt">1 / 16</span>
+  <button id="next" title="下一页 (→)">›</button>
+</div>
+
+<script>
+const slides=[...document.querySelectorAll('.slide')];let cur=0;
+function show(i){cur=Math.max(0,Math.min(slides.length-1,i));
+  slides.forEach((s,k)=>s.classList.toggle('active',k===cur));
+  document.getElementById('cnt').textContent=(cur+1)+' / '+slides.length;}
+document.getElementById('prev').onclick=()=>show(cur-1);
+document.getElementById('next').onclick=()=>show(cur+1);
+addEventListener('keydown',e=>{
+  if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();show(cur+1)}
+  if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();show(cur-1)}
+  if(e.key==='Home')show(0); if(e.key==='End')show(slides.length-1);});
+function fit(){const v=document.getElementById('viewport');
+  const s=Math.min(innerWidth/1280,innerHeight/720)*0.985;
+  v.style.transform='scale('+s+')';}
+addEventListener('resize',fit);fit();show(0);
+</script>
+</body>
+</html>
