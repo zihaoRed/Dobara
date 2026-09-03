@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button } from '@dobara/ui';
-import { ChevronDown, ChevronUp, Phone, Mail } from 'lucide-react';
+import { ChevronDown, ChevronUp, Phone, Mail, TicketIcon } from 'lucide-react';
 
 const FAQS = [
   {
@@ -67,6 +67,21 @@ export function HelpCenter() {
           </div>
         </Card>
       ))}
+
+      <Card data-testid="ticket-entry-card">
+        <h3 className="text-h4 font-heading mb-2">Submit a Ticket</h3>
+        <p className="text-caption text-text-muted mb-3">
+          Can't find your answer? Report an issue and track it — order/payment/trade-in/logistics/app/complaint/suggestion.
+        </p>
+        <Button
+          variant="primary"
+          icon={<TicketIcon size={16} />}
+          data-testid="help-submit-ticket"
+          onClick={() => navigate('/account/tickets/new')}
+        >
+          Submit a Ticket
+        </Button>
+      </Card>
 
       <Card>
         <h3 className="text-h4 font-heading mb-3">Contact</h3>

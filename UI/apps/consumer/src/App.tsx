@@ -23,6 +23,9 @@ import { AfterSaleList } from './pages/AfterSaleList';
 import { AfterSaleApply } from './pages/AfterSaleApply';
 import { AfterSaleDetail } from './pages/AfterSaleDetail';
 import { HelpCenter } from './pages/HelpCenter';
+import { TicketCreate } from './pages/TicketCreate';
+import { TicketList } from './pages/TicketList';
+import { TicketDetail } from './pages/TicketDetail';
 import { RedeemConfirm } from './pages/RedeemConfirm';
 import { EnterpriseHome } from './pages/EnterpriseHome';
 import { EnterpriseCart } from './pages/EnterpriseCart';
@@ -190,6 +193,9 @@ export function App() {
           <Route path="/account/after-sales" element={<RequireAuth><AfterSaleList /></RequireAuth>} />
           <Route path="/account/after-sales/:ticketId" element={<RequireAuth><AfterSaleDetail /></RequireAuth>} />
           <Route path="/account/help" element={<RequireAuth><HelpCenter /></RequireAuth>} />
+          <Route path="/account/tickets" element={<RequireAuth><TicketList /></RequireAuth>} />
+          <Route path="/account/tickets/new" element={<RequireAuth><TicketCreate /></RequireAuth>} />
+          <Route path="/account/tickets/:ticketId" element={<RequireAuth><TicketDetail /></RequireAuth>} />
           <Route path="/account/h5-preview" element={<RequireAuth><H5Preview /></RequireAuth>} />
 
           {/* Legacy profile redirects */}

@@ -283,6 +283,15 @@ export function OrderDetail() {
         </p>
       )}
 
+      <button
+        type="button"
+        data-testid="order-ticket-entry"
+        className="w-full text-caption text-primary-600 hover:underline py-2"
+        onClick={() => navigate('/account/tickets/new')}
+      >
+        Questions about this order? Submit a ticket →
+      </button>
+
       <Modal open={showCancel} onClose={() => setShowCancel(false)} title="Cancel Order?" size="sm">
         <div className="space-y-4">
           <p className="text-body text-text-secondary">{cancelConfirmText}</p>

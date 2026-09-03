@@ -55,7 +55,7 @@ export function AfterSaleList() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-8" data-testid="aftersale-list">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/account')}>← Back</Button>
+      <Button variant="ghost" size="sm" onClick={() => navigate('/account/orders?tab=aftersale')}>← My Orders · After-Sales</Button>
       <h1 className="text-h3 font-bold">After-Sales</h1>
 
       <div className="flex flex-wrap gap-2" data-testid="aftersale-filters">
@@ -77,7 +77,7 @@ export function AfterSaleList() {
         <EmptyState
           title="No tickets in this status"
           description="You can request after-sales from a completed or delivered order."
-          action={<Button onClick={() => navigate('/account/orders')}>My Orders</Button>}
+          action={<Button onClick={() => navigate('/account/orders?tab=aftersale')}>My Orders · After-Sales</Button>}
         />
       ) : (
         <div className="space-y-3">

@@ -5,7 +5,45 @@ import { IndianRupee, MapPin, Clock } from 'lucide-react';
 import type { IOrder, IRecycleOrder, TRecycleStatus } from '@dobara/utils';
 import { imeiLast4 } from '@dobara/utils';
 
-type TabKey = 'buy' | 'sell';
+type TabKey = 'buy' | 'sell' | 'aftersale';
+
+/** After-sale ticket (APP-P0-09) — surfaced inside My Orders as the 3rd tab. */
+interface IAfterSaleTicket {
+  id: string;
+  orderId: string;
+  type: string;
+  reason: string;
+  status: string;
+  createdAt: string;
+}
+
+const DEMO_AFTERSALE: IAfterSaleTicket[] = [
+  { id: 'AS-PENDING', orderId: 'ORD-AS', type: 'return_refund', reason: 'appearance:Grade mismatch', status: 'pending_review', createdAt: new Date(Date.now() - 86400000).toISOString() },
+  { id: 'AS-APPROVED', orderId: 'ORD-DONE', type: 'exchange', reason: 'wrong_item:Wrong color', status: 'approved', createdAt: new Date(Date.now() - 3 * 86400000).toISOString() },
+  { id: 'AS-RETURNING', orderId: 'ORD-SHIP', type: 'return_refund', reason: 'shipping:Damaged in transit', status: 'returning', createdAt: new Date(Date.now() - 5 * 86400000).toISOString() },
+  { id: 'AS-REJECTED', orderId: 'ORD-RET', type: 'return_refund', reason: 'functional:Battery much worse', status: 'rejected', createdAt: new Date(Date.now() - 10 * 86400000).toISOString() },
+  { id: 'AS-REFUNDED', orderId: 'ORD-RET', type: 'return_refund', reason: 'appearance:Undisclosed scratches', status: 'refunded', createdAt: new Date(Date.now() - 18 * 86400000).toISOString() },
+];
+
+const AFTERSALE_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'pending_review', label: 'Pending review' },
+  { key: 'approved', label: 'Approved' },
+  { key: 'returning', label: 'Returning' },
+  { key: 'rejected', label: 'Rejected' },
+  { key: 'refunded', label: 'Refunded' },
+];
+
+function aftersaleBadge(status: string): 'pending' | 'in_progress' | 'completed' | 'cancelled' {
+  switch (status) {
+    case 'pending_review': return 'pending';
+    case 'approved':
+    case 'returning': return 'in_progress';
+    case 'refunded': return 'completed';
+    case 'rejected': return 'cancelled';
+    default: return 'pending';
+  }
+}
 
 const DEMO_BUY_ORDERS: IOrder[] = [
   { id: 'ORD-PENDING', userId: 'u-1', deviceImei: '350000000000018', amount: 35500, status: 'pending_payment', isEnterprise: false, isCredit: false, createdAt: new Date(Date.now() - 3600000).toISOString(), paymentMethod: 'upi', brand: 'Samsung', model: 'Galaxy S21', grade: 'A', storage: '128GB', color: 'Phantom Gray', expiresAt: new Date(Date.now() + 240000).toISOString() },
@@ -117,9 +155,14 @@ function estimateLabel(order: IRecycleOrder): string | null {
 export function OrderList() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<TabKey>('buy');
+  // Deep-link a tab via /account/orders?tab=aftersale (Profile entry uses this)
+  const initialTab = (new URLSearchParams(location.search).get('tab') as TabKey) || 'buy';
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    initialTab === 'aftersale' || initialTab === 'sell' ? initialTab : 'buy',
+  );
   const [orders, setOrders] = useState<IOrder[]>([]);
   const [recycleOrders, setRecycleOrders] = useState<IRecycleOrder[]>([]);
+  const [aftersaleTickets, setAftersaleTickets] = useState<IAfterSaleTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
   const [toast, setToast] = useState('');
@@ -137,10 +180,12 @@ export function OrderList() {
     Promise.all([
       fetch('/api/orders').then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => d.orders as IOrder[]).catch(() => DEMO_BUY_ORDERS),
       fetch('/api/recycle-orders').then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => d.orders as IRecycleOrder[]).catch(() => DEMO_RECYCLE),
+      fetch('/api/after-sales').then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => d.tickets as IAfterSaleTicket[]).catch(() => DEMO_AFTERSALE),
     ])
-      .then(([buy, sell]) => {
+      .then(([buy, sell, after]) => {
         setOrders(buy?.length ? buy : DEMO_BUY_ORDERS);
         setRecycleOrders(sell?.length ? sell : DEMO_RECYCLE);
+        setAftersaleTickets(after?.length ? after : DEMO_AFTERSALE);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -151,7 +196,8 @@ export function OrderList() {
 
   const buyOrders = orders.filter((o) => statusFilter === 'all' || o.status === statusFilter);
   const sellOrders = recycleOrders.filter((o) => statusFilter === 'all' || o.status === statusFilter);
-  const filters = activeTab === 'buy' ? BUY_FILTERS : SELL_FILTERS;
+  const afterTickets = aftersaleTickets.filter((t) => statusFilter === 'all' || t.status === statusFilter);
+  const filters = activeTab === 'buy' ? BUY_FILTERS : activeTab === 'sell' ? SELL_FILTERS : AFTERSALE_FILTERS;
 
   const onSellCardClick = (order: IRecycleOrder) => {
     if (order.status === 'appointment_pending') {
@@ -193,6 +239,7 @@ export function OrderList() {
         tabs={[
           { key: 'buy', label: `Purchases (${orders.length})` },
           { key: 'sell', label: `Exchange (${recycleOrders.length})` },
+          { key: 'aftersale', label: `After-Sales (${aftersaleTickets.length})` },
         ]}
         activeTab={activeTab}
         onChange={(k: string) => setActiveTab(k as TabKey)}
@@ -267,6 +314,35 @@ export function OrderList() {
                 {order.trackingNumber && (
                   <p className="text-eyebrow text-primary-600 mt-2">Tracking {order.trackingNumber}</p>
                 )}
+              </Card>
+            ))}
+          </div>
+        )
+      ) : activeTab === 'aftersale' ? (
+        afterTickets.length === 0 ? (
+          <EmptyState
+            title="No after-sales tickets"
+            description="You can request after-sales from a completed or delivered order."
+            action={<Button variant="primary" onClick={() => setActiveTab('buy')}>View Purchases</Button>}
+          />
+        ) : (
+          <div className="space-y-3" data-testid="aftersale-tab-list">
+            {afterTickets.map((t) => (
+              <Card
+                key={t.id}
+                variant="hover"
+                onClick={() => navigate(`/account/after-sales/${t.id}`)}
+                data-testid={`aftersale-tab-card-${t.id}`}
+              >
+                <div className="flex justify-between gap-2">
+                  <div>
+                    <p className="text-body font-semibold">{t.id}</p>
+                    <p className="text-caption text-text-muted">Order {t.orderId}</p>
+                  </div>
+                  <StatusBadge status={aftersaleBadge(t.status)} customLabel={t.status.replace(/_/g, ' ')} />
+                </div>
+                <p className="text-caption text-text-secondary mt-2 capitalize">{t.type.replace(/_/g, ' ')}</p>
+                <p className="text-eyebrow text-text-muted mt-1 truncate">{t.reason}</p>
               </Card>
             ))}
           </div>
