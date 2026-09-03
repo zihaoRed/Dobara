@@ -2,9 +2,9 @@
 
 export const INSPECTION_STEP_KEYS = [
   'session',
+  'decision',
   'photo',
   'video',
-  'decision',
   'admission',
   'inspect',
   'hardware',
@@ -88,8 +88,8 @@ export function clearProgress() {
 export function canVisitStep(sessionId: string, step: string): boolean {
   const p = getProgress();
   if (!p || p.sessionId !== sessionId) {
-    // Fresh session — only session + photo allowed until progress saved
-    return step === 'session' || step === 'photo' || !step;
+    // Fresh session — only session + decision (pre-photo reject gate) allowed until progress saved
+    return step === 'session' || step === 'decision' || !step;
   }
   if (p.rejected) {
     return step === 'reject' || step === 'session';

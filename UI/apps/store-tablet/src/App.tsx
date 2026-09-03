@@ -33,9 +33,9 @@ import {
 
 const INSPECTION_STEPS: { key: TInspectionStep; label: string }[] = [
   { key: 'session', label: 'Session' },
+  { key: 'decision', label: 'Decision' },
   { key: 'photo', label: 'Photos' },
   { key: 'video', label: 'Video' },
-  { key: 'decision', label: 'Decision' },
   { key: 'admission', label: 'Admission' },
   { key: 'inspect', label: 'Inspect' },
   { key: 'hardware', label: 'Hardware' },

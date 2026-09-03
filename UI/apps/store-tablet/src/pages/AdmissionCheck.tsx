@@ -167,7 +167,7 @@ export default function AdmissionCheck() {
       )}
 
       <div className="flex justify-center gap-4">
-        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/decision`)}>Back</Button>
+        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/video`)}>Back</Button>
         {reject ? (
           <Button variant="danger" size="lg" data-testid="admission-reject" onClick={goReject}>
             Reject Device

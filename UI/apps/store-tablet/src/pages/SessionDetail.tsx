@@ -5,9 +5,9 @@ import { ArrowLeft, User, Store, Clock, Calendar, List } from 'lucide-react';
 import { markStepComplete, saveProgress } from '../lib/sessionProgress';
 
 const steps = [
+  { key: 'decision', label: 'Decision' },
   { key: 'photo', label: 'Photos' },
   { key: 'video', label: 'Video' },
-  { key: 'decision', label: 'Decision' },
   { key: 'inspect', label: 'Inspect' },
   { key: 'hardware', label: 'Hardware' },
   { key: 'invoice', label: 'Invoice' },
@@ -44,6 +44,7 @@ export default function SessionDetail() {
   useEffect(() => {
     async function load() {
       const phone = (phoneFromState || '').replace(/\D/g, '').slice(-10);
+      let firstAppt: Appointment | undefined;
       try {
         const [sessionRes, userRes, apptRes] = await Promise.all([
           fetch(`/api/sessions/${sessionId}`),
@@ -56,6 +57,7 @@ export default function SessionDetail() {
         setSession(sessionData.session);
         setUser(userData.user);
         setAppointments(apptData.appointments || []);
+        firstAppt = (apptData.appointments || [])[0];
       } catch {
         setSession({ status: 'inspection', createdAt: new Date().toISOString() });
         setUser({
@@ -64,6 +66,17 @@ export default function SessionDetail() {
         });
         setAppointments([]);
       } finally {
+        // Persist latest appointment basics for downstream steps (hardware color pre-fill)
+        try {
+          if (firstAppt) {
+            sessionStorage.setItem(
+              `dobara_appointments_${sessionId}`,
+              JSON.stringify({ color: firstAppt.color, brand: firstAppt.brand, model: firstAppt.model, storage: firstAppt.storage }),
+            );
+          } else {
+            sessionStorage.removeItem(`dobara_appointments_${sessionId}`);
+          }
+        } catch { /* ignore */ }
         setLoading(false);
         saveProgress({ sessionId, currentStep: 'session', completedIndex: -1, phone: phoneFromState });
       }
@@ -204,7 +217,7 @@ export default function SessionDetail() {
           data-testid="start-inspection"
           onClick={() => {
             markStepComplete(sessionId, 'session');
-            navigate(`/session/${sessionId}/photo`);
+            navigate(`/session/${sessionId}/decision`);
           }}
         >
           Start Inspection

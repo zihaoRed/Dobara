@@ -14,6 +14,17 @@ interface ItemState {
   retries: number;
 }
 
+/**
+ * Color cannot be read programmatically (same as IMEI). For walk-in customers
+ * with no appointment, the clerk must pick the color here so the inspection
+ * record aligns with the appointment schema (brand/model/color/storage).
+ * When an appointment exists, its color is pre-selected and confirmed.
+ */
+const DEVICE_COLORS = [
+  'Midnight', 'Starlight', 'Blue', 'Green', 'Red', 'Pink', 'Purple',
+  'Black', 'White', 'Titanium', 'Gold', 'Graphite',
+];
+
 const defaultMockValues: Record<string, { status: TResult; value: string }> = {
   'IMEI / Serial Number': { status: 'normal', value: '350000000000001' },
   'Brand & Model': { status: 'normal', value: 'Apple iPhone 13' },
@@ -53,6 +64,9 @@ export default function HardwareResults() {
   const [manualImeiOpen, setManualImeiOpen] = useState(false);
   const [manualImei, setManualImei] = useState('');
   const [forceTimeoutIdx, setForceTimeoutIdx] = useState<number | null>(null);
+  // Color confirmation (walk-in has no appointment to align with)
+  const [deviceColor, setDeviceColor] = useState('');
+  const [colorFromAppointment, setColorFromAppointment] = useState(false);
 
   useEffect(() => {
     if (usbDisconnected || done) return;
@@ -120,6 +134,35 @@ export default function HardwareResults() {
     setManualImeiOpen(false);
   };
 
+  // Pre-fill color from the session's appointment record (if any) so inspection
+  // data aligns with the appointment schema. Walk-in sessions start unconfirmed.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(`dobara_appointments_${sessionId}`);
+      if (!raw) return;
+      const appt = JSON.parse(raw) as { color?: string };
+      if (appt.color && DEVICE_COLORS.includes(appt.color)) {
+        setDeviceColor(appt.color);
+        setColorFromAppointment(true);
+      }
+    } catch { /* ignore */ }
+  }, [sessionId]);
+
+  // Walk-in alignment gate: brand/model are read via API, but color must be
+  // confirmed by the clerk before the inspection can continue.
+  const colorConfirmed = deviceColor !== '';
+
+  const goCondition = () => {
+    try {
+      sessionStorage.setItem(
+        `dobara_device_color_${sessionId}`,
+        JSON.stringify({ color: deviceColor, fromAppointment: colorFromAppointment }),
+      );
+    } catch { /* ignore */ }
+    markStepComplete(sessionId, 'hardware');
+    navigate(`/session/${sessionId}/condition`);
+  };
+
   const testedCount = items.filter((i) => i.status !== 'pending').length;
 
   return (
@@ -166,31 +209,71 @@ export default function HardwareResults() {
 
       <div className="space-y-2 mb-6">
         {items.map((item, i) => (
-          <Card key={i} variant="flat" className="flex items-center gap-3 p-3">
-            <div className="w-6 h-6 flex items-center justify-center shrink-0">{statusIcon(item.status)}</div>
-            <div className="flex-1 min-w-0">
-              <div className="text-caption font-semibold text-text-primary">{item.name}</div>
-              {item.value && <div className="text-[11px] text-text-muted font-mono truncate">{item.value}</div>}
-            </div>
-            <Badge
-              variant={
-                item.status === 'normal' || item.status === 'manual'
-                  ? 'success'
-                  : item.status === 'abnormal'
-                  ? 'error'
-                  : item.status === 'timeout'
-                  ? 'warning'
-                  : 'neutral'
-              }
-            >
-              {item.status === 'manual' ? 'Manual' : item.status}
-            </Badge>
-            {(item.status === 'abnormal' || item.status === 'timeout') && item.retries < 2 && (
-              <Button variant="ghost" size="sm" icon={<RefreshCw size={12} />} onClick={() => handleRetest(i)}>
-                Retry ({item.retries}/2)
-              </Button>
+          <React.Fragment key={i}>
+            <Card variant="flat" className="flex items-center gap-3 p-3">
+              <div className="w-6 h-6 flex items-center justify-center shrink-0">{statusIcon(item.status)}</div>
+              <div className="flex-1 min-w-0">
+                <div className="text-caption font-semibold text-text-primary">{item.name}</div>
+                {item.value && <div className="text-[11px] text-text-muted font-mono truncate">{item.value}</div>}
+              </div>
+              <Badge
+                variant={
+                  item.status === 'normal' || item.status === 'manual'
+                    ? 'success'
+                    : item.status === 'abnormal'
+                    ? 'error'
+                    : item.status === 'timeout'
+                    ? 'warning'
+                    : 'neutral'
+                }
+              >
+                {item.status === 'manual' ? 'Manual' : item.status}
+              </Badge>
+              {(item.status === 'abnormal' || item.status === 'timeout') && item.retries < 2 && (
+                <Button variant="ghost" size="sm" icon={<RefreshCw size={12} />} onClick={() => handleRetest(i)}>
+                  Retry ({item.retries}/2)
+                </Button>
+              )}
+            </Card>
+
+            {/* Color confirmation row — attached to Brand & Model (TAB walk-in alignment) */}
+            {item.name === 'Brand & Model' && item.status !== 'pending' && (
+              <div className="ml-9 mr-3 mb-2 p-3 rounded-md border border-border bg-surface-low" data-testid="color-confirm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-caption font-semibold text-text-primary">Device Color</span>
+                  {colorFromAppointment && deviceColor ? (
+                    <Badge variant="info" size="sm">From appointment</Badge>
+                  ) : (
+                    <Badge variant="warning" size="sm">{colorConfirmed ? 'Clerk confirmed' : 'Required — no appointment'}</Badge>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {DEVICE_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      data-testid={`color-option-${c.toLowerCase().replace(/\s+/g, '-')}`}
+                      onClick={() => {
+                        setDeviceColor(c);
+                        setColorFromAppointment(false);
+                      }}
+                      className={`px-2.5 py-1 rounded-md text-caption font-medium border transition-colors ${
+                        deviceColor === c
+                          ? 'border-primary-500 bg-primary-50 text-primary-700'
+                          : 'border-border text-text-secondary hover:bg-surface-container'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-eyebrow text-text-muted mt-2">
+                  Color can't be read via API — confirm it so the inspection record matches the appointment schema
+                  (brand · model · color · storage).
+                </p>
+              </div>
             )}
-          </Card>
+          </React.Fragment>
         ))}
       </div>
 
@@ -199,12 +282,9 @@ export default function HardwareResults() {
         <Button
           variant="primary"
           size="lg"
-          disabled={!done || usbDisconnected}
+          disabled={!done || usbDisconnected || !colorConfirmed}
           data-testid="hardware-continue"
-          onClick={() => {
-            markStepComplete(sessionId, 'hardware');
-            navigate(`/session/${sessionId}/condition`);
-          }}
+          onClick={goCondition}
         >
           Continue to Condition
         </Button>

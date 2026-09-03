@@ -64,7 +64,7 @@ export default function VideoCapture() {
       return;
     }
     markStepComplete(sessionId, 'video');
-    navigate(`/session/${sessionId}/decision`);
+    navigate(`/session/${sessionId}/admission`);
   };
 
   const canProceed = recorded && elapsed >= MIN && elapsed <= MAX;

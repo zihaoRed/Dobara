@@ -109,7 +109,7 @@ export default function PhotoCapture() {
       </div>
 
       <div className="flex justify-center gap-4">
-        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}`)}>Back</Button>
+        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/decision`)}>Back</Button>
         <Button
           variant="ghost"
           size="sm"

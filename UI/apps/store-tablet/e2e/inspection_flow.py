@@ -1,5 +1,5 @@
-"""E2E: clerk login → OTP → photos/video → decision → inspect → hardware → invoice skip → report.
-Also reject path after decision.
+"""E2E: clerk login → OTP → decision (pre-photo gate) → photos/video → inspect → hardware → invoice skip → report.
+Also reject path from decision.
 """
 from __future__ import annotations
 
@@ -40,13 +40,16 @@ def customer_otp(page):
 
 def through_appearance(page):
     page.get_by_test_id("start-inspection").click()
+    # Appearance review is the FIRST step — reject gate before any capture
+    page.get_by_test_id("appearance-decision").wait_for()
+    page.get_by_test_id("continue-inspect").click()
     page.get_by_test_id("photo-capture").wait_for()
     page.get_by_test_id("demo-fill-photos").click()
     page.get_by_test_id("photos-continue").click()
     page.get_by_test_id("video-capture").wait_for()
     page.get_by_test_id("demo-fill-video").click()
     page.get_by_test_id("video-continue").click()
-    page.get_by_test_id("appearance-decision").wait_for()
+    page.get_by_test_id("admission-check").wait_for()
 
 
 def run():
@@ -64,13 +67,17 @@ def run():
             # locked forward step should be disabled
             expect(page.get_by_test_id("nav-step-hardware")).to_be_disabled()
 
-            # happy path continue
-            page.get_by_test_id("continue-inspect").click()
+            # pass admission checks → defect checklist
+            page.get_by_test_id("admission-continue").click()
             page.get_by_test_id("appearance-inspect").wait_for()
             # Checklist is optional — continue with zero selections triggers auto QC
             page.get_by_test_id("confirm-inspect").click()
             page.get_by_test_id("hardware-results").wait_for()
             page.get_by_test_id("hardware-continue").wait_for(state="visible", timeout=20000)
+            # Color gate: walk-in (no appointment) → continue disabled until clerk confirms color
+            page.get_by_test_id("color-confirm").wait_for()
+            expect(page.get_by_test_id("hardware-continue")).to_be_disabled()
+            page.get_by_test_id("color-option-midnight").click()
             # wait until enabled
             page.wait_for_function(
                 "() => !document.querySelector('[data-testid=hardware-continue]')?.disabled",
@@ -78,10 +85,15 @@ def run():
             )
             page.get_by_test_id("hardware-continue").click()
 
+            # condition point-checks (repair/accessory/functional) — optional, continue
+            page.get_by_test_id("condition-check").wait_for()
+            page.get_by_test_id("condition-continue").click()
+
             # invoice skip via gate
+            page.get_by_test_id("invoice-capture").wait_for()
             page.get_by_test_id("invoice-skip").click()
-            page.get_by_test_id("data-upload").wait_for()
-            expect(page.get_by_test_id("upload-session-id")).to_be_visible()
+            page.get_by_test_id("data-submit").wait_for()
+            expect(page.get_by_test_id("submit-session-id")).to_be_visible()
             page.get_by_test_id("tablet-report").wait_for(timeout=25000)
             expect(page.get_by_test_id("imei-masked")).to_contain_text("···")
             page.get_by_test_id("confirm-report").click()
@@ -97,7 +109,9 @@ def run():
         try:
             clerk_login(page)
             customer_otp(page)
-            through_appearance(page)
+            # Reject at the FIRST step — pre-photo gate, no capture effort spent
+            page.get_by_test_id("start-inspection").click()
+            page.get_by_test_id("appearance-decision").wait_for()
             page.get_by_test_id("go-reject").click()
             page.get_by_test_id("reject-device").wait_for()
             page.get_by_test_id("demo-fill-reject-photos").click()
