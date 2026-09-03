@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import {
   User, Phone, Shield, Globe, Moon, Sun,
   ShoppingBag, ExternalLink, ArrowLeftRight, LogOut, ChevronRight,
-  MapPin, HeadphonesIcon, LifeBuoy, Building2, TicketIcon,
+  MapPin, HeadphonesIcon, Building2, TicketIcon,
 } from 'lucide-react';
 import { getUser, clearUser } from '../App';
 import { maskPhone } from '@dobara/utils';
@@ -44,9 +44,8 @@ export function Profile() {
   };
 
   const menuItems = [
-    { icon: <ShoppingBag size={20} />, label: 'My Orders', desc: 'Purchase & exchange orders', onClick: () => navigate('/account/orders'), highlight: true },
+    { icon: <ShoppingBag size={20} />, label: 'My Orders', desc: 'Purchases, exchange & after-sales', onClick: () => navigate('/account/orders'), highlight: true },
     { icon: <MapPin size={20} />, label: 'Addresses', desc: 'Manage delivery addresses', onClick: () => navigate('/account/addresses') },
-    { icon: <LifeBuoy size={20} />, label: 'After-Sales', desc: 'Returns, exchanges & refunds (in My Orders)', onClick: () => navigate('/account/orders?tab=aftersale') },
     { icon: <TicketIcon size={20} />, label: 'My Tickets', desc: 'Issue reports & progress tracking', onClick: () => navigate('/account/tickets') },
     { icon: <HeadphonesIcon size={20} />, label: 'Help Center', desc: 'FAQ & contact support', onClick: () => navigate('/account/help') },
     { icon: <ArrowLeftRight size={20} />, label: 'Exchange', desc: 'Upgrade your phone with trade-in bonus', onClick: () => navigate('/sell') },
