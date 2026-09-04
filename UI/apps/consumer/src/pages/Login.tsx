@@ -1,8 +1,9 @@
 import React, { useEffect, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Input, Button, Card, Tabs } from '@dobara/ui';
+import { Input, Button, Card, Modal, Tabs } from '@dobara/ui';
 import { setUser } from '../App';
 import { isValidIndiaPhone, OTP_COOLDOWN_SECONDS } from '@dobara/utils';
+import { isKnownUser, LegalDoc } from './Register';
 
 const DEMO_OTP = '123456';
 const DEMO_PASSWORD = 'Demo@1234';
@@ -32,6 +33,7 @@ export function Login() {
   const [otpAttempts, setOtpAttempts] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [docOpen, setDocOpen] = useState<'agreement' | 'privacy' | null>(null);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -76,10 +78,19 @@ export function Login() {
     setError('');
     const data = await apiCall('/api/otp/verify', { phone: normalizedPhone, otp });
     if (data?.success) {
+      // APP-P0-05: new users go set a password + accept terms before entering
+      if (data.isNew === true || (data.isNew === undefined && !isKnownUser(normalizedPhone))) {
+        navigate(`/register?phone=${normalizedPhone}`);
+        return;
+      }
       finishLogin(data.userId || 'Demo User');
       return;
     }
     if (otp === DEMO_OTP) {
+      if (!isKnownUser(normalizedPhone)) {
+        navigate(`/register?phone=${normalizedPhone}`);
+        return;
+      }
       finishLogin('Demo User');
       return;
     }
@@ -210,10 +221,12 @@ export function Login() {
           Demo OTP <b>123456</b> · Password <b>{DEMO_PASSWORD}</b>
         </p>
         <p className="text-caption text-text-muted text-center mt-2">
-          <button type="button" className="underline">User Agreement</button>
+          <button type="button" className="underline" onClick={() => setDocOpen('agreement')}>User Agreement</button>
           {' · '}
-          <button type="button" className="underline">Privacy Policy</button>
+          <button type="button" className="underline" onClick={() => setDocOpen('privacy')}>Privacy Policy</button>
         </p>
+
+        <LegalDoc doc={docOpen} open={docOpen !== null} onClose={() => setDocOpen(null)} />
       </div>
     </div>
   );

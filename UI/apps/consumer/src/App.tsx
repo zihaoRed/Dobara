@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Home as HomeIcon, ShoppingBag, ArrowLeftRight, User } from 'lucide-react';
 
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { Home } from './pages/Home';
 import { MallHome } from './pages/MallHome';
 import { ProductDetail } from './pages/ProductDetail';
@@ -56,6 +57,14 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   const user = getUser();
   if (!user) return <Navigate to="/login" replace />;
   return <>{children}</>;
+}
+
+/* ── Registration (post-OTP new-user flow) — phone comes from query, guard against direct visits ── */
+function RegisterRoute() {
+  const [params] = useSearchParams();
+  const phone = (params.get('phone') || '').replace(/\D/g, '').slice(-10);
+  if (!phone) return <Navigate to="/login" replace />;
+  return <Register phone={phone} />;
 }
 
 /* ── Tab Bar Layout — Home / Buy / Exchange / Account ── */
@@ -150,6 +159,7 @@ export function App() {
       <AppLayout>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<RegisterRoute />} />
           <Route path="/" element={<Navigate to={user ? '/home' : '/login'} replace />} />
 
           {/* Home — marketing landing */}
