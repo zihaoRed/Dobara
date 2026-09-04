@@ -130,7 +130,7 @@ const InboundScan: React.FC = () => {
         </button>
         <div>
           <h2 className="text-h3 font-heading">Inbound scan</h2>
-          <p className="text-caption text-text-muted">IMEI or session ID · only verified-complete devices</p>
+          <p className="text-caption text-text-muted">Scan device IMEI · only verified-complete devices</p>
         </div>
       </div>
 
@@ -141,16 +141,18 @@ const InboundScan: React.FC = () => {
         <CardContent className="space-y-4">
           <Input
             data-testid="inbound-code"
-            label="IMEI / Session ID"
+            label="IMEI"
             value={code}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCode(e.target.value)}
-            placeholder="350000000000001 or sess-wh-001"
+            placeholder="Scan or enter 15-digit IMEI"
             onKeyDown={(e: React.KeyboardEvent) => e.key === 'Enter' && handleLookup()}
           />
+          <p className="text-caption text-text-muted">Session ID also accepted — fallback when the barcode is unreadable</p>
           <p className="text-caption text-text-muted">
             Demo block: <span className="font-mono">350000000000099</span> (inspecting) ·{' '}
             <span className="font-mono">350000000000088</span> (quote pending) ·{' '}
-            <span className="font-mono">350000000000089</span> (wrong warehouse)
+            <span className="font-mono">350000000000089</span> (wrong warehouse) ·{' '}
+            <span className="font-mono">sess-wh-001</span> (session ID)
           </p>
           <Button
             variant="primary"
