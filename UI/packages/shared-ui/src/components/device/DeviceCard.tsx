@@ -14,6 +14,8 @@ interface DeviceCardProps {
   originalPrice?: number;
   storage?: string;
   conditionLabel?: string;
+  /** APP-P1-03: mark same-city stock with a badge */
+  sameCity?: boolean;
   onClick?: () => void;
 }
 
@@ -45,6 +47,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
   originalPrice,
   storage,
   conditionLabel,
+  sameCity,
   onClick,
 }) => {
   const gradient = brandGradients[brand] || 'from-surface-high to-surface-container';
@@ -94,7 +97,13 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
         </div>
         <div className="flex items-center justify-between pt-0.5">
           <GradeBadge grade={grade} />
-          <span className="text-caption text-text-muted">{city}</span>
+          {sameCity ? (
+            <span className="text-caption font-semibold text-primary-600" data-testid="same-city-badge">
+              · Same City · {city}
+            </span>
+          ) : (
+            <span className="text-caption text-text-muted">{city}</span>
+          )}
         </div>
       </div>
     </Card>

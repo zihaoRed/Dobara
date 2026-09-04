@@ -33,6 +33,14 @@ export const NOTIF_GROUPS: IRoleNotifGroup[] = [
         channels: { push: true, sms: true },
       },
       {
+        key: 'return-dispute',
+        label: 'Return dispute',
+        labelHi: 'रिटर्न विवाद',
+        desc: 'Return device tamper-evident / swapped',
+        descHi: 'रिटर्न डिवाइस सील टूटा / बदला हुआ',
+        channels: { push: true, sms: true },
+      },
+      {
         key: 'price-gap',
         label: 'Major price gap',
         labelHi: 'बड़ा मूल्य अंतर',
@@ -116,6 +124,14 @@ export const NOTIF_GROUPS: IRoleNotifGroup[] = [
         labelHi: 'इनबाउंड कार्य',
         desc: 'Device arrived, pending inbound',
         descHi: 'डिवाइस पहुंचा, इनबाउंड लंबित',
+        channels: { push: true, sms: true },
+      },
+      {
+        key: 'return-inbound',
+        label: 'Return inbound',
+        labelHi: 'रिटर्न इनबाउंड',
+        desc: 'B2C return arrived, verify seal & inbound',
+        descHi: 'B2C रिटर्न आया, सील जांचें व इनबाउंड करें',
         channels: { push: true, sms: true },
       },
       {

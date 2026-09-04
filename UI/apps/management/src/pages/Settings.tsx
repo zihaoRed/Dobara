@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Input, Badge, Modal, Tabs } from '@dobara/ui';
+import { FileText, ShieldCheck } from 'lucide-react';
 import type { TRoleCode } from '@dobara/utils';
 import { useAuth } from '../lib/AuthContext';
 import { DEMO_USERS, isValidPassword } from '../lib/auth';
@@ -51,6 +52,11 @@ const I18N = {
     notifSecurityLocked: 'Always on — cannot be disabled',
     dnd: 'Do not disturb',
     dndDesc: 'Mute push & SMS during this window',
+    userAgreement: 'User Agreement',
+    privacyPolicy: 'Privacy Policy',
+    version: 'Version',
+    build: 'build',
+    cacheCleared: (from: string, to: string) => `Cache cleared: ${from} → ${to} · sign-in kept`,
   },
   hi: {
     settings: 'सेटिंग्स',
@@ -75,10 +81,32 @@ const I18N = {
     notifSecurityLocked: 'हमेशा चालू — बंद नहीं किया जा सकता',
     dnd: 'परेशान न करें',
     dndDesc: 'इस अवधि में पुश और एसएमएस म्यूट करें',
+    userAgreement: 'उपयोगकर्ता अनुबंध',
+    privacyPolicy: 'गोपनीयता नीति',
+    version: 'संस्करण',
+    build: 'बिल्ड',
+    cacheCleared: (from: string, to: string) => `कैश साफ़: ${from} → ${to} · साइन-इन बना रहा`,
   },
 } as const;
 
 const DEMO_PASSWORDS = ['Owner123', 'Whouse123', 'Finance123', 'Multi123'];
+
+const APP_VERSION = 'v0.3';
+const APP_BUILD = '42';
+
+/** Demo cache model: deterministic pseudo-size derived from stored demo entries. */
+function getMgmtCacheSizeKB(): number {
+  let kb = 9_462; // base image + data cache in demo
+  MGMT_DATA_KEYS.forEach((k) => {
+    if (localStorage.getItem(k)) kb += 96;
+  });
+  if (localStorage.getItem('dobara_app_session')) kb += 24;
+  return kb;
+}
+
+function formatSize(kb: number): string {
+  return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`;
+}
 
 const MGMT_DATA_KEYS = [
   'dobara_mgmt_staff',
@@ -131,6 +159,8 @@ export default function Settings() {
   const [dnd, setDnd] = useState(false);
   const [dndStart, setDndStart] = useState('22:00');
   const [dndEnd, setDndEnd] = useState('08:00');
+  const [cacheKB, setCacheKB] = useState(getMgmtCacheSizeKB);
+  const [docOpen, setDocOpen] = useState<'agreement' | 'privacy' | null>(null);
 
   const t = I18N[lang];
   const userRoles = useMemo(() => {
@@ -442,30 +472,101 @@ export default function Settings() {
         </Card>
       )}
 
-      <Card className="p-4 space-y-2">
+      <Card className="p-4 space-y-2" data-testid="about-card">
         <h3 className="text-h4 font-heading">{t.about}</h3>
-        <p className="text-caption text-text-muted">Dobara Management · Demo v0.3</p>
-        <p className="text-caption text-text-muted">User Agreement · Privacy Policy (placeholder)</p>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            localStorage.removeItem('dobara_mgmt_cache_hint');
-            setMsg('Cache cleared (demo).');
-          }}
-        >
-          {t.clearCache}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-dobara-error"
-          data-testid="settings-delete-account"
-          onClick={() => setDeleteOpen(true)}
-        >
-          {t.deleteAccount}
-        </Button>
+        <p className="text-caption text-text-muted" data-testid="about-version">
+          Dobara Management · {t.version} {APP_VERSION} ({t.build} {APP_BUILD})
+        </p>
+        <p className="text-caption text-text-muted">Dobara Recommerce Pvt. Ltd. · dobara.in</p>
+
+        <div className="pt-2 space-y-1 border-t border-border">
+          <button
+            type="button"
+            data-testid="open-user-agreement"
+            onClick={() => setDocOpen('agreement')}
+            className="w-full flex items-center justify-between py-2.5 px-1 hover:bg-surface-low rounded-md transition-colors text-left"
+          >
+            <span className="flex items-center gap-3 text-body text-text-primary">
+              <FileText size={18} className="text-text-muted" />
+              {t.userAgreement}
+            </span>
+          </button>
+          <button
+            type="button"
+            data-testid="open-privacy-policy"
+            onClick={() => setDocOpen('privacy')}
+            className="w-full flex items-center justify-between py-2.5 px-1 hover:bg-surface-low rounded-md transition-colors text-left"
+          >
+            <span className="flex items-center gap-3 text-body text-text-primary">
+              <ShieldCheck size={18} className="text-text-muted" />
+              {t.privacyPolicy}
+            </span>
+          </button>
+        </div>
+
+        <div className="pt-2 border-t border-border flex items-center justify-between gap-3">
+          <div>
+            <div className="text-body font-medium">{t.clearCache}</div>
+            <div className="text-caption text-text-muted" data-testid="mgmt-cache-size">{formatSize(cacheKB)}</div>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            data-testid="mgmt-clear-cache"
+            onClick={() => {
+              const before = getMgmtCacheSizeKB();
+              clearMgmtLocalData();
+              localStorage.removeItem('dobara_mgmt_cache_hint');
+              const after = getMgmtCacheSizeKB();
+              setCacheKB(after);
+              setMsg(t.cacheCleared(formatSize(before), formatSize(after)));
+            }}
+          >
+            {t.clearCache}
+          </Button>
+        </div>
+
+        <div className="pt-2 border-t border-border">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-dobara-error"
+            data-testid="settings-delete-account"
+            onClick={() => setDeleteOpen(true)}
+          >
+            {t.deleteAccount}
+          </Button>
+        </div>
       </Card>
+
+      <Modal
+        open={docOpen !== null}
+        onClose={() => setDocOpen(null)}
+        title={docOpen === 'agreement' ? t.userAgreement : t.privacyPolicy}
+        size="lg"
+      >
+        <div className="space-y-3 max-h-[60vh] overflow-y-auto text-caption text-text-secondary">
+          {docOpen === 'agreement' ? (
+            <>
+              <p className="font-semibold text-text-primary">Dobara Internal App — Terms of Use (Demo)</p>
+              <p>1. This console is restricted to authorised Dobara staff and bound stores/warehouses. Credentials must not be shared.</p>
+              <p>2. Trade-in price entry, listing review adjustments and settlements are business records and are audited.</p>
+              <p>3. Devices, IMEIs and pricing data visible here are confidential to Dobara Recommerce Pvt. Ltd.</p>
+              <p>4. Accounts are provisioned by the system administrator; unusual activity may suspend access without notice.</p>
+              <p className="text-text-muted">Full legal text will be provided at production launch.</p>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold text-text-primary">Dobara Internal App — Privacy Notice (Demo)</p>
+              <p>1. We process staff phone numbers, names, roles and operation logs for authentication and audit.</p>
+              <p>2. Device data (IMEI, diagnostics, photos) is collected for trade-in pricing and listing purposes only.</p>
+              <p>3. IMEIs are stored encrypted and de-duplicated; access is role-scoped and logged.</p>
+              <p>4. Security notifications (new device login, password/phone change) are always delivered and cannot be disabled.</p>
+              <p className="text-text-muted">Full legal text will be provided at production launch.</p>
+            </>
+          )}
+        </div>
+      </Modal>
 
       {msg && (
         <p className="text-caption text-text-secondary bg-surface-low rounded-md px-3 py-2" data-testid="settings-toast">

@@ -16,6 +16,7 @@ import { AppointmentSuccess } from './pages/AppointmentSuccess';
 import { InspectionReport } from './pages/InspectionReport';
 import { QuoteAccepted } from './pages/QuoteAccepted';
 import { Profile } from './pages/Profile';
+import { Settings } from './pages/Settings';
 import { H5Preview } from './pages/H5Preview';
 import { RecycleHome } from './pages/RecycleHome';
 import { AddressList } from './pages/AddressList';
@@ -197,6 +198,7 @@ export function App() {
           <Route path="/account/tickets/new" element={<RequireAuth><TicketCreate /></RequireAuth>} />
           <Route path="/account/tickets/:ticketId" element={<RequireAuth><TicketDetail /></RequireAuth>} />
           <Route path="/account/h5-preview" element={<RequireAuth><H5Preview /></RequireAuth>} />
+          <Route path="/account/settings" element={<RequireAuth><Settings /></RequireAuth>} />
 
           {/* Legacy profile redirects */}
           <Route path="/profile" element={<Navigate to="/account" replace />} />

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DeviceCard, SearchBar, SkeletonCard, EmptyState, Button, Card, Badge } from '@dobara/ui';
 import { Filter, X, LayoutGrid, List, ArrowUpDown } from 'lucide-react';
 import type { IDevice, IBrand, IModel } from '@dobara/utils';
+import { getUserCity } from '../lib/userCity';
 
 const GRADES = ['A', 'B', 'C', 'D'] as const;
 const SORTS = [
@@ -131,6 +132,11 @@ export function MallHome() {
       filtered = filtered.filter((d) => d.price >= minPrice && d.price <= maxPrice);
       if (sort === 'price_asc') filtered.sort((a, b) => a.price - b.price);
       if (sort === 'price_desc') filtered.sort((a, b) => b.price - a.price);
+      if (sort === 'default') {
+        // Same-city first (APP-P1-03), FIFO within each group
+        const userCity = getUserCity();
+        filtered.sort((a, b) => Number(b.city === userCity) - Number(a.city === userCity));
+      }
       setDevices(filtered);
       setTotal(filtered.length);
     } finally {
@@ -329,6 +335,7 @@ export function MallHome() {
               originalPrice={device.originalPrice > device.price ? device.originalPrice : Math.round(device.price * 1.25)}
               storage={device.storage}
               city={device.city}
+              sameCity={device.city === getUserCity()}
               onClick={() => navigate(`/buy/product/${device.imei}`)}
             />
           ))}

@@ -1,28 +1,32 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button } from '@dobara/ui';
-import { useTranslation } from 'react-i18next';
+import { Card } from '@dobara/ui';
 import {
-  User, Phone, Shield, Globe, Moon, Sun,
-  ShoppingBag, ExternalLink, LogOut, ChevronRight,
+  User, Phone, Shield, Settings as SettingsIcon,
+  ShoppingBag, ExternalLink, ChevronRight,
   MapPin, HeadphonesIcon, Building2,
 } from 'lucide-react';
-import { getUser, clearUser } from '../App';
+import { getUser } from '../App';
 import { maskPhone } from '@dobara/utils';
 import { isEnterpriseMode, setEnterpriseMode } from '../lib/enterpriseMode';
+import { getUserCity } from '../lib/userCity';
 
 export function Profile() {
-  const { i18n } = useTranslation();
   const navigate = useNavigate();
   const user = getUser() || { phone: 'N/A', name: 'User' };
   const displayPhone = user.phone === 'N/A' ? user.phone : maskPhone(user.phone);
-  const [darkMode, setDarkMode] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark');
   const [enterprise, setEnterprise] = useState(isEnterpriseMode);
+  const [city, setCity] = useState(getUserCity);
 
   useEffect(() => {
     const sync = () => setEnterprise(isEnterpriseMode());
+    const syncCity = () => setCity(getUserCity());
     window.addEventListener('dobara-enterprise-mode', sync);
-    return () => window.removeEventListener('dobara-enterprise-mode', sync);
+    window.addEventListener('dobara-user-city', syncCity);
+    return () => {
+      window.removeEventListener('dobara-enterprise-mode', sync);
+      window.removeEventListener('dobara-user-city', syncCity);
+    };
   }, []);
 
   const setShoppingMode = (mode: 'individual' | 'enterprise') => {
@@ -32,21 +36,11 @@ export function Profile() {
     navigate(next ? '/buy/enterprise' : '/buy');
   };
 
-  const toggleDarkMode = () => {
-    const next = !darkMode;
-    setDarkMode(next);
-    if (next) document.documentElement.setAttribute('data-theme', 'dark');
-    else document.documentElement.removeAttribute('data-theme');
-  };
-
-  const switchLanguage = () => {
-    i18n.changeLanguage(i18n.language === 'en' ? 'hi' : 'en');
-  };
-
   const menuItems = [
     { icon: <ShoppingBag size={20} />, label: 'My Orders', desc: 'Purchases, exchange & after-sales', onClick: () => navigate('/account/orders'), highlight: true },
     { icon: <MapPin size={20} />, label: 'Addresses', desc: 'Manage delivery addresses', onClick: () => navigate('/account/addresses') },
     { icon: <HeadphonesIcon size={20} />, label: 'Help Center', desc: 'FAQ, tickets & contact support', onClick: () => navigate('/account/help') },
+    { icon: <SettingsIcon size={20} />, label: 'Settings', desc: `Language, notifications, ${city} & more`, onClick: () => navigate('/account/settings'), testId: 'account-settings-entry' },
     { icon: <ExternalLink size={20} />, label: 'H5 Inspection Preview', desc: 'Standalone H5 report page', onClick: () => navigate('/account/h5-preview') },
   ];
 
@@ -73,6 +67,7 @@ export function Profile() {
           <button
             key={i}
             onClick={item.onClick}
+            data-testid={'testId' in item ? item.testId : undefined}
             className={`w-full flex items-center gap-4 px-4 py-4 hover:bg-surface-low transition-colors text-left ${
               item.highlight ? 'bg-primary-50/50' : ''
             }`}
@@ -123,41 +118,6 @@ export function Profile() {
       </Card>
 
       <Card className="!rounded-xl">
-        <h3 className="text-body font-bold text-text-primary mb-3">Settings</h3>
-        <div className="space-y-1">
-          <button
-            onClick={switchLanguage}
-            className="w-full flex items-center justify-between py-3 px-1 hover:bg-surface-low rounded-md transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <Globe size={20} className="text-text-muted" />
-              <div className="text-left">
-                <p className="text-body text-text-primary">Language</p>
-                <p className="text-caption text-text-muted">{i18n.language === 'en' ? 'English' : 'हिन्दी'}</p>
-              </div>
-            </div>
-            <Button variant="ghost" size="sm">Switch to {i18n.language === 'en' ? 'हिन्दी' : 'English'}</Button>
-          </button>
-
-          <button
-            onClick={toggleDarkMode}
-            className="w-full flex items-center justify-between py-3 px-1 hover:bg-surface-low rounded-md transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              {darkMode ? <Moon size={20} className="text-text-muted" /> : <Sun size={20} className="text-text-muted" />}
-              <div className="text-left">
-                <p className="text-body text-text-primary">Dark Mode</p>
-                <p className="text-caption text-text-muted">{darkMode ? 'Enabled' : 'Disabled'}</p>
-              </div>
-            </div>
-            <div className={`w-10 h-6 rounded-full transition-colors relative ${darkMode ? 'bg-primary-500' : 'bg-surface-high'}`}>
-              <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${darkMode ? 'translate-x-5' : 'translate-x-1'}`} />
-            </div>
-          </button>
-        </div>
-      </Card>
-
-      <Card className="!rounded-xl">
         <h3 className="text-body font-bold text-text-primary mb-3">Account</h3>
         <div className="flex items-center justify-between py-3 px-1">
           <div className="flex items-center gap-3">
@@ -169,16 +129,6 @@ export function Profile() {
           </div>
         </div>
       </Card>
-
-      <Button
-        variant="ghost"
-        size="lg"
-        className="w-full text-dobara-error"
-        icon={<LogOut size={18} />}
-        onClick={() => { clearUser(); navigate('/login', { replace: true }); }}
-      >
-        Sign Out
-      </Button>
 
       <p className="text-eyebrow text-text-muted text-center pb-4">Dobara · Demo v0.2</p>
     </div>
