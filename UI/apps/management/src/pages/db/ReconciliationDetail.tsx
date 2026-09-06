@@ -21,7 +21,8 @@ const ReconciliationDetail: React.FC = () => {
 
   const recyclingTotal = lines.filter((d) => d.type === 'recycling').reduce((sum, d) => sum + d.amount, 0);
   const purchaseTotal = lines.filter((d) => d.type === 'purchase').reduce((sum, d) => sum + d.amount, 0);
-  const netSettlement = recyclingTotal - purchaseTotal;
+  const commissionTotal = lines.filter((d) => d.type === 'commission').reduce((sum, d) => sum + d.amount, 0);
+  const netSettlement = recyclingTotal + commissionTotal - purchaseTotal;
 
   const onExportCsv = () => {
     const csv = exportReconCsv(storeName, start, end || start, lines);
@@ -49,19 +50,27 @@ const ReconciliationDetail: React.FC = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <Card>
           <CardContent className="text-center space-y-1">
-            <p className="text-caption text-text-muted">Recycling total</p>
-            <p className="text-h3 font-heading text-primary-500" data-testid="recon-recycle">
+            <p className="text-caption text-text-muted">Recycling</p>
+            <p className="text-h4 font-heading text-primary-500" data-testid="recon-recycle">
               ₹{recyclingTotal.toLocaleString('en-IN')}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="text-center space-y-1">
+            <p className="text-caption text-text-muted">Commission</p>
+            <p className="text-h4 font-heading text-primary-500" data-testid="recon-commission">
+              ₹{commissionTotal.toLocaleString('en-IN')}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="text-center space-y-1">
             <p className="text-caption text-text-muted">B2B purchase</p>
-            <p className="text-h3 font-heading text-accent-500" data-testid="recon-purchase">
+            <p className="text-h4 font-heading text-accent-500" data-testid="recon-purchase">
               ₹{purchaseTotal.toLocaleString('en-IN')}
             </p>
           </CardContent>
@@ -92,8 +101,8 @@ const ReconciliationDetail: React.FC = () => {
                 <p className="text-caption text-text-muted">{d.date}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Badge variant={d.type === 'recycling' ? 'success' : 'accent'}>
-                  {d.type === 'recycling' ? 'Recycling' : 'Purchase'}
+                <Badge variant={d.type === 'recycling' ? 'success' : d.type === 'commission' ? 'info' : 'accent'}>
+                  {d.type === 'recycling' ? 'Recycling' : d.type === 'commission' ? 'Commission' : 'Purchase'}
                 </Badge>
                 <span className="text-body font-semibold">₹{d.amount.toLocaleString('en-IN')}</span>
               </div>

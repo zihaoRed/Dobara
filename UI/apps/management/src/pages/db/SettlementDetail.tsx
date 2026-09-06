@@ -8,6 +8,7 @@ const SettlementDetail: React.FC = () => {
   const { orderId = '' } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const [method, setMethod] = useState('bank_transfer');
+  const [paymentRef, setPaymentRef] = useState('');
   const settlement = useMemo(() => getSettlement(orderId), [orderId]);
   const [done, setDone] = useState(settlement?.status === 'settled');
   const [creditAfter, setCreditAfter] = useState(() =>
@@ -67,6 +68,10 @@ const SettlementDetail: React.FC = () => {
             <span className="flex items-center gap-1"><Calendar size={14} /> Order: {settlement.orderDate}</span>
             <span className="flex items-center gap-1"><Truck size={14} /> Ship: {settlement.shipDate}</span>
           </div>
+          <p className="text-caption text-text-muted">
+            Settlement due: <span className={settlement.overdue ? 'text-dobara-error font-semibold' : ''}>{settlement.dueDate}</span>
+            {settlement.overdue && ' — overdue, store credit frozen'}
+          </p>
           {creditBefore && (
             <p className="text-caption text-text-muted">
               Store credit before: used ₹{creditBefore.creditUsed.toLocaleString('en-IN')} / limit ₹{creditBefore.creditLimit.toLocaleString('en-IN')}
@@ -113,9 +118,18 @@ const SettlementDetail: React.FC = () => {
               data-testid="pay-method"
             >
               <option value="bank_transfer">Bank Transfer (NEFT/RTGS)</option>
-              <option value="upi">UPI</option>
-              <option value="cheque">Cheque</option>
+              <option value="razorpay">Razorpay</option>
             </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-caption font-semibold text-text-secondary">Payment reference (optional)</label>
+            <input
+              value={paymentRef}
+              onChange={(e) => setPaymentRef(e.target.value)}
+              placeholder="e.g. NEFT UTR / Razorpay payment id"
+              data-testid="pay-ref"
+              className="h-[40px] px-3 rounded-md border border-border bg-surface-container text-body"
+            />
           </div>
 
           <Button
@@ -125,13 +139,16 @@ const SettlementDetail: React.FC = () => {
             icon={<CheckCircle size={18} />}
             data-testid="confirm-payment"
             onClick={() => {
-              const { credits } = settleOrders([orderId], method);
+              const { credits } = settleOrders([orderId], method, paymentRef);
               setCreditAfter(credits.find((c) => c.storeId === settlement.storeId));
               setDone(true);
             }}
           >
             Confirm payment · release credit
           </Button>
+          <p className="text-caption text-text-muted">
+            DB-only action (settlement:approve) · settles one order in full, no partial settlement
+          </p>
         </CardContent>
       </Card>
     </div>

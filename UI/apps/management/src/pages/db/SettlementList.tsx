@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, Badge, Button } from '@dobara/ui';
 import { CheckSquare, AlertCircle, ArrowLeft } from 'lucide-react';
-import { getCredit, listSettlements, settleOrders } from '../../lib/dbStore';
+import { getCredit, listSettlements, settlementDueIn, settleOrders } from '../../lib/dbStore';
 
 const SettlementList: React.FC = () => {
   const navigate = useNavigate();
@@ -63,6 +63,7 @@ const SettlementList: React.FC = () => {
       {settlements.map((s) => {
         const credit = getCredit(s.storeId);
         const isOverdue = s.overdue && s.status === 'pending';
+        const dueIn = settlementDueIn(s);
         return (
           <Card
             key={s.id}
@@ -91,12 +92,16 @@ const SettlementList: React.FC = () => {
                 >
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <span className="text-body font-semibold">{s.storeName}</span>
-                    {s.overdue && s.status === 'pending' && (
+                    {isOverdue ? (
                       <Badge variant="error">
                         <AlertCircle size={10} className="inline mr-0.5" />
-                        Overdue
+                        Overdue {Math.abs(dueIn)}d · credit frozen
                       </Badge>
-                    )}
+                    ) : s.status === 'pending' ? (
+                      <Badge variant={dueIn <= 3 ? 'warning' : 'neutral'}>
+                        Due {s.dueDate} ({dueIn}d)
+                      </Badge>
+                    ) : null}
                     {s.status === 'settled' && <Badge variant="success">Settled</Badge>}
                   </div>
                   <p className="text-caption text-text-body">{s.orderId}</p>
