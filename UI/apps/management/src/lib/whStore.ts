@@ -740,7 +740,21 @@ export function lookupForInbound(code: string): {
   return { ok: true, device };
 }
 
-export function confirmInbound(imei: string): { ok: true; device: IWhDevice } | { ok: false; error: string } {
+/** WH-P0-01 shelf code format: `Zone-Column-Level` — uppercase letter, 2-digit column, 2-digit level (e.g. A-03-12). */
+export const SHELF_CODE_PATTERN = /^[A-Z]-\d{2}-\d{2}$/;
+
+export function validateShelfCode(raw: string): { ok: true; code: string } | { ok: false; error: string } {
+  const code = raw.trim().toUpperCase();
+  if (!code) return { ok: false, error: 'Shelf code is required — e.g. A-03-12.' };
+  if (!SHELF_CODE_PATTERN.test(code)) {
+    return { ok: false, error: 'Invalid shelf format — use Zone-Column-Level (e.g. A-03-12). Scanned a device barcode? Shelf codes look like A-03-12.' };
+  }
+  return { ok: true, code };
+}
+
+export function confirmInbound(imei: string, shelfCode: string): { ok: true; device: IWhDevice } | { ok: false; error: string } {
+  const shelf = validateShelfCode(shelfCode);
+  if (!shelf.ok) return { ok: false, error: shelf.error };
   const list = mergeInboundFromBus();
   const idx = list.findIndex((d) => d.imei === imei);
   if (idx < 0) return { ok: false, error: 'Not found' };
@@ -751,6 +765,7 @@ export function confirmInbound(imei: string): { ok: true; device: IWhDevice } | 
   list[idx] = {
     ...list[idx],
     status: 'pending_listing',
+    shelfCode: shelf.code,
     inboundAt: now,
     inboundOperator: DEMO_WH_USER,
     refurbDecision: null,

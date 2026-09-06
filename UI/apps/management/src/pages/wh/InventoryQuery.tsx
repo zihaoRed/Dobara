@@ -145,7 +145,10 @@ const InventoryQuery: React.FC = () => {
                     </div>
                     <p className="text-caption font-mono text-text-muted">{d.imei}</p>
                     <p className="text-caption text-text-body">{d.color} · {d.storage} · {d.storeName}</p>
-                    <p className="text-caption text-text-muted">Shelf {d.shelfCode || '—'} · In stock {daysInStock(d.inboundAt)}</p>
+                    <p className="text-caption text-text-muted">
+                      {d.shelfCode ? <>Shelf <span className="font-mono">{d.shelfCode}</span></> : <span className="text-dobara-warning font-semibold">Unassigned shelf</span>}
+                      {' '}· In stock {daysInStock(d.inboundAt)}
+                    </p>
                   </div>
                   <div className="text-right shrink-0">
                     <GradeBadge grade={d.grade} />

@@ -7,6 +7,7 @@ import {
   lookupForInbound,
   markInboundException,
   statusLabel,
+  validateShelfCode,
   type IWhDevice,
 } from '../../lib/whStore';
 
@@ -26,6 +27,8 @@ const InboundScan: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [shelf, setShelf] = useState('');
+  const [shelfError, setShelfError] = useState('');
   const [exceptionOpen, setExceptionOpen] = useState(false);
   const [exceptionReason, setExceptionReason] = useState(EXCEPTION_REASONS[0]);
   const [exceptionNote, setExceptionNote] = useState('');
@@ -42,6 +45,8 @@ const InboundScan: React.FC = () => {
     setDevice(null);
     setConfirmed(false);
     setExceptionDone(false);
+    setShelf('');
+    setShelfError('');
     await new Promise((r) => setTimeout(r, 300));
     const result = lookupForInbound(code);
     setLoading(false);
@@ -52,11 +57,23 @@ const InboundScan: React.FC = () => {
     setDevice(result.device);
   };
 
+  const handleShelfChange = (raw: string) => {
+    setShelf(raw);
+    // Live format check once there's enough to judge — catches mis-scanned device barcodes early
+    const v = validateShelfCode(raw);
+    setShelfError(raw.trim().length >= 3 && !v.ok ? v.error : '');
+  };
+
   const handleConfirm = async () => {
     if (!device) return;
+    const v = validateShelfCode(shelf);
+    if (!v.ok) {
+      setShelfError(v.error);
+      return;
+    }
     setLoading(true);
     await new Promise((r) => setTimeout(r, 200));
-    const result = confirmInbound(device.imei);
+    const result = confirmInbound(device.imei, v.code);
     setLoading(false);
     if (!result.ok) {
       setError(result.error);
@@ -108,8 +125,11 @@ const InboundScan: React.FC = () => {
               {device.brand} {device.model} · status → <Badge variant="success">Pending listing</Badge>
             </p>
             <p className="text-caption font-mono">{device.imei}</p>
+            <p className="text-caption text-text-secondary">
+              Shelved at <span className="font-mono font-semibold">{device.shelfCode}</span>
+            </p>
             <div className="flex gap-3 pt-2">
-              <Button variant="secondary" className="flex-1" onClick={() => { setConfirmed(false); setDevice(null); setCode(''); }}>
+              <Button variant="secondary" className="flex-1" onClick={() => { setConfirmed(false); setDevice(null); setCode(''); setShelf(''); setShelfError(''); }}>
                 Scan another
               </Button>
               <Button variant="primary" className="flex-1" data-testid="inbound-view-detail" onClick={() => navigate(`/wh/inbound/${device.imei}`)}>
@@ -191,11 +211,23 @@ const InboundScan: React.FC = () => {
             <p className="text-caption text-text-muted">
               Photos linked from QC ({device.photos.length}) — no re-capture needed.
             </p>
+            <Input
+              data-testid="inbound-shelf"
+              label="Shelf code (required)"
+              value={shelf}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleShelfChange(e.target.value)}
+              placeholder="e.g. A-03-12 (type or scan shelf barcode)"
+              error={shelfError || undefined}
+              hint="Zone-Column-Level — used by picking tasks and inventory search"
+              autoCapitalize="characters"
+              autoCorrect="off"
+            />
             <Button
               variant="primary"
               size="lg"
               className="w-full"
               loading={loading}
+              disabled={!shelf.trim()}
               data-testid="inbound-confirm"
               onClick={handleConfirm}
             >

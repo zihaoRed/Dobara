@@ -61,6 +61,12 @@ const InboundDetail: React.FC = () => {
           <p className="text-body text-text-secondary">{device.color} · {device.storage}</p>
           <p className="text-caption text-text-muted">From: {device.storeName}</p>
           <p className="text-caption text-text-muted">Offer: ₹{device.offerPrice.toLocaleString('en-IN')}</p>
+          <p className="text-caption text-text-muted">
+            Shelved at: <span className="font-mono">{device.shelfCode || '—'}</span>
+            {device.inboundAt && device.inboundOperator && (
+              <> · {new Date(device.inboundAt).toLocaleString()} by {device.inboundOperator}</>
+            )}
+          </p>
         </CardContent>
       </Card>
 
