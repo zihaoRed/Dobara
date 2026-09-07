@@ -50,7 +50,7 @@ const ReconciliationDetail: React.FC = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Card>
           <CardContent className="text-center space-y-1">
             <p className="text-caption text-text-muted">Recycling</p>

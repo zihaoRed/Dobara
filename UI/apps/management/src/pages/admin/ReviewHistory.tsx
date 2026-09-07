@@ -102,7 +102,7 @@ const ReviewHistory: React.FC = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {[
           { label: 'Total reviews', value: String(kpis.total) },
           { label: 'Direct list rate', value: `${kpis.directRate}%` },

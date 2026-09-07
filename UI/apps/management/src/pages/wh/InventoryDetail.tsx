@@ -112,7 +112,7 @@ const InventoryDetail: React.FC = () => {
           <h3 className="text-h4 font-heading flex items-center gap-2"><Camera size={18} /> Photos</h3>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
             {device.photos.map((label) => (
               <div key={label} className="aspect-square rounded-md bg-surface-high flex flex-col items-center justify-center border border-dashed border-border px-1">
                 <Camera size={16} className="text-text-muted" />

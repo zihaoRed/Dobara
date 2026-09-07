@@ -143,7 +143,16 @@ export default function Login() {
           />
         ) : (
           <>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-end">
+              <Input
+                data-testid="mgmt-otp"
+                label="OTP"
+                value={otp}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOtp(e.target.value)}
+                placeholder="6-digit code"
+                inputMode="numeric"
+                wrapperClassName="flex-1 min-w-0"
+              />
               <Button
                 variant="secondary"
                 className="shrink-0"
@@ -153,14 +162,6 @@ export default function Login() {
               >
                 {cooldown > 0 ? `${cooldown}s` : otpSent ? 'Resend OTP' : 'Send OTP'}
               </Button>
-              <Input
-                data-testid="mgmt-otp"
-                label="OTP"
-                value={otp}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOtp(e.target.value)}
-                placeholder="6-digit code"
-                className="flex-1"
-              />
             </div>
             {otpSent && (
               <p className="text-caption text-text-muted">Demo OTP: {DEMO_OTP} · valid 3 minutes</p>

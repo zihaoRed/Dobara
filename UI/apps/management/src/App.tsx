@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -8,8 +8,9 @@ import {
   Navigate,
   Outlet,
 } from 'react-router-dom';
-import { Store, Package, DollarSign, Shield, Settings as SettingsIcon } from 'lucide-react';
-import { Sidebar, moduleMeta } from './components/Sidebar';
+import { Store, Package, DollarSign, Shield, Settings as SettingsIcon, Menu } from 'lucide-react';
+import { Drawer } from '@dobara/ui';
+import { Sidebar, moduleMeta, adminNav, ownerNav, whNav, dbNav } from './components/Sidebar';
 import { AuthProvider, useAuth } from './lib/AuthContext';
 import {
   MODULE_HOME,
@@ -148,16 +149,62 @@ function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const { session, modules, switchRole } = useAuth();
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const pathMod = moduleFromPath(location.pathname);
+  const onSettings = location.pathname.startsWith('/settings');
+  // On /settings no module tab is active — fall back to modules[0] ONLY for
+  // header title / drawer content, while tab highlighting reads activeTabModule.
   const activeModule: TModule =
     pathMod && modules.includes(pathMod)
       ? pathMod
       : modules[0] ?? 'owner';
+  const activeTabModule: TModule | null = onSettings ? null : activeModule;
+
+  // Close the mobile drawer whenever navigation happens (menu → page)
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [location.pathname]);
+
+  const drawerNav =
+    activeModule === 'admin' ? adminNav
+      : activeModule === 'owner' ? ownerNav
+        : activeModule === 'wh' ? whNav
+          : dbNav;
 
   return (
     <div className="min-h-[100dvh] bg-surface">
-      <div className="sticky top-0 z-50 bg-accent-500 text-white text-center py-1.5 text-eyebrow font-semibold tracking-wider">
-        [Demo Mode] Auth enabled · UA-P0-01/02
+      <div className="sticky top-0 z-30">
+        <div className="bg-accent-500 text-white text-center py-1.5 text-eyebrow font-semibold tracking-wider">
+          [Demo Mode] Auth enabled · UA-P0-01/02
+        </div>
+        <header className="md:hidden bg-surface-container border-b border-border px-2 py-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 min-w-0">
+            <button
+              type="button"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open menu"
+              className="p-2 -ml-1 rounded-md hover:bg-surface-high transition-colors shrink-0"
+            >
+              <Menu size={20} className="text-text-secondary" />
+            </button>
+            <span className="text-h4 font-heading text-primary-500 truncate">
+              {moduleMeta[activeModule]?.label}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-caption text-text-muted truncate">
+              {session?.name}
+            </span>
+            <button
+              type="button"
+              className="p-2 -mr-1 rounded-md hover:bg-surface-high transition-colors text-primary-600 shrink-0"
+              onClick={() => navigate('/settings')}
+              aria-label="Settings"
+            >
+              <SettingsIcon size={18} />
+            </button>
+          </div>
+        </header>
       </div>
 
       <div className="flex min-h-[calc(100dvh-28px)]">
@@ -165,33 +212,53 @@ function AppShell() {
           <Sidebar active={activeModule} />
         </aside>
 
-        <main className="flex-1 w-full max-w-lg md:max-w-none mx-auto pb-14 md:pb-0 min-w-0">
-          <header className="md:hidden bg-surface-container border-b border-border px-4 py-3 flex items-center justify-between gap-2">
-            <a href="/" className="text-h4 font-heading text-primary-500 no-underline shrink-0">
-              Dobara
-            </a>
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-caption text-text-muted truncate">
-                {session?.name} · {moduleMeta[activeModule]?.label}
-              </span>
-              <button
-                type="button"
-                className="text-caption text-primary-600 shrink-0"
-                onClick={() => navigate('/settings')}
-                aria-label="Settings"
-              >
-                <SettingsIcon size={18} />
-              </button>
-            </div>
-          </header>
-
-          <div className="p-4">
+        <main className="flex-1 w-full max-w-lg md:max-w-none mx-auto min-w-0 self-start">
+          <div className="p-4 pb-[calc(6rem_+_13px_+_env(safe-area-inset-bottom))] md:pb-4">
             <Outlet />
           </div>
         </main>
       </div>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface-container border-t border-border z-40">
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        title={moduleMeta[activeModule]?.label}
+      >
+        <div className="p-3 space-y-0.5">
+          {drawerNav.map((item) => {
+            const active = location.pathname === item.path;
+            return (
+              <button
+                key={item.path}
+                type="button"
+                onClick={() => navigate(item.path)}
+                className={`w-full flex items-center gap-3 px-3 min-h-[44px] py-2 rounded-md text-body text-left transition-colors ${
+                  active
+                    ? 'bg-primary-50 text-primary-700 font-medium'
+                    : 'text-text-secondary hover:bg-surface-high'
+                }`}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => navigate('/settings')}
+            className={`w-full flex items-center gap-3 px-3 min-h-[44px] py-2 rounded-md text-body text-left transition-colors ${
+              location.pathname === '/settings'
+                ? 'bg-primary-50 text-primary-700 font-medium'
+                : 'text-text-secondary hover:bg-surface-high'
+            }`}
+          >
+            <SettingsIcon size={18} />
+            Settings
+          </button>
+        </div>
+      </Drawer>
+
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface-container border-t border-border z-40 pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center justify-around h-14 max-w-lg mx-auto">
           {modules.map((mod) => {
             const meta = moduleMeta[mod];
@@ -206,7 +273,7 @@ function AppShell() {
                   navigate(MODULE_HOME[mod]);
                 }}
                 className={`flex flex-col items-center justify-center gap-0.5 w-full h-full transition-colors ${
-                  activeModule === mod ? 'text-primary-500' : 'text-text-muted'
+                  activeTabModule === mod ? 'text-primary-500' : 'text-text-muted'
                 }`}
               >
                 <Icon size={20} />

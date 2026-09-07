@@ -36,7 +36,8 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
-const adminNav: NavItem[] = [
+/** Shared nav data — single source for desktop Sidebar AND mobile Drawer (G3). */
+export const adminNav: NavItem[] = [
   { label: 'Overview', path: '/admin', icon: <Home size={18} /> },
   { label: 'Org Mgmt', path: '/admin/orgs', icon: <Building2 size={18} /> },
   { label: 'Role Mgmt', path: '/admin/roles', icon: <Users size={18} /> },
@@ -49,14 +50,14 @@ const adminNav: NavItem[] = [
   { label: 'Reports', path: '/admin/reports', icon: <BarChart3 size={18} /> },
 ];
 
-const ownerNav: NavItem[] = [
+export const ownerNav: NavItem[] = [
   { label: 'Overview', path: '/owner', icon: <Home size={18} /> },
   { label: 'Revenue', path: '/owner/revenue', icon: <BarChart3 size={18} /> },
   { label: 'Trade-in History', path: '/owner/trade-in/history', icon: <History size={18} /> },
   { label: 'Staff', path: '/owner/clerks', icon: <Users size={18} /> },
 ];
 
-const whNav: NavItem[] = [
+export const whNav: NavItem[] = [
   { label: 'Overview', path: '/wh', icon: <Home size={18} /> },
   { label: 'Inbound Scan', path: '/wh/inbound', icon: <ArrowDownToLine size={18} /> },
   { label: 'Listing Review', path: '/wh/review', icon: <ClipboardCheck size={18} /> },
@@ -67,7 +68,7 @@ const whNav: NavItem[] = [
   { label: 'Printer', path: '/wh/printer', icon: <Printer size={18} /> },
 ];
 
-const dbNav: NavItem[] = [
+export const dbNav: NavItem[] = [
   { label: 'Overview', path: '/db', icon: <Home size={18} /> },
   { label: 'Settlements', path: '/db/settlement', icon: <FileCheck size={18} /> },
   { label: 'Reconciliation', path: '/db/reconciliation', icon: <FileText size={18} /> },

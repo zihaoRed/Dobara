@@ -4,6 +4,7 @@ export { Input } from './components/ui/Input';
 export { Card, CardHeader, CardContent } from './components/ui/Card';
 export { Badge } from './components/ui/Badge';
 export { Modal } from './components/ui/Modal';
+export { Drawer } from './components/ui/Drawer';
 export { Tabs } from './components/ui/Tabs';
 export { ProgressBar } from './components/ui/ProgressBar';
 export { Countdown } from './components/ui/Countdown';

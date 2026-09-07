@@ -126,7 +126,7 @@ export default function ForgotPassword() {
 
         {error && <p className="text-caption text-dobara-error">{error}</p>}
 
-        <Link to="/login" className="text-caption text-primary-600 block text-center">
+        <Link to="/login" className="text-caption text-primary-600 block text-center py-2 min-h-[44px] flex items-center justify-center">
           Back to login
         </Link>
       </Card>

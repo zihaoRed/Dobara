@@ -108,7 +108,7 @@ const Reports: React.FC = () => {
         className="mb-6"
       />
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {data.kpis.map((kpi) => (
           <Card key={kpi.label} variant="default">
             <div className="text-caption text-text-muted">{kpi.label}</div>

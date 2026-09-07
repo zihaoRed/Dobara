@@ -22,12 +22,12 @@ export const Tabs: React.FC<TabsProps> = ({ tabs, activeTab, onChange, className
   };
 
   return (
-    <div className={`flex border-b border-border ${className}`}>
+    <div className={`flex border-b border-border overflow-x-auto ${className}`}>
       {tabs.map((tab) => (
         <button
           key={tab.key}
           onClick={() => handleChange(tab.key)}
-          className={`px-4 py-3 text-body font-medium transition-colors relative ${
+          className={`px-4 py-3 text-body font-medium transition-colors relative whitespace-nowrap shrink-0 ${
             current === tab.key
               ? 'text-primary-500'
               : 'text-text-muted hover:text-text-body'

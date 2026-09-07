@@ -233,10 +233,13 @@ export default function Settings() {
   };
 
   return (
-    <div className="space-y-4 max-w-lg" data-testid="mgmt-settings">
-      <h2 className="text-h3 font-heading">{t.settings}</h2>
+    <div className="max-w-lg lg:max-w-4xl" data-testid="mgmt-settings">
+      <h2 className="text-h3 font-heading mb-4">{t.settings}</h2>
 
-      <Card className="p-4 space-y-2">
+      {/* Web: two columns (primary info left, account/security right); mobile: single column */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <div className="space-y-4">
+          <Card className="p-4 space-y-2">
         <p className="text-caption text-text-muted">{t.signedIn}</p>
         <p className="text-body font-semibold">{session.name}</p>
         <p className="text-caption font-mono text-text-secondary">+91 {session.phone}</p>
@@ -382,9 +385,11 @@ export default function Settings() {
           )}
         </div>
       </Card>
+        </div>
 
-      <Card className="p-4 space-y-3">
-        <h3 className="text-h4 font-heading">{t.changePassword}</h3>
+        <div className="space-y-4">
+          <Card className="p-4 space-y-3">
+            <h3 className="text-h4 font-heading">{t.changePassword}</h3>
         <Input
           label={t.currentPassword}
           type="password"
@@ -538,6 +543,8 @@ export default function Settings() {
           </Button>
         </div>
       </Card>
+        </div>
+      </div>
 
       <Modal
         open={docOpen !== null}
@@ -569,7 +576,7 @@ export default function Settings() {
       </Modal>
 
       {msg && (
-        <p className="text-caption text-text-secondary bg-surface-low rounded-md px-3 py-2" data-testid="settings-toast">
+        <p className="text-caption text-text-secondary bg-surface-low rounded-md px-3 py-2 mt-4" data-testid="settings-toast">
           {msg}
         </p>
       )}
@@ -577,7 +584,7 @@ export default function Settings() {
       <Button
         variant="primary"
         size="lg"
-        className="w-full"
+        className="w-full mt-4"
         data-testid="mgmt-logout"
         onClick={doLogout}
       >

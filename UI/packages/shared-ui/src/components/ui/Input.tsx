@@ -4,11 +4,20 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   hint?: string;
+  /** Classes for the outer wrapper (e.g. flex-1 inside an input+button row) */
+  wrapperClassName?: string;
 }
 
-export const Input: React.FC<InputProps> = ({ label, error, hint, className = '', ...props }) => {
+export const Input: React.FC<InputProps> = ({
+  label,
+  error,
+  hint,
+  className = '',
+  wrapperClassName = '',
+  ...props
+}) => {
   return (
-    <div className="flex flex-col gap-1">
+    <div className={`flex flex-col gap-1 ${wrapperClassName}`}>
       {label && (
         <label className="text-caption font-semibold text-text-secondary">{label}</label>
       )}

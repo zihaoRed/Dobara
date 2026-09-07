@@ -79,7 +79,7 @@ const RecycleOrderDetail: React.FC = () => {
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         <Card variant="default">
           <CardHeader>
             <h3 className="text-h4 font-heading text-text-primary">Order Info</h3>
