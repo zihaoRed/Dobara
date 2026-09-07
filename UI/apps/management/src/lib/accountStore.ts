@@ -1,11 +1,12 @@
 export type AccountStatus = 'pending_activation' | 'active' | 'disabled';
 
+/** Roles the management console can assign — internal roles only.
+ *  Enterprise Buyer (ROLE-ENT) is a consumer-App role (02 PRD APP-P1-04), not managed here. */
 export type AssignableRole =
   | 'ROLE-OWN'
   | 'ROLE-CLK'
   | 'ROLE-WH'
-  | 'ROLE-DB'
-  | 'ROLE-ENT';
+  | 'ROLE-DB';
 
 export interface RoleBinding {
   role: AssignableRole;
@@ -119,7 +120,7 @@ export function saveAccounts(accounts: AccountRecord[]): void {
   localStorage.setItem(ACCOUNT_KEY, JSON.stringify(accounts));
 }
 
-/** OWN/CLK/WH → pending_activation; DB/ENT → active (activation required for org-bound roles). */
+/** OWN/CLK/WH → pending_activation; DB → active (activation required for org-bound roles). */
 export function initialStatusForRoles(roles: AssignableRole[]): AccountStatus {
   const needsActivation = roles.some((r) => r === 'ROLE-OWN' || r === 'ROLE-CLK' || r === 'ROLE-WH');
   if (needsActivation) return 'pending_activation';
@@ -142,8 +143,6 @@ export function roleLabel(role: AssignableRole): string {
       return 'Warehouse';
     case 'ROLE-DB':
       return 'Finance / DB';
-    case 'ROLE-ENT':
-      return 'Enterprise Buyer';
   }
 }
 

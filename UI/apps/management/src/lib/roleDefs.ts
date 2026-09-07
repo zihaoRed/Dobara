@@ -16,8 +16,18 @@ export interface RoleRecord {
 
 const ROLE_KEY = 'dobara_app_roles';
 
+/** Console-managed preset roles — ROLE-ENT excluded (consumer-App role, same
+ *  permissions as a consumer user; defined in 02 PRD APP-P1-04, not managed here). */
+const CONSOLE_PRESET_ROLES: PresetRoleCode[] = [
+  'ROLE-SA',
+  'ROLE-OWN',
+  'ROLE-CLK',
+  'ROLE-WH',
+  'ROLE-DB',
+];
+
 function seedRoles(): RoleRecord[] {
-  return (Object.keys(PRESET_ROLE_META) as PresetRoleCode[]).map((code) => ({
+  return CONSOLE_PRESET_ROLES.map((code) => ({
     id: code,
     code,
     name: PRESET_ROLE_META[code].name,

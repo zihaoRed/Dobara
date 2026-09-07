@@ -117,8 +117,8 @@ export const PRESET_ROLE_META: Record<PresetRoleCode, RoleMeta> = {
   },
   'ROLE-ENT': {
     name: 'Enterprise Buyer',
-    description: 'Consumer App',
-    defaultPerms: ['inventory:read', 'order:read'],
+    description: 'Consumer App · same permissions as consumer user; not managed in Internal Business App',
+    defaultPerms: [],
   },
 };
 

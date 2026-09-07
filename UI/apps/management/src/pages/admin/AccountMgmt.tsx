@@ -39,7 +39,6 @@ const ASSIGNABLE: { role: AssignableRole; label: string }[] = [
   { role: 'ROLE-CLK', label: 'Clerk' },
   { role: 'ROLE-WH', label: 'Warehouse' },
   { role: 'ROLE-DB', label: 'Finance / DB' },
-  { role: 'ROLE-ENT', label: 'Enterprise Buyer' },
 ];
 
 const STATUS_VARIANT: Record<AccountStatus, 'warning' | 'success' | 'error'> = {
@@ -582,7 +581,7 @@ const AccountMgmt: React.FC = () => {
               </Badge>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 text-body">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-body">
               <div className="p-3 bg-surface-low rounded-md">
                 <div className="text-caption text-text-muted">Created</div>
                 <div className="font-semibold">{detail.createdAt}</div>

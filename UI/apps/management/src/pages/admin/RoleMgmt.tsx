@@ -70,7 +70,7 @@ const RoleMgmt: React.FC = () => {
         <div>
           <h1 className="text-h2 font-heading text-text-primary">Role Management</h1>
           <p className="text-body text-text-muted mt-1">
-            6 preset roles · {ATOMIC_PERMISSIONS.length} atomic permissions
+            5 preset roles · {ATOMIC_PERMISSIONS.length} atomic permissions
           </p>
         </div>
         <Button variant="primary" icon={<Plus size={18} />} onClick={() => setShowCreate(true)}>

@@ -1,5 +1,5 @@
 // 统一账号体系 — re-export 自 @dobara/utils（shared-utils/src/auth）
-// 一套账号、六角色（SA/OWN/CLK/WH/DB/ENT）、统一登录逻辑，跨端共用。
+// 一套账号、统一登录逻辑，跨端共用。管理端可登录角色：SA/OWN/WH/DB；ENT 属 C 端角色（02 PRD）。
 import type { IAppSession } from '@dobara/utils';
 
 // 兼容旧类型名（AuthContext 等仍引用 IMgmtSession）
