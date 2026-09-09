@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, Button, Badge, EmptyState, Modal, Input } from '@dobara/ui';
 import { MapPin, Plus, Trash2, Star } from 'lucide-react';
 import { isValidIndiaPhone } from '@dobara/utils';
+import { STATE_REGIONS, citiesForState, stateForPin, pinMatchesState } from '../lib/regionData';
 
 export interface Address {
   id: string;
@@ -16,7 +17,6 @@ export interface Address {
   isDefault: boolean;
 }
 
-const STATES = ['Maharashtra', 'Delhi', 'Karnataka', 'Tamil Nadu', 'Gujarat', 'Telangana', 'West Bengal'];
 const LABELS = ['Home', 'Office', 'Other'];
 
 const EMPTY: Omit<Address, 'id'> = {
@@ -38,6 +38,22 @@ export function AddressList() {
   const [editId, setEditId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  /** PIN↔State mismatch notice (PRD: 提示但允许确认保存 — non-blocking) */
+  const [pinMismatch, setPinMismatch] = useState<string | null>(null);
+
+  // Recompute PIN↔State hint whenever pin or state changes in the editing form
+  useEffect(() => {
+    if (!editing?.pincode || !/^\d{6}$/.test(editing.pincode) || !editing.state) {
+      setPinMismatch(null);
+      return;
+    }
+    if (!pinMatchesState(editing.pincode, editing.state)) {
+      const inferred = stateForPin(editing.pincode);
+      setPinMismatch(`This PIN looks like ${inferred}, not ${editing.state}. Please double-check.`);
+    } else {
+      setPinMismatch(null);
+    }
+  }, [editing?.pincode, editing?.state]);
 
   const load = () => {
     setLoading(true);
@@ -70,6 +86,17 @@ export function AddressList() {
     }
     if (!isValidIndiaPhone(editing.phone)) {
       setError('Enter a valid 10-digit Indian mobile');
+      return;
+    }
+    if (!editing.city) {
+      setError('Please select a city');
+      return;
+    }
+    // City must come from the state's list — unless it's a legacy value kept for
+    // backward compatibility (editing old records without touching city/state)
+    const knownState = STATE_REGIONS.some((s) => s.name === editing.state);
+    if (knownState && !citiesForState(editing.state).includes(editing.city)) {
+      setError('Please select a city from the list for the chosen state');
       return;
     }
     if (!/^\d{6}$/.test(editing.pincode)) {
@@ -175,16 +202,56 @@ export function AddressList() {
             <div>
               <label className="text-caption font-semibold text-text-secondary">State *</label>
               <select
+                data-testid="addr-state"
                 className="w-full h-10 px-3 rounded-md border border-border bg-surface-container mt-1"
                 value={editing.state}
-                onChange={(e) => setEditing({ ...editing, state: e.target.value })}
+                onChange={(e) => {
+                  // Cascade: switching state invalidates the previously chosen city
+                  setEditing({ ...editing, state: e.target.value, city: '' });
+                }}
               >
-                {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {/* value fallback: keep legacy states (e.g. demo 'Test') visible when editing */}
+                {!STATE_REGIONS.some((s) => s.name === editing.state) && editing.state && (
+                  <option value={editing.state}>{editing.state}</option>
+                )}
+                {STATE_REGIONS.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
               </select>
             </div>
-            <Input data-testid="addr-city" label="City *" value={editing.city} onChange={(e) => setEditing({ ...editing, city: e.target.value })} />
+            <div>
+              <label className="text-caption font-semibold text-text-secondary">City *</label>
+              <select
+                data-testid="addr-city"
+                className="w-full h-10 px-3 rounded-md border border-border bg-surface-container mt-1"
+                value={editing.city}
+                onChange={(e) => setEditing({ ...editing, city: e.target.value })}
+                disabled={!editing.state}
+              >
+                <option value="" disabled>Select city</option>
+                {/* value fallback: legacy city not in list (e.g. demo 'Remote') stays selectable */}
+                {editing.city && !citiesForState(editing.state).includes(editing.city) && (
+                  <option value={editing.city}>{editing.city}</option>
+                )}
+                {citiesForState(editing.state).map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              {!editing.city && (
+                <p className="text-caption text-text-muted mt-1">Choose a state first — city list updates automatically</p>
+              )}
+            </div>
             <Input data-testid="addr-line" label="Address *" value={editing.address} onChange={(e) => setEditing({ ...editing, address: e.target.value })} />
-            <Input data-testid="addr-pin" label="PIN Code *" value={editing.pincode} onChange={(e) => setEditing({ ...editing, pincode: e.target.value })} maxLength={6} />
+            <Input
+              data-testid="addr-pin"
+              label="PIN Code *"
+              value={editing.pincode}
+              onChange={(e) => setEditing({ ...editing, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+              inputMode="numeric"
+              maxLength={6}
+              hint="6-digit India Post PIN"
+            />
+            {pinMismatch && (
+              <p className="text-caption text-dobara-warning" data-testid="pin-mismatch-hint">
+                ⚠ {pinMismatch}
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
               {LABELS.map((l) => (
                 <button
