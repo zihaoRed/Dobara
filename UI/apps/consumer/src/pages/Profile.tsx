@@ -4,17 +4,21 @@ import { Card } from '@dobara/ui';
 import {
   User, Phone, Shield, Settings as SettingsIcon,
   ShoppingBag, ExternalLink, ChevronRight,
-  MapPin, HeadphonesIcon, Building2,
+  MapPin, HeadphonesIcon, Building2, Pencil, ShieldCheck,
 } from 'lucide-react';
 import { getUser } from '../App';
 import { maskPhone } from '@dobara/utils';
 import { isEnterpriseMode, setEnterpriseMode } from '../lib/enterpriseMode';
 import { getUserCity } from '../lib/userCity';
+import { loadProfileExtra } from './ProfileEdit';
 
 export function Profile() {
   const navigate = useNavigate();
   const user = getUser() || { phone: 'N/A', name: 'User' };
   const displayPhone = user.phone === 'N/A' ? user.phone : maskPhone(user.phone);
+  const extra = user.phone !== 'N/A' ? loadProfileExtra(user.phone) : {};
+  // Nickname fallback: empty → masked phone (PRD 个人信息管理)
+  const displayName = extra.nickname?.trim() || (user.phone !== 'N/A' ? displayPhone : user.name);
   const [enterprise, setEnterprise] = useState(isEnterpriseMode);
   const [city, setCity] = useState(getUserCity);
 
@@ -39,6 +43,7 @@ export function Profile() {
   const menuItems = [
     { icon: <ShoppingBag size={20} />, label: 'My Orders', desc: 'Purchases, exchange & after-sales', onClick: () => navigate('/account/orders'), highlight: true },
     { icon: <MapPin size={20} />, label: 'Addresses', desc: 'Manage delivery addresses', onClick: () => navigate('/account/addresses') },
+    { icon: <ShieldCheck size={20} />, label: 'Account Security', desc: 'Change password & deactivate account', onClick: () => navigate('/account/security'), testId: 'account-security-entry' },
     { icon: <HeadphonesIcon size={20} />, label: 'Help Center', desc: 'FAQ, tickets & contact support', onClick: () => navigate('/account/help') },
     { icon: <SettingsIcon size={20} />, label: 'Settings', desc: `Language, notifications, ${city} & more`, onClick: () => navigate('/account/settings'), testId: 'account-settings-entry' },
     { icon: <ExternalLink size={20} />, label: 'H5 Inspection Preview', desc: 'Standalone H5 report page', onClick: () => navigate('/account/h5-preview') },
@@ -49,17 +54,31 @@ export function Profile() {
       <h1 className="text-h3 font-bold text-text-primary">Account</h1>
 
       <Card className="!rounded-xl">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center">
-            <User size={28} className="text-white" />
-          </div>
-          <div>
-            <h2 className="text-h4 font-bold text-text-primary">{user.name}</h2>
+        <button
+          type="button"
+          onClick={() => navigate('/account/profile-edit')}
+          data-testid="profile-edit-entry"
+          className="w-full flex items-center gap-4 text-left active:opacity-90"
+        >
+          {extra.avatar ? (
+            <img src={extra.avatar} alt="avatar" className="w-16 h-16 rounded-full object-cover shrink-0" />
+          ) : (
+            <div className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center shrink-0">
+              <span className="text-h3 font-bold text-white">
+                {displayName.replace(/\d/g, '').trim().slice(0, 1).toUpperCase() || 'U'}
+              </span>
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <h2 className="text-h4 font-bold text-text-primary truncate">{displayName}</h2>
             <p className="text-caption text-text-muted flex items-center gap-1">
               <Phone size={14} /> {displayPhone}
             </p>
           </div>
-        </div>
+          <span className="flex items-center gap-1 text-caption text-primary-600 shrink-0">
+            <Pencil size={14} /> Edit
+          </span>
+        </button>
       </Card>
 
       <Card className="!p-0 divide-y divide-border overflow-hidden !rounded-xl">

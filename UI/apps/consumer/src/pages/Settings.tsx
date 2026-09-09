@@ -4,7 +4,7 @@ import { Card, Button, Modal } from '@dobara/ui';
 import { useTranslation } from 'react-i18next';
 import {
   Globe, Moon, Sun, Bell, MapPin, Trash2, Info, FileText,
-  ShieldCheck, LogOut, ChevronRight, Check,
+  ShieldCheck, ShieldAlert, LogOut, ChevronRight, Check,
 } from 'lucide-react';
 import { clearUser } from '../App';
 import { getUserCity, setUserCity, CITIES } from '../lib/userCity';
@@ -233,6 +233,22 @@ export function Settings() {
           </button>
         ))}
       </Card>
+
+      {/* Account security entry — password change & deactivation (PRD 账户安全与注销) */}
+      <button
+        onClick={() => navigate('/account/security')}
+        data-testid="settings-security-entry"
+        className="w-full flex items-center justify-between py-3 px-4 rounded-xl border border-border bg-surface-container hover:bg-surface-low transition-colors text-left"
+      >
+        <div className="flex items-center gap-3">
+          <ShieldAlert size={20} className="text-text-muted" />
+          <div>
+            <p className="text-body font-medium text-text-primary">Account Security</p>
+            <p className="text-caption text-text-muted">Change password · deactivate account</p>
+          </div>
+        </div>
+        <ChevronRight size={18} className="text-text-muted" />
+      </button>
 
       <Button
         variant="ghost"
