@@ -79,7 +79,7 @@ export default function RejectDevice() {
   }
 
   return (
-    <div className="p-6" data-testid="reject-device">
+    <div className="p-4 sm:p-6" data-testid="reject-device">
       <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-dobara-error-light flex items-center justify-center">
           <AlertTriangle size={22} className="text-dobara-error" />
@@ -175,7 +175,7 @@ export default function RejectDevice() {
         )}
       </Card>
 
-      <div className="flex justify-center gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
         <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/${fromStep}`)}>
           Back
         </Button>

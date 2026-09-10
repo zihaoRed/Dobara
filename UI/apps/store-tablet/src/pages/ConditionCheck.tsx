@@ -65,7 +65,7 @@ export default function ConditionCheck() {
   );
 
   return (
-    <div className="p-6" data-testid="condition-check">
+    <div className="p-4 sm:p-6" data-testid="condition-check">
       <h1 className="text-h3 font-heading text-text-primary mb-2">Condition &amp; Accessories</h1>
       <p className="text-body text-text-body mb-4">
         Select anything that applies. These feed the pricing engine as repair / accessory / functional deductions.
@@ -146,7 +146,7 @@ export default function ConditionCheck() {
         </Card>
       )}
 
-      <div className="flex justify-center gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
         <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/hardware`)}>Back</Button>
         <Button variant="primary" size="lg" data-testid="condition-continue" onClick={goInvoice}>
           Continue to Invoice

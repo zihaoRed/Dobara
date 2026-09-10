@@ -27,7 +27,7 @@ export default function StoreHome() {
   const navigate = useNavigate();
 
   return (
-    <div className="p-6" data-testid="store-home">
+    <div className="p-4 sm:p-6" data-testid="store-home">
       <div className="mb-6">
         <h1 className="text-h3 font-heading text-text-primary">Store Tablet</h1>
         <p className="text-body text-text-body mt-1">
@@ -37,14 +37,18 @@ export default function StoreHome() {
 
       <Card className="mb-6">
         <h2 className="text-h4 font-heading text-text-primary mb-4">Inspection Flow</h2>
-        <Stepper steps={steps} current={0} />
+        <div className="overflow-x-auto pb-1">
+          <div className="min-w-max">
+            <Stepper steps={steps} current={0} />
+          </div>
+        </div>
         <p className="text-caption text-text-muted mt-3">
           After photos &amp; video: continue or reject → AI pre-fills appearance checklist (review &amp; correct) →
           hardware OTG → optional invoice → submit → report.
         </p>
       </Card>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         {steps.map((step, i) => (
           <Card key={step.key} variant="flat" className="flex items-center gap-3 p-3">
             <div className="w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center text-primary-600">
@@ -58,7 +62,7 @@ export default function StoreHome() {
         ))}
       </div>
 
-      <div className="flex justify-center gap-3">
+      <div className="flex flex-wrap justify-center gap-3">
         <Button size="lg" variant="primary" data-testid="start-session" onClick={() => navigate('/otp')}>
           Start New Session
         </Button>

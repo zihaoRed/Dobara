@@ -46,7 +46,7 @@ export default function NotificationList() {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <div className="p-6" data-testid="notification-list">
+    <div className="p-4 sm:p-6" data-testid="notification-list">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => navigate('/')}>

@@ -76,7 +76,7 @@ export default function AdmissionCheck() {
   }
 
   return (
-    <div className="p-6" data-testid="admission-check">
+    <div className="p-4 sm:p-6" data-testid="admission-check">
       <h1 className="text-h3 font-heading text-text-primary mb-2">Admission Check</h1>
       <p className="text-body text-text-body mb-6">
         Pre-pricing gate. A fail on any item below rejects the device — no hardware audit or pricing is run.
@@ -166,7 +166,7 @@ export default function AdmissionCheck() {
         </div>
       )}
 
-      <div className="flex justify-center gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
         <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/video`)}>Back</Button>
         {reject ? (
           <Button variant="danger" size="lg" data-testid="admission-reject" onClick={goReject}>

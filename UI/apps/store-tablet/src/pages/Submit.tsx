@@ -64,7 +64,7 @@ export default function Submit() {
   };
 
   return (
-    <div className="p-6" data-testid="data-submit">
+    <div className="p-4 sm:p-6" data-testid="data-submit">
       <h1 className="text-h3 font-heading text-text-primary mb-2 flex items-center gap-2">
         <PackageCheck size={22} className="text-text-muted" /> Submit
       </h1>
@@ -110,7 +110,7 @@ export default function Submit() {
         </div>
       </Card>
 
-      <div className="flex justify-center gap-3">
+      <div className="flex flex-wrap justify-center gap-3">
         <Button
           variant="ghost"
           size="sm"

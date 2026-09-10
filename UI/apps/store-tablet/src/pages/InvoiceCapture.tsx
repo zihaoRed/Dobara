@@ -50,7 +50,7 @@ export default function InvoiceCapture() {
   };
 
   return (
-    <div className="p-6" data-testid="invoice-capture">
+    <div className="p-4 sm:p-6" data-testid="invoice-capture">
       <h1 className="text-h3 font-heading text-text-primary mb-2">Invoice Capture</h1>
       <p className="text-body text-text-body mb-6">Optional — used as a price ceiling in the pricing engine.</p>
 
@@ -92,7 +92,7 @@ export default function InvoiceCapture() {
 
           <Card className="mb-6">
             <h2 className="text-h4 font-heading text-text-primary mb-4">Invoice Details</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Input
                   data-testid="invoice-amount"
@@ -115,7 +115,7 @@ export default function InvoiceCapture() {
             {error && <p className="text-caption text-dobara-error mt-2">{error}</p>}
           </Card>
 
-          <div className="flex justify-center gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
             <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/condition`)}>Back</Button>
             <Button variant="secondary" size="lg" onClick={() => goSubmit(true)}>Skip</Button>
             <Button variant="primary" size="lg" data-testid="invoice-continue" onClick={handleContinue}>

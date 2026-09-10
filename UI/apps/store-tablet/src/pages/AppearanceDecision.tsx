@@ -10,7 +10,7 @@ export default function AppearanceDecision() {
   const navigate = useNavigate();
 
   return (
-    <div className="p-6" data-testid="appearance-decision">
+    <div className="p-4 sm:p-6" data-testid="appearance-decision">
       <h1 className="text-h3 font-heading text-text-primary mb-2">Appearance Review</h1>
       <p className="text-body text-text-body mb-6">
         Before capturing photos, check the device by hand and eye. Only continue if it is
@@ -31,7 +31,7 @@ export default function AppearanceDecision() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-4 max-w-xl mx-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto">
         <button
           type="button"
           data-testid="continue-inspect"

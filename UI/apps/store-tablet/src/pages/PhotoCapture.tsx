@@ -108,7 +108,7 @@ export default function PhotoCapture() {
         <p className="text-caption text-text-muted mt-1 text-center">{filledCount}/10 photos captured</p>
       </div>
 
-      <div className="flex justify-center gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
         <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/decision`)}>Back</Button>
         <Button
           variant="ghost"

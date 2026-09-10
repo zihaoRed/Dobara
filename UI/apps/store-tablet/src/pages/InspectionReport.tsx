@@ -105,7 +105,7 @@ export default function InspectionReport() {
   }
 
   return (
-    <div className={`p-6 ${expired ? 'opacity-60 pointer-events-none' : ''}`} data-testid="tablet-report">
+    <div className={`p-4 sm:p-6 ${expired ? 'opacity-60 pointer-events-none' : ''}`} data-testid="tablet-report">
       {expired && (
         <div className="mb-4 rounded-lg bg-dobara-error text-white px-4 py-3 text-caption font-semibold pointer-events-auto">
           Quote expired. Contact ops / re-inspect if needed.
@@ -123,7 +123,7 @@ export default function InspectionReport() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4 text-body">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-body">
             <div>
               <span className="text-text-muted">Brand: </span>
               <span className="font-semibold">{report.deviceSummary.brand}</span>
@@ -248,7 +248,7 @@ export default function InspectionReport() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-center gap-4 pointer-events-auto">
+      <div className="flex flex-wrap justify-center gap-4 pointer-events-auto">
         <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/submit`)} disabled={expired}>
           Back
         </Button>

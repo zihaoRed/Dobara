@@ -241,7 +241,7 @@ export default function AppearanceInspect() {
         )}
       </div>
 
-      <div className="sticky bottom-0 z-20 px-3 pb-3 pt-1 bg-gradient-to-t from-surface via-surface to-transparent">
+      <div className="sticky bottom-0 z-20 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-1 bg-gradient-to-t from-surface via-surface to-transparent">
         <div className="rounded-2xl border border-border bg-white/95 backdrop-blur p-3 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <p className="text-caption text-text-muted">
             {answeredCount === 0

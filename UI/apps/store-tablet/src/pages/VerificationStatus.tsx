@@ -59,7 +59,7 @@ export default function VerificationStatus() {
   const activeIdx = status === 'failed' ? -1 : STEPS.findIndex((s) => s.key === status);
 
   return (
-    <div className="p-6" data-testid="verification-status">
+    <div className="p-4 sm:p-6" data-testid="verification-status">
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="sm" onClick={() => navigate(`/session/${sessionId}/report`)}>
           <ArrowLeft size={16} />

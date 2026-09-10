@@ -166,7 +166,7 @@ export default function HardwareResults() {
   const testedCount = items.filter((i) => i.status !== 'pending').length;
 
   return (
-    <div className="p-6" data-testid="hardware-results">
+    <div className="p-4 sm:p-6" data-testid="hardware-results">
       <h1 className="text-h3 font-heading text-text-primary mb-2">Hardware Diagnostics</h1>
       <p className="text-body text-text-body mb-2">
         {usbDisconnected
@@ -277,7 +277,7 @@ export default function HardwareResults() {
         ))}
       </div>
 
-      <div className="flex justify-center gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
         <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/inspect`)}>Back</Button>
         <Button
           variant="primary"

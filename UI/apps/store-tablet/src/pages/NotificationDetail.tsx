@@ -71,7 +71,7 @@ export default function NotificationDetail() {
   const priceDiff = hasPriceChange ? data.originalPrice - data.adjustedPrice : 0;
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <div className="flex items-center gap-4 mb-6">
         <Button
           variant="ghost"
@@ -94,7 +94,7 @@ export default function NotificationDetail() {
           <p className="text-body text-text-secondary mb-6">{data.reason}</p>
 
           {hasPriceChange && (
-            <div className="grid grid-cols-3 gap-4 p-4 bg-surface-high rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-surface-high rounded-lg">
               <div className="text-center">
                 <p className="text-eyebrow text-text-muted uppercase mb-1">Original Price</p>
                 <PriceDisplay amount={data.originalPrice} size="sm" strikethrough={priceDiff > 0} />

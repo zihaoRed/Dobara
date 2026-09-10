@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { Button, Badge, Modal } from '@dobara/ui';
 
@@ -45,6 +45,32 @@ const INSPECTION_STEPS: { key: TInspectionStep; label: string }[] = [
   { key: 'report', label: 'Report' },
 ];
 
+/** Shared step-navigation state for the desktop SideNav and the mobile step bar. */
+function useStepNav() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pathParts = location.pathname.split('/');
+  const sessionId = pathParts[2] || null;
+  let currentStep = pathParts[3] || 'session';
+  if (currentStep === 'reject') currentStep = 'decision';
+  if (currentStep === 'verification') currentStep = 'report';
+  const stepIdx = stepIndex(currentStep);
+  const progress = getProgress();
+  const completedIndex =
+    progress?.sessionId === sessionId ? progress.completedIndex : -1;
+
+  const goToStep = (i: number) => {
+    if (!sessionId) return;
+    // Only allow navigating to completed steps (review) or current next
+    if (i <= completedIndex + 1) {
+      const step = INSPECTION_STEPS[i];
+      navigate(`/session/${sessionId}${step.key === 'session' ? '' : `/${step.key}`}`);
+    }
+  };
+
+  return { sessionId, stepIdx, completedIndex, goToStep };
+}
+
 function RequireClerk({ children }: { children: React.ReactNode }) {
   const clerk = getClerk();
   if (!clerk) return <Navigate to="/login" replace />;
@@ -64,22 +90,12 @@ function StepGuard({ step, children }: { step: string; children: React.ReactNode
 }
 
 function SideNav() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const pathParts = location.pathname.split('/');
-  const sessionId = pathParts[2];
-  let currentStep = pathParts[3] || 'session';
-  if (currentStep === 'reject') currentStep = 'decision';
-  if (currentStep === 'verification') currentStep = 'report';
-  const stepIdx = stepIndex(currentStep);
-  const progress = getProgress();
-  const completedIndex =
-    progress?.sessionId === sessionId ? progress.completedIndex : -1;
+  const { sessionId, stepIdx, completedIndex, goToStep } = useStepNav();
 
   if (!sessionId) return null;
 
   return (
-    <nav className="w-[160px] sm:w-[188px] shrink-0 bg-surface-low border-r border-border p-2 sm:p-3 flex flex-col gap-1 overflow-y-auto min-h-0" data-testid="side-nav">
+    <nav className="hidden md:flex md:w-[188px] shrink-0 bg-surface-low border-r border-border md:p-3 flex flex-col gap-1 overflow-y-auto min-h-0" data-testid="side-nav">
       <h3 className="text-eyebrow text-text-muted uppercase tracking-wider px-2 mb-1">
         Inspection Flow
       </h3>
@@ -93,13 +109,7 @@ function SideNav() {
             type="button"
             disabled={locked}
             data-testid={`nav-step-${step.key}`}
-            onClick={() => {
-              if (locked) return;
-              // Only allow navigating to completed steps (review) or current next
-              if (i <= completedIndex + 1) {
-                navigate(`/session/${sessionId}${step.key === 'session' ? '' : `/${step.key}`}`);
-              }
-            }}
+            onClick={() => goToStep(i)}
             className={`flex items-center gap-2 px-2 py-2 rounded-md text-left text-caption font-medium transition-colors ${
               current
                 ? 'bg-primary-50 text-primary-700'
@@ -129,6 +139,61 @@ function SideNav() {
   );
 }
 
+function MobileStepBar() {
+  const { sessionId, stepIdx, completedIndex, goToStep } = useStepNav();
+  const activeRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, [stepIdx]);
+
+  if (!sessionId) return null;
+
+  return (
+    <div className="md:hidden shrink-0 bg-surface-container border-b border-border" data-testid="mobile-step-bar">
+      <div className="flex gap-1.5 overflow-x-auto px-2 py-2">
+        {INSPECTION_STEPS.map((step, i) => {
+          const done = i <= completedIndex;
+          const current = i === stepIdx;
+          const locked = i > completedIndex + 1;
+          return (
+            <button
+              key={step.key}
+              type="button"
+              ref={current ? activeRef : undefined}
+              disabled={locked}
+              data-testid={`mobile-step-${step.key}`}
+              onClick={() => goToStep(i)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-caption font-medium shrink-0 whitespace-nowrap transition-colors ${
+                current
+                  ? 'bg-primary-500 text-white'
+                  : done
+                  ? 'bg-primary-50 text-primary-700'
+                  : locked
+                  ? 'text-text-muted/50 cursor-not-allowed'
+                  : 'bg-surface-high text-text-muted'
+              }`}
+            >
+              <span
+                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  done && !current
+                    ? 'bg-dobara-success text-white'
+                    : current
+                    ? 'bg-white/20 text-white'
+                    : 'bg-surface-container text-text-muted'
+                }`}
+              >
+                {done && !current ? '✓' : i + 1}
+              </span>
+              {step.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function TopBar() {
   const navigate = useNavigate();
   const clerk = getClerk();
@@ -140,7 +205,7 @@ function TopBar() {
         <a href="/" className="text-lead font-heading font-bold text-primary-600 hover:text-primary-500 transition-colors no-underline shrink-0">
           Dobara
         </a>
-        <Badge variant="accent" size="sm">Demo Mode</Badge>
+        <span className="hidden sm:inline-flex"><Badge variant="accent" size="sm">Demo Mode</Badge></span>
         {clerk && (
           <span className="text-caption text-text-muted hidden md:inline truncate">
             {clerk.name} · ···{clerk.phone.slice(-4)}
@@ -236,9 +301,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Tablet-first shell: fills browser viewport, caps width at tablet canvas */}
       <div className="w-full max-w-[1024px] h-full min-h-0 flex flex-col overflow-hidden bg-surface shadow-overlay">
         <TopBar />
+        {showSideNav && <MobileStepBar />}
         <div className="flex-1 flex min-h-0 overflow-hidden">
           {showSideNav && <SideNav />}
-          <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative">
+          <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative pb-[env(safe-area-inset-bottom)]">
             {location.pathname === '/' && getClerk() && !resumeChecked && (
               <ResumePrompt onDone={() => setResumeChecked(true)} />
             )}

@@ -70,7 +70,7 @@ export default function VideoCapture() {
   const canProceed = recorded && elapsed >= MIN && elapsed <= MAX;
 
   return (
-    <div className="p-6" data-testid="video-capture">
+    <div className="p-4 sm:p-6" data-testid="video-capture">
       <h1 className="text-h3 font-heading text-text-primary mb-2">Video Capture</h1>
       <p className="text-body text-text-body mb-6">
         Record a 360° rotation video · {MIN}–{MAX} seconds required
@@ -131,7 +131,7 @@ export default function VideoCapture() {
         </div>
       </Card>
 
-      <div className="flex justify-center gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
         <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/photo`)}>Back</Button>
         <Button
           variant="primary"

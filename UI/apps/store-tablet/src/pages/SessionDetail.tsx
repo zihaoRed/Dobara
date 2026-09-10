@@ -101,7 +101,7 @@ export default function SessionDetail() {
   }
 
   return (
-    <div className="p-6" data-testid="session-detail">
+    <div className="p-4 sm:p-6" data-testid="session-detail">
       <div className="flex items-center gap-3 mb-2">
         <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
           <ArrowLeft size={16} />
@@ -112,7 +112,7 @@ export default function SessionDetail() {
 
       <Stepper steps={steps} current={0} className="mb-6" />
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -148,7 +148,7 @@ export default function SessionDetail() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-2 text-body">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-body">
             <div>
               <span className="text-text-muted">Device: </span>
               <span className="font-medium">
@@ -195,7 +195,7 @@ export default function SessionDetail() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-3 text-body">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-body">
             <div>
               <span className="text-text-muted">Status: </span>
               <span className="font-medium capitalize">{session?.status}</span>
