@@ -1,6 +1,7 @@
 {
   "name": "dobara-demo",
   "private": true,
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "pnpm --parallel -r dev",
     "dev:consumer": "pnpm --filter @dobara/consumer dev",

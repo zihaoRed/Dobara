@@ -1,3 +1,9 @@
 packages:
   - 'packages/*'
   - 'apps/*'
+
+# pnpm 10+ ignores package.json "pnpm.onlyBuiltDependencies" and reads it here instead.
+# Without this, CI on pnpm >= 10 blocks esbuild's install script and vite build fails.
+onlyBuiltDependencies:
+  - esbuild
+  - msw
