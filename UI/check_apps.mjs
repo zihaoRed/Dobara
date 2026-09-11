@@ -4,6 +4,7 @@ const APPS = [
   { name: 'consumer', url: 'http://localhost:3001' },
   { name: 'management', url: 'http://localhost:3003' },
   { name: 'store-tablet', url: 'http://localhost:3002' },
+  { name: 'device-check', url: 'http://localhost:3004' },
 ];
 
 for (const app of APPS) {

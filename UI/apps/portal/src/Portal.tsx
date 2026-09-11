@@ -2,8 +2,9 @@ import React from 'react';
 
 const apps = [
   { name: 'Consumer App', desc: 'Home · Buy · Sell · Account — marketplace prototype', url: '/consumer', color: '#064439' },
-  { name: 'Store Tablet', desc: 'OTP verification · Device inspection · Photo capture · Reports', url: '/tablet', color: '#0a7a52' },
+  { name: 'Inspection Tool', desc: 'OTP verification · Device inspection · Photo capture · Reports', url: '/tablet', color: '#0a7a52' },
   { name: 'Management', desc: 'Admin · Store owner · Warehouse · Finance — unified internal app', url: '/management', color: '#c9a227' },
+  { name: 'Device Check H5', desc: 'On-device browser check — colors · touch · sensors · audio · camera · button guide (TAB-P0-14)', url: '/device-check', color: '#92610a' },
 ];
 
 export const Portal: React.FC = () => {

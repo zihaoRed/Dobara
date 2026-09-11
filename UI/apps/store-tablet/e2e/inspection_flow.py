@@ -73,7 +73,10 @@ def run():
             # Checklist is optional — continue with zero selections triggers auto QC
             page.get_by_test_id("confirm-inspect").click()
             page.get_by_test_id("hardware-results").wait_for()
-            page.get_by_test_id("hardware-continue").wait_for(state="visible", timeout=20000)
+            # Android IMEI secret-code wizard (v1.8): tablet types *#06, clerk presses the final #
+            page.get_by_test_id("imei-wizard").wait_for()
+            page.get_by_test_id("imei-pressed-hash").click()
+            page.get_by_test_id("hardware-continue").wait_for(state="visible", timeout=30000)
             # Color gate: walk-in (no appointment) → continue disabled until clerk confirms color
             page.get_by_test_id("color-confirm").wait_for()
             expect(page.get_by_test_id("hardware-continue")).to_be_disabled()

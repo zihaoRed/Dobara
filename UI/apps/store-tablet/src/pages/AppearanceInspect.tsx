@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Card, Modal, Tabs } from '@dobara/ui';
-import { HelpCircle, Sparkles } from 'lucide-react';
+import { HelpCircle, Smartphone, Sparkles } from 'lucide-react';
 import { PHOTO_ANGLES } from '@dobara/utils';
 import { APPEARANCE_DIMENSIONS, ALL_APPEARANCE_ITEMS } from '../lib/appearanceItems';
 import { mockAiAppearanceAnalysis, type TAiAppearanceResult } from '../lib/aiAnalysis';
@@ -171,6 +171,16 @@ export default function AppearanceInspect() {
               onChange={setDim}
               className="mb-3"
             />
+
+            {dimension.key === 'display' && (
+              <div className="mb-3 rounded-lg bg-dobara-info-light text-[#1e3a8a] px-3 py-2 text-caption font-medium flex items-center gap-2">
+                <Smartphone size={14} className="shrink-0" />
+                <span>
+                  D1–D6 are verified on-device via the H5 check page (TAB-P0-14) — AI photo marks here are
+                  cross-reference only; the H5 result takes precedence.
+                </span>
+              </div>
+            )}
 
             <div className="space-y-3 max-h-[min(420px,calc(100dvh-280px))] overflow-y-auto pr-1">
               {dimension.items.map((item) => (

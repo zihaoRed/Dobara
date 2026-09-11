@@ -100,6 +100,7 @@ export const HARDWARE_CHECK_ITEMS = [
   'IMEI / Serial Number',
   'Brand & Model',
   'Battery Health',
+  'Screen Display',
   'Screen Touch',
   'Sensors',
   'Storage Capacity',
