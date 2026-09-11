@@ -1,5 +1,5 @@
 # 云端中台 - 服务端 PRD
-**文档版本：** v1.7 | **更新日期：** 2026-09-02
+**文档版本：** v1.8 | **更新日期：** 2026-09-11
 **模块编号：** CLOUD | **平台：** 服务端 API
 **使用角色：** 管理员、系统、后端开发、QA、架构师
 **文档说明：** Dobara平台核心业务逻辑中枢，负责定价计算、核销确认、库存管理、支付集成、订单路由、国际化等全链路服务端业务处理。所有前端客户端均通过本模块的 RESTful API 进行数据交互。每条功能编号格式为 `CLOUD-Px-xx`。
@@ -8,6 +8,7 @@
 
 | 日期 | 版本 | 更新内容 | 更新人 |
 |------|------|----------|--------|
+| 2026-09-11 | v1.8 | 新增 CLOUD-P0-16 H5 检测页中转服务（检测 token 30 分钟一次性/结果实时中转 ≤3s/复测指令下行 2s 轮询/设备指纹反作弊存档/check.dobara.in 强制 HTTPS 托管），配套质检工具 TAB-P0-14；§3.3.2.1.3 硬件扣款输入说明改为三通道来源标注（USB/H5/ADB）；§2.9.2 会话模型注明 h5_token 与检测 token 相互独立；§1.2 技术边界补充 H5 检测页托管 | 何子豪 |
 | 2026-09-02 | v1.7 | CLOUD-P1-01 初步估价引擎新增 §3.1.2.1"预约自报选项↔扣款编码映射表"（运营在配置中心维护）；电池预约档位对齐 HW-BH 精细分档（90+/85-90/80-85/70-80/70以下，1:1 映射）；明确"是否在保/使用情况/使用年限"不计入定价因子；功能性问题预估补充 GPS·WiFi·蓝牙异常 | 何子豪 |
 | 2026-09-01 | v1.6 | CLOUD-P0-03 设备状态机新增"退回中"(return_in_transit) 状态（15状态）；SM-05 补充配送中拒收退回规则；验收标准 14→15 状态 | 何子豪 |
 | 2026-08-31 | v1.5 | 短信网关确定为 MSG91，补充 DLT 三要素 / Route 映射 / OTP Flow / 语音兜底接入细节（2.13.5） | 何子豪 |
@@ -38,6 +39,7 @@
    - [2.11 CLOUD-P0-13 H5 会话跟踪页面](#211-cloud-p0-13-h5-会话跟踪页面)
    - [2.12 CLOUD-P0-14 统一登录与多角色会话管理](#212-cloud-p0-14-统一登录与多角色会话管理)
    - [2.13 CLOUD-P0-15 通知模板规范](#213-cloud-p0-15-通知模板规范)
+   - [2.14 CLOUD-P0-16 H5 检测页中转服务](#214-cloud-p0-16-h5-检测页中转服务)
 3. [P1 功能详细设计](#3-p1-功能详细设计)
    - [3.1 CLOUD-P1-01 换购预约管理](#31-cloud-p1-01-换购预约管理)
    - [3.2 CLOUD-P1-02 同城货源算法](#32-cloud-p1-02-同城货源算法)
@@ -60,6 +62,7 @@
 | 对象存储 | AWS S3 / MinIO (影像文件、语言资源包) |
 | 支付网关 | Razorpay (UPI Intent / 原路退款) |
 | 短信网关 | MSG91（SMS + DLT 模板注册）+ WhatsApp Business API |
+| H5 检测页托管 | check.dobara.in 静态站点（CDN + 强制 HTTPS——getUserMedia 要求 secure context），首屏资源 ≤500KB |
 | 部署架构 | 微服务或模块化单体，水平可扩展 |
 ## 1.3 通用设计原则
 
@@ -242,7 +245,7 @@ if (invoice_provided) {
 ```
 
 ##### 3.3.2.1.3 扣款维度一：硬件自动化检测扣款
-硬指标，由平板检测工具客观读取，店员不可修改。所有扣减金额在管理员可配置。
+硬指标，由质检工具经三通道（USB 读取 / H5 检测页 / ADB 判定）客观读取，店员不可修改；检测结果逐项标注检测通道与判定来源（数据模型见 CLOUD-P0-16）。其中 HW-TCH-01 触控异常由 H5 滑涂测试判定；屏幕显示类缺陷（对应 CO-SCR-04/05/06 检测项）以 H5 纯色画面现场判定为主依据（TAB-P0-13 分工）。所有扣减金额在管理员可配置。
 **电池健康度 (Battery Health, BH)：**
 
 | 编号 | 触发条件 | 扣减金额（配置项） | 附加动作 |
@@ -1383,6 +1386,8 @@ OTP 验证通过
 
 ```
 
+> **token 区分：** 上表 `h5_token` 仅用于 CLOUD-P0-13 用户跟踪短链（bott.in/s/...）。H5 检测页 token（check.dobara.in/t/...，TAB-P0-14）是独立的短生命周期一次性实体，由 CLOUD-P0-16 签发管理，两者不可复用。
+
 ## 2.9.3 业务规则
 
 | 规则项 | 说明 |
@@ -2198,6 +2203,99 @@ GET https://control.msg91.com/api/v5/send
 
 ---
 
+## 2.14 CLOUD-P0-16 H5 检测页中转服务
+**优先级：** P0
+**功能描述：**
+为质检工具的 H5 检测页（在被检手机浏览器执行，前端定义见 TAB-P0-14）提供云端中转：检测 token 签发与一次性消费、H5 检测结果实时上报与转发、质检工具进度同步、单项复测指令下行、设备指纹反作弊比对存档。H5 检测页静态资源（check.dobara.in）由本模块统一托管。检测 token 与会话的 `h5_token`（CLOUD-P0-13 用户跟踪短链）相互独立，不可复用。
+
+**检测 token 生命周期：**
+
+```
+质检工具进入交互检测环节
+→ POST /api/v1/inspections/{session_id}/check-token 签发（32 位随机，Redis，TTL 30 分钟）
+→ H5 打开 GET /api/v1/check/{token} → 校验通过并首次消费绑定（一次性）
+→ H5 逐项上报 POST /api/v1/check/{token}/results
+→ 质检工具经 WS 消息 h5_check_progress 实时收取（≤3 秒）；GET check-progress 轮询兜底
+→ 复测：质检工具 POST check-retest/{item_key} → H5 经 GET command（2 秒轮询）收到指令重新执行
+→ 全部完成或 30 分钟到期 → token 失效
+
+```
+**API 接口定义：**
+
+| API | 方法 | 调用方 | 说明 |
+|-----|------|--------|------|
+| /api/v1/inspections/{session_id}/check-token | POST | 质检工具 | 签发检测 token；同一会话同时仅 1 个有效 token，重复签发使旧 token 立即失效 |
+| /api/v1/check/{token} | GET | H5 检测页 | 校验并首次消费绑定（token 即授权，无需登录，风格对齐 CLOUD-P0-13）；复用/过期返回 410 Gone；返回本会话待检测项清单 |
+| /api/v1/check/{token}/results | POST | H5 检测页 | 逐项结果上报，item_key 幂等（复测覆盖）；携带设备指纹（userAgent/内存/CPU 核心数） |
+| /api/v1/check/{token}/command | GET | H5 检测页 | 轮询下行指令（retest/finish），建议 2 秒间隔；H5 侧不维护长连接 |
+| /api/v1/inspections/{session_id}/check-progress | GET | 质检工具 | 轮询兜底：拉取全部检测项最新状态（WS 不可用时降级使用） |
+| /api/v1/inspections/{session_id}/check-retest/{item_key} | POST | 质检工具 | 下发单项复测指令，H5 收到后重新执行该项，结果覆盖 |
+**检测结果数据模型（随质检包存入 `inspection_data`）：**
+
+```json
+{
+  "check_token": "string",
+  "items": [
+    {
+      "item_key": "imei|brand_model|battery|screen_display|screen_touch|sensors|storage|camera|speaker_mic|buttons",
+      "channel": "usb|h5|hybrid",
+      "verdict_source": "h5_auto|clerk_confirmed|adb|ocr|adb_prop|manual|libimobiledevice",
+      "status": "normal|abnormal|timeout|manual|unauthorized",
+      "value": {},
+      "captured_at": "ISO8601"
+    }
+  ],
+  "imei": {
+    "imei1": "string（加密）",
+    "imei2": "string|null（加密，双卡）",
+    "capture_method": "adb_prop|secret_code_ocr|manual|libimobiledevice",
+    "ocr_confidence": 0.97
+  },
+  "anti_fraud": {
+    "h5_user_agent": "string",
+    "h5_device_memory_gb": 6,
+    "h5_cpu_cores": 8,
+    "adb_model": "string",
+    "match": true
+  }
+}
+
+```
+**Redis 数据结构：**
+
+```
+check:token:{token}        → {session_id, store_id, status: issued|active|done, issued_at}   TTL 1800s
+check:results:{session_id} → Hash(item_key → result JSON)   TTL 86400s（质检包落库后清理）
+
+```
+**业务规则：**
+
+| 规则项 | 说明 |
+|--------|------|
+| token 有效期 | 30 分钟，与报价有效期对齐（TAB-P0-04/TAB-P0-14）；到期未完成由质检工具重新签发，已上报结果保留不清空 |
+| 一次性消费 | token 首次被 H5 访问即绑定消费（status: issued → active）；复用访问返回 410 Gone |
+| 单会话单 token | 同一 session 同时仅 1 个有效 token；重新签发旧 token 立即失效，已上报结果保留 |
+| 结果幂等 | 同一 item_key 重复上报以最后一次为准（复测覆盖），服务端不产生重复记录 |
+| 实时性 | H5 上报后质检工具可见延迟 ≤ 3 秒（WS 推送 h5_check_progress）；WS 不可用时轮询兜底 ≤ 5 秒 |
+| 下行通道 | H5（手机浏览器）不维护长连接；复测/终止指令经 2 秒轮询获取，指令下发后 5 秒内可到达 |
+| 反作弊 | H5 设备指纹与质检工具 ADB 读取机型的一致性比对结论（match）随结果返回并存档；match=false 触发平板黄色警告，供库管审核参考 |
+| 静态托管 | check.dobara.in 全站强制 HTTPS（getUserMedia 要求 secure context，硬约束）；首屏资源 ≤ 500KB；纯色画面 Canvas 生成不下载图片 |
+| 风控 | 单 token 上报频率 > 60 次/分钟拒绝并告警；同一 token 多地 IP 访问告警 |
+| 与定价引擎关系 | 本服务仅中转与存档检测结果；扣款计算仍由 CLOUD-P0-01 消费最终质检包（TAB-P0-03 上传）触发，规则不变 |
+**验收标准：**
+- [ ] 质检工具签发 token 后，H5 首次访问校验通过并绑定；复用访问返回 410 Gone
+- [ ] token 30 分钟自动过期；到期重新签发后，已上报结果保留并可继续
+- [ ] 同一 session 重复签发，旧 token 立即失效且已上报结果保留
+- [ ] H5 逐项上报后，质检工具 WS 3 秒内收到 h5_check_progress；WS 断开时轮询 5 秒内拉到最新状态
+- [ ] 同一 item_key 复测上报覆盖旧结果，服务端无重复记录
+- [ ] 复测指令下发后，H5 在 2 个轮询周期内收到并重新执行该项
+- [ ] 检测结果含 channel / verdict_source / captured_at；IMEI 含 capture_method 与双 IMEI
+- [ ] 设备指纹比对结论（match）随结果返回质检工具并存档
+- [ ] check.dobara.in 全站 HTTPS，无 HTTP 回退；首屏资源 ≤ 500KB
+- [ ] 上报频率超限或多地 IP 访问触发风控告警
+
+---
+
 ## 3.1 CLOUD-P1-01 换购预约管理
 **优先级：** P1
 **功能描述：**
@@ -2767,6 +2865,12 @@ Response: {
 | API-39 | 授信支付 | POST | `/api/v1/orders/b2b/credit-payment` | CLOUD-P1-06 |
 | API-40 | 待结算订单查询 | GET | `/api/v1/settlements/pending` | CLOUD-P1-06 |
 | API-41 | 确认结算 | POST | `/api/v1/settlements/confirm` | CLOUD-P1-06 |
+| API-42 | 签发检测 token | POST | `/api/v1/inspections/{session_id}/check-token` | CLOUD-P0-16 |
+| API-43 | 检测 token 校验消费 | GET | `/api/v1/check/{token}` | CLOUD-P0-16 |
+| API-44 | H5 检测结果上报 | POST | `/api/v1/check/{token}/results` | CLOUD-P0-16 |
+| API-45 | H5 下行指令轮询 | GET | `/api/v1/check/{token}/command` | CLOUD-P0-16 |
+| API-46 | 检测进度查询（轮询兜底） | GET | `/api/v1/inspections/{session_id}/check-progress` | CLOUD-P0-16 |
+| API-47 | 下发单项复测指令 | POST | `/api/v1/inspections/{session_id}/check-retest/{item_key}` | CLOUD-P0-16 |
 
 ## 5. 附录 B -- 数据模型汇总
 ## 5.1 核心实体关系
