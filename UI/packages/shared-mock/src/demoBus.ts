@@ -44,6 +44,47 @@ export interface IDemoInbound {
   createdAt: string;
 }
 
+/** CLOUD-P0-16 — one H5 check item result, keyed by item_key (see PRD data model) */
+export interface IDemoCheckResult {
+  itemKey: string;
+  /** unauthorized = permission denied (not a hardware fault); pending_network = offline degrade */
+  status: 'normal' | 'abnormal' | 'timeout' | 'manual' | 'unauthorized' | 'pending_network';
+  value: string;
+  channel: 'usb' | 'h5' | 'hybrid';
+  verdictSource: 'h5_auto' | 'clerk_confirmed' | 'adb' | 'ocr' | 'adb_prop' | 'manual' | 'libimobiledevice';
+  capturedAt: string;
+}
+
+/** CLOUD-P0-16 — H5 device fingerprint, cross-checked against the tablet's ADB model read */
+export interface IDemoCheckFingerprint {
+  userAgent: string;
+  deviceMemoryGb: number | null;
+  cpuCores: number | null;
+  capturedAt: string;
+}
+
+export interface IDemoCheckCommand {
+  type: 'retest' | 'finish';
+  itemKey?: string;
+  issuedAt: string;
+}
+
+export interface IDemoCheckSession {
+  token: string;
+  sessionId: string;
+  storeId?: string;
+  /** issued → active (first H5 visit) → done; expired once past TTL */
+  status: 'issued' | 'active' | 'done';
+  issuedAt: string;
+  expiresAt: string;
+  consumedAt?: string;
+  /** item_key → latest result (repeat reporting overwrites — APP 幂等/复测覆盖) */
+  results: Record<string, IDemoCheckResult>;
+  /** Pending downlink command for the H5 to pick up on its next poll */
+  command?: IDemoCheckCommand | null;
+  fingerprint?: IDemoCheckFingerprint;
+}
+
 export interface IDemoPickOrder {
   orderId: string;
   channel: 'B2C' | 'B2B' | 'AFTERSALE';
@@ -62,6 +103,8 @@ export interface IDemoPickOrder {
 export interface IDemoBus {
   recycleOrders: IRecycleOrder[];
   tradeIns: IDemoTradeIn[];
+  /** CLOUD-P0-16 检测会话 — H5 检测页与质检工具之间的云端中转状态 */
+  checkSessions: IDemoCheckSession[];
   inbound: IDemoInbound[];
   pickOrders: IDemoPickOrder[];
   reviewQueue: IDevice[];
@@ -73,6 +116,7 @@ function emptyBus(): IDemoBus {
   return {
     recycleOrders: [],
     tradeIns: [],
+    checkSessions: [],
     inbound: [],
     pickOrders: [],
     reviewQueue: [],
@@ -187,6 +231,103 @@ export function confirmTradeInRedeem(sessionId: string): IDemoTradeIn | null {
 function patchRecycleInBus(bus: IDemoBus, sessionId: string, patch: Partial<IRecycleOrder>) {
   const i = bus.recycleOrders.findIndex((o) => o.sessionId === sessionId);
   if (i >= 0) bus.recycleOrders[i] = { ...bus.recycleOrders[i], ...patch };
+}
+
+/* ---------- CLOUD-P0-16 检测会话中转 ---------- */
+
+/** TTL aligned with the quote validity window (TAB-P0-04) */
+export const CHECK_TOKEN_TTL_MS = 30 * 60 * 1000;
+
+const CHECK_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/** 32-char one-time token in the style of the PRD contract */
+export function issueCheckToken(): string {
+  let out = '';
+  for (let i = 0; i < 32; i += 1) {
+    out += CHECK_ALPHABET[Math.floor(Math.random() * CHECK_ALPHABET.length)];
+  }
+  return out;
+}
+
+/** Drop tokens past their TTL and report whether one is still alive */
+export function isCheckSessionLive(t: IDemoCheckSession, now = Date.now()): boolean {
+  return new Date(t.expiresAt).getTime() > now;
+}
+
+export function getCheckSessionByToken(token: string): IDemoCheckSession | undefined {
+  return loadBus().checkSessions.find((c) => c.token === token);
+}
+
+export function getCheckSessionBySessionId(sessionId: string): IDemoCheckSession | undefined {
+  // Same session may have been re-issued; the newest one wins
+  return loadBus().checkSessions
+    .filter((c) => c.sessionId === sessionId)
+    .sort((a, b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime())[0];
+}
+
+/**
+ * Issue a token for a session. Re-issuing invalidates the previous token for that
+ * session immediately, while previously reported results are preserved (PRD 业务规则).
+ */
+export function issueCheckSession(sessionId: string, storeId?: string): IDemoCheckSession {
+  const bus = loadBus();
+  const now = Date.now();
+  bus.checkSessions = bus.checkSessions.filter((c) => {
+    if (c.sessionId !== sessionId) return true;
+    return false; // same-session single-token rule: drop the old one
+  });
+  const session: IDemoCheckSession = {
+    token: issueCheckToken(),
+    sessionId,
+    storeId,
+    status: 'issued',
+    issuedAt: new Date(now).toISOString(),
+    expiresAt: new Date(now + CHECK_TOKEN_TTL_MS).toISOString(),
+    results: {},
+    command: null,
+  };
+  bus.checkSessions.unshift(session);
+  saveBus(bus);
+  return session;
+}
+
+export function patchCheckSession(
+  token: string,
+  patch: Partial<IDemoCheckSession>,
+): IDemoCheckSession | null {
+  const bus = loadBus();
+  const idx = bus.checkSessions.findIndex((c) => c.token === token);
+  if (idx < 0) return null;
+  bus.checkSessions[idx] = { ...bus.checkSessions[idx], ...patch };
+  saveBus(bus);
+  return bus.checkSessions[idx];
+}
+
+/** First H5 visit consumes the token (issued → active); later visits are rejected by the caller */
+export function consumeCheckSession(token: string): IDemoCheckSession | null {
+  const bus = loadBus();
+  const idx = bus.checkSessions.findIndex((c) => c.token === token);
+  if (idx < 0) return null;
+  const s = bus.checkSessions[idx];
+  if (s.status !== 'issued') return null;
+  bus.checkSessions[idx] = { ...s, status: 'active', consumedAt: new Date().toISOString() };
+  saveBus(bus);
+  return bus.checkSessions[idx];
+}
+
+/** Idempotent per item_key — a repeat report (e.g. a retest) overwrites the previous one */
+export function putCheckResult(token: string, result: IDemoCheckResult): IDemoCheckSession | null {
+  const bus = loadBus();
+  const idx = bus.checkSessions.findIndex((c) => c.token === token);
+  if (idx < 0) return null;
+  const s = bus.checkSessions[idx];
+  bus.checkSessions[idx] = { ...s, results: { ...s.results, [result.itemKey]: result } };
+  saveBus(bus);
+  return bus.checkSessions[idx];
+}
+
+export function setCheckCommand(token: string, command: IDemoCheckCommand | null): IDemoCheckSession | null {
+  return patchCheckSession(token, { command });
 }
 
 export function pushInbound(item: IDemoInbound) {

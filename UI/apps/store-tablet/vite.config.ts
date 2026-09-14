@@ -7,6 +7,17 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3002,
+    /**
+     * TAB-P0-14 — the check page opens from the tablet, so in dev it must live on the
+     * tablet's origin: a separate port would give it its own localStorage and the
+     * demoBus (device-check session state) could not reach the tablet.
+     */
+    proxy: {
+      '/device-check': {
+        target: 'http://localhost:3004',
+        changeOrigin: false,
+      },
+    },
   },
   resolve: {
     alias: {

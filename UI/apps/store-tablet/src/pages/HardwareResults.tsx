@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Card, ProgressBar, Badge, Input, Modal } from '@dobara/ui';
-import { CheckCircle, XCircle, AlertTriangle, RefreshCw, Usb, Hash, Smartphone } from 'lucide-react';
+import { CheckCircle, XCircle, AlertTriangle, RefreshCw, Usb, Hash, Smartphone, ShieldAlert, ExternalLink } from 'lucide-react';
 import { HARDWARE_CHECK_ITEMS } from '@dobara/utils';
+import { subscribeBus, type IDemoCheckResult } from '@dobara/mock';
 import { markStepComplete } from '../lib/sessionProgress';
 
-type TResult = 'normal' | 'abnormal' | 'timeout' | 'pending' | 'manual';
+type TResult = 'normal' | 'abnormal' | 'timeout' | 'pending' | 'manual' | 'unauthorized' | 'pending_network';
 /** TAB-P0-02 v1.8 — detection channel per item: USB read / on-device H5 page / H5 guide + ADB verdict. */
 type TChannel = 'usb' | 'h5' | 'hybrid';
 type TPlatform = 'android' | 'ios';
@@ -21,6 +22,20 @@ const CHANNEL_OF: Record<string, TChannel> = {
   'Camera': 'h5',
   'Speaker & Microphone': 'h5',
   'Buttons': 'hybrid',
+};
+
+/** Tablet item name → CLOUD-P0-16 item_key (shared namespace with the H5 page) */
+const ITEM_KEY_OF: Record<string, string> = {
+  'IMEI / Serial Number': 'imei',
+  'Brand & Model': 'brand_model',
+  'Battery Health': 'battery',
+  'Screen Display': 'screen_display',
+  'Screen Touch': 'screen_touch',
+  Sensors: 'sensors',
+  'Storage Capacity': 'storage',
+  Camera: 'camera',
+  'Speaker & Microphone': 'speaker_mic',
+  Buttons: 'buttons',
 };
 
 const CHANNEL_LABEL: Record<TChannel, string> = {
@@ -68,11 +83,25 @@ const statusIcon = (s: TResult) => {
     case 'abnormal':
       return <XCircle size={16} className="text-dobara-error" />;
     case 'timeout':
+    case 'unauthorized':
+    case 'pending_network':
       return <AlertTriangle size={16} className="text-dobara-warning" />;
     case 'pending':
       return <RefreshCw size={16} className="text-text-muted animate-spin" />;
   }
 };
+
+/** Relay status → tablet result vocabulary */
+function toTResult(s: IDemoCheckResult['status']): TResult {
+  switch (s) {
+    case 'normal': return 'normal';
+    case 'abnormal': return 'abnormal';
+    case 'unauthorized': return 'unauthorized';
+    case 'pending_network': return 'pending_network';
+    case 'manual': return 'manual';
+    default: return 'timeout';
+  }
+}
 
 type TImeiWizardStep = 'typing' | 'press' | 'ocr';
 
@@ -97,7 +126,13 @@ export default function HardwareResults() {
   // --- Network provisioning & H5 link (TAB-P0-14) ---
   const [platform, setPlatform] = useState<TPlatform>('android');
   const [netOnline, setNetOnline] = useState(false);
-  const [h5Phase, setH5Phase] = useState<'idle' | 'launching' | 'open'>('idle');
+  const [h5Phase, setH5Phase] = useState<'idle' | 'issuing' | 'awaiting' | 'open'>('idle');
+  /** Token issued by the relay for this session (null until the H5 stage starts) */
+  const [checkToken, setCheckToken] = useState('');
+  const [fingerprint, setFingerprint] = useState<{ userAgent: string; deviceMemoryGb: number | null; cpuCores: number | null } | null>(null);
+  const [fingerprintMismatch, setFingerprintMismatch] = useState(false);
+  const [simulateMismatch, setSimulateMismatch] = useState(false);
+  const [relayError, setRelayError] = useState('');
 
   // --- Android IMEI semi-automatic secret code (*#06 typed + clerk presses #) ---
   const [imeiWizard, setImeiWizard] = useState<TImeiWizardStep | null>(null);
@@ -112,13 +147,99 @@ export default function HardwareResults() {
     setH5Phase('idle');
   }, [platform]);
 
-  // H5 auto-launch (Android): VIEW intent fires once the first interactive item is due.
-  useEffect(() => {
-    if (h5Phase === 'launching') {
-      const t = setTimeout(() => setH5Phase('open'), 1200);
-      return () => clearTimeout(t);
+  const h5Url = checkToken
+    ? `${window.location.origin}/device-check/?token=${checkToken}`
+    : '';
+
+  /**
+   * Issue the one-time check token (CLOUD-P0-16). Android fires the VIEW intent at the
+   * same moment; iOS waits for the clerk to scan the QR.
+   */
+  const issueToken = async () => {
+    if (!sessionId || h5Phase !== 'idle') return;
+    setH5Phase('issuing');
+    setRelayError('');
+    try {
+      const res = await fetch(`/api/inspections/${sessionId}/check-token`, { method: 'POST' });
+      if (!res.ok) throw new Error('issue failed');
+      const data = (await res.json()) as { token: string };
+      setCheckToken(data.token);
+      setH5Phase('awaiting');
+      if (platform === 'android') {
+        // ADB VIEW intent on real hardware; a new tab is the browser stand-in
+        window.open(`/device-check/?token=${data.token}`, '_blank');
+      }
+    } catch {
+      setH5Phase('idle');
+      setRelayError('Could not reach the check relay — interactive items are on hold.');
     }
-  }, [h5Phase]);
+  };
+
+  /**
+   * Progress sync (CLOUD-P0-16): the demo bus delivers cross-tab updates instantly, and a
+   * 2-second poll acts as the documented fallback (WS 不可用时轮询兜底).
+   */
+  useEffect(() => {
+    if (!sessionId || h5Phase === 'idle') return;
+    let cancelled = false;
+    const apply = (data: {
+      status: string;
+      results?: Record<string, IDemoCheckResult>;
+      fingerprint?: { userAgent: string; deviceMemoryGb: number | null; cpuCores: number | null } | null;
+    }) => {
+      if (cancelled) return;
+      if (data.fingerprint) {
+        setFingerprint(data.fingerprint);
+        // Cross-check the H5 fingerprint against the platform the tablet believes it read
+        const ua = data.fingerprint.userAgent.toLowerCase();
+        const h5LooksIos = /iphone|ipad|ios/.test(ua);
+        const h5LooksAndroid = /android/.test(ua);
+        const contradicts =
+          (platform === 'ios' && h5LooksAndroid) || (platform === 'android' && h5LooksIos);
+        setFingerprintMismatch(contradicts);
+      }
+      if (data.status === 'active' || data.status === 'done') setH5Phase('open');
+      if (data.results) {
+        setItems((prev) =>
+          prev.map((it) => {
+            const r = data.results?.[ITEM_KEY_OF[it.name]];
+            if (!r || it.status !== 'pending') return it;
+            return { ...it, status: toTResult(r.status), value: r.value || it.value };
+          }),
+        );
+      }
+    };
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/inspections/${sessionId}/check-progress`);
+        if (!res.ok) return;
+        apply(await res.json());
+        setRelayError('');
+      } catch {
+        // Relay unreachable — interactive items degrade to "awaiting network" (TAB-P0-11 衔接)
+        setRelayError('Check relay unreachable — interactive results will sync when the network returns.');
+      }
+    };
+    const unsub = subscribeBus(() => { void poll(); });
+    void poll();
+    const id = setInterval(poll, 2000);
+    return () => { cancelled = true; unsub(); clearInterval(id); };
+  }, [sessionId, h5Phase, platform]);
+
+  /** Single-item retest: downlink command, the H5 reruns that item and overwrites the result */
+  const requestRetest = async (itemName: string) => {
+    const itemKey = ITEM_KEY_OF[itemName];
+    if (!itemKey || !sessionId) return;
+    setItems((prev) =>
+      prev.map((it) => (it.name === itemName ? { ...it, status: 'pending', value: 'Retest requested…' } : it)),
+    );
+    try {
+      const res = await fetch(`/api/inspections/${sessionId}/check-retest/${itemKey}`, { method: 'POST' });
+      if (!res.ok) throw new Error('retest failed');
+    } catch {
+      setRelayError('Could not send the retest command to the check page.');
+    }
+  };
 
   const currentName = items[currentIndex]?.name ?? '';
   const currentChannel = CHANNEL_OF[currentName] ?? 'usb';
@@ -155,9 +276,16 @@ export default function HardwareResults() {
       setDone(true);
       return;
     }
+    const current = items[currentIndex];
+    if (!current) return;
+    // Already resolved (relayed from the phone, retried, or judged over USB) — advance
+    if (current.status !== 'pending') {
+      setCurrentIndex((i) => i + 1);
+      return;
+    }
     // Gate interactive items behind the on-device H5 page being open
     if (needsH5 && h5Phase !== 'open') {
-      if (h5Phase === 'idle' && platform === 'android' && netOnline) setH5Phase('launching');
+      if (h5Phase === 'idle' && platform === 'android' && netOnline) void issueToken();
       return;
     }
     // Android IMEI runs the semi-automatic secret-code wizard instead of a silent read
@@ -166,6 +294,9 @@ export default function HardwareResults() {
       return;
     }
     if (imeiWizard !== null) return;
+    // H5-owned items are resolved by the phone's report over the relay — never locally,
+    // otherwise the tablet would fake a result the device never produced.
+    if (currentChannel === 'h5') return;
     if (forceTimeoutIdx === currentIndex) {
       setItems((prev) => {
         const next = [...prev];
@@ -191,7 +322,7 @@ export default function HardwareResults() {
       setCurrentIndex((i) => i + 1);
     }, 500);
     return () => clearTimeout(timeout);
-  }, [currentIndex, items.length, usbDisconnected, done, forceTimeoutIdx, needsH5, h5Phase, platform, netOnline, imeiWizard, currentName]);
+  }, [currentIndex, items, usbDisconnected, done, forceTimeoutIdx, needsH5, h5Phase, platform, netOnline, imeiWizard, currentName, currentChannel]);
 
   const handleRetest = (index: number) => {
     if (items[index].retries >= 2) return;
@@ -308,8 +439,8 @@ export default function HardwareResults() {
           </p>
         ) : (
           <div className="flex flex-wrap items-center gap-3" data-testid="network-ios">
-            <div className="w-14 h-14 rounded-md border border-dashed border-border bg-surface-low flex items-center justify-center text-[10px] text-text-muted font-mono text-center">
-              QR
+            <div className="w-16 h-16 rounded-md border border-dashed border-border bg-surface-low flex items-center justify-center text-[10px] text-text-muted font-mono text-center p-1" data-testid="ios-qr-block">
+              {checkToken ? 'QR ▸ scan to open' : 'QR'}
             </div>
             <div className="flex-1 min-w-[180px]">
               <p className="text-caption text-text-secondary">
@@ -317,29 +448,85 @@ export default function HardwareResults() {
               </p>
               <p className="text-eyebrow text-text-muted mt-0.5">Connect hotspot → scan QR → Safari opens the check page</p>
             </div>
-            {!netOnline && (
-              <Button size="sm" variant="secondary" data-testid="simulate-qr-scan" onClick={() => { setNetOnline(true); setH5Phase('launching'); }}>
+            {h5Phase === 'idle' && (
+              <Button size="sm" variant="secondary" data-testid="simulate-qr-scan" onClick={() => { setNetOnline(true); void issueToken(); }}>
                 Simulate QR scan
               </Button>
             )}
           </div>
         )}
-        <div className="mt-2 flex items-center gap-2 text-eyebrow text-text-muted uppercase">
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-eyebrow text-text-muted uppercase">
           <Smartphone size={12} />
           H5 check page:
           <span
+            data-testid="h5-phase"
             className={
               h5Phase === 'open'
                 ? 'text-dobara-success'
-                : h5Phase === 'launching'
+                : h5Phase === 'issuing' || h5Phase === 'awaiting'
                 ? 'text-dobara-warning'
                 : 'text-text-muted'
             }
           >
-            {h5Phase === 'open' ? 'running on device' : h5Phase === 'launching' ? 'opening…' : 'idle'}
+            {h5Phase === 'open'
+              ? 'running on device'
+              : h5Phase === 'awaiting'
+              ? 'token issued — waiting for the page'
+              : h5Phase === 'issuing'
+              ? 'issuing token…'
+              : 'idle'}
           </span>
+          {h5Url && (
+            <>
+              <a
+                href={h5Url}
+                target="_blank"
+                rel="noreferrer"
+                data-testid="open-check-page"
+                className="normal-case text-primary-600 hover:underline inline-flex items-center gap-1"
+              >
+                <ExternalLink size={12} /> open check page
+              </a>
+              <span className="w-full text-[10px] font-mono text-text-muted break-all normal-case" data-testid="h5-url">
+                {h5Url}
+              </span>
+            </>
+          )}
         </div>
       </Card>
+
+      {/* Anti-cheat: H5 fingerprint vs the tablet's own read (CLOUD-P0-16) */}
+      {needsH5 && !usbDisconnected && !done && (fingerprint || simulateMismatch) && (
+        <div className="mb-4" data-testid="h5-fingerprint">
+          <div className="flex flex-wrap items-center gap-2 text-eyebrow text-text-muted">
+            <span className="uppercase">H5 device fingerprint:</span>
+            <span className="font-mono">
+              {fingerprint ? `${fingerprint.cpuCores ?? '?'} cores · ${fingerprint.deviceMemoryGb ?? '?'} GB` : 'simulated'}
+            </span>
+            <button
+              type="button"
+              data-testid="toggle-mismatch"
+              onClick={() => setSimulateMismatch((v) => !v)}
+              className="text-primary-600 hover:underline normal-case"
+            >
+              {simulateMismatch ? 'clear simulate' : 'simulate mismatch'}
+            </button>
+          </div>
+          {(fingerprintMismatch || simulateMismatch) && (
+            <div className="mt-1 rounded-lg bg-dobara-warning-light text-[#78350f] px-4 py-3 text-caption font-semibold flex items-center gap-2" data-testid="h5-mismatch-warning">
+              <ShieldAlert size={16} />
+              The phone reported a device that doesn&apos;t match the model read over USB — ask the clerk to re-check
+              which phone is connected.
+            </div>
+          )}
+        </div>
+      )}
+
+      {relayError && (
+        <div className="mb-4 rounded-lg bg-dobara-warning-light text-[#78350f] px-4 py-3 text-caption font-semibold" data-testid="relay-error">
+          {relayError}
+        </div>
+      )}
 
       {/* Waiting states before interactive items can run */}
       {needsH5 && !usbDisconnected && !done && (
@@ -347,9 +534,13 @@ export default function HardwareResults() {
           <div className="mb-4 rounded-lg bg-dobara-warning-light text-[#78350f] px-4 py-3 text-caption font-semibold">
             Waiting for QR scan on the iPhone before interactive tests can start…
           </div>
-        ) : h5Phase === 'launching' ? (
+        ) : h5Phase === 'awaiting' ? (
+          <div className="mb-4 rounded-lg bg-dobara-info-light text-[#1e3a8a] px-4 py-3 text-caption font-semibold" data-testid="h5-awaiting">
+            Check page link is live for 30 minutes — waiting for it to open on the device…
+          </div>
+        ) : h5Phase === 'issuing' ? (
           <div className="mb-4 rounded-lg bg-dobara-info-light text-[#1e3a8a] px-4 py-3 text-caption font-semibold">
-            Opening the check page in the device browser (one-time token)…
+            Issuing a one-time check token…
           </div>
         ) : null
       )}
@@ -379,6 +570,28 @@ export default function HardwareResults() {
         <Button size="sm" variant="ghost" data-testid="manual-imei-open" onClick={() => setManualImeiOpen(true)}>
           Manual IMEI
         </Button>
+        {/*
+          Demo-only shortcut. Real sessions get these results from the phone over the relay
+          (nothing below fabricates them implicitly) — this just lets the flow be walked
+          when no second device is at hand.
+        */}
+        <Button
+          size="sm"
+          variant="ghost"
+          data-testid="sim-h5-results"
+          disabled={done}
+          onClick={() =>
+            setItems((prev) =>
+              prev.map((it) =>
+                it.status === 'pending' && (CHANNEL_OF[it.name] === 'h5' || CHANNEL_OF[it.name] === 'hybrid')
+                  ? { ...it, status: 'normal', value: defaultMockValues[it.name]?.value ?? 'OK' }
+                  : it,
+              ),
+            )
+          }
+        >
+          Simulate device results (demo)
+        </Button>
       </div>
 
       <div className="mb-6">
@@ -388,7 +601,12 @@ export default function HardwareResults() {
       <div className="space-y-2 mb-6">
         {items.map((item, i) => (
           <React.Fragment key={i}>
-            <Card variant="flat" className="flex items-center gap-3 p-3">
+            <Card
+              variant="flat"
+              className="flex items-center gap-3 p-3"
+              data-testid={`hw-item-${ITEM_KEY_OF[item.name]}`}
+              data-status={item.status}
+            >
               <div className="w-6 h-6 flex items-center justify-center shrink-0">{statusIcon(item.status)}</div>
               <div className="flex-1 min-w-0">
                 <div className="text-caption font-semibold text-text-primary truncate">
@@ -405,14 +623,32 @@ export default function HardwareResults() {
                     ? 'success'
                     : item.status === 'abnormal'
                     ? 'error'
-                    : item.status === 'timeout'
+                    : item.status === 'timeout' || item.status === 'unauthorized' || item.status === 'pending_network'
                     ? 'warning'
                     : 'neutral'
                 }
               >
-                {item.status === 'manual' ? 'Manual' : item.status}
+                {item.status === 'manual'
+                  ? 'Manual'
+                  : item.status === 'unauthorized'
+                  ? 'Not authorized'
+                  : item.status === 'pending_network'
+                  ? 'Awaiting network'
+                  : item.status}
               </Badge>
-              {(item.status === 'abnormal' || item.status === 'timeout') && item.retries < 2 && (
+              {/* H5-owned items are retested on the phone via a downlink command (TAB-P0-14) */}
+              {(CHANNEL_OF[item.name] === 'h5' || CHANNEL_OF[item.name] === 'hybrid') && item.status !== 'pending' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<RefreshCw size={12} />}
+                  data-testid={`h5-retest-${ITEM_KEY_OF[item.name]}`}
+                  onClick={() => { void requestRetest(item.name); }}
+                >
+                  Retest
+                </Button>
+              )}
+              {(item.status === 'abnormal' || item.status === 'timeout') && item.retries < 2 && CHANNEL_OF[item.name] === 'usb' && (
                 <Button variant="ghost" size="sm" icon={<RefreshCw size={12} />} onClick={() => handleRetest(i)}>
                   Retry ({item.retries}/2)
                 </Button>

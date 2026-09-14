@@ -22,15 +22,24 @@ import type { IOrder, IRecycleOrder } from '@dobara/utils';
 import { calcOrderTotal, LOCK_DURATION_SECONDS, QUOTE_DURATION_SECONDS } from '@dobara/utils';
 import {
   confirmTradeInRedeem,
+  consumeCheckSession,
+  getCheckSessionBySessionId,
+  getCheckSessionByToken,
   getTradeInBus,
+  isCheckSessionLive,
+  issueCheckSession,
   listRecycleOrdersMerged,
   listReviewQueue,
   listTradeInsBus,
+  patchCheckSession,
   pushPickOrder,
+  putCheckResult,
   removeFromReviewQueue,
+  setCheckCommand,
   upsertRecycleOrder,
   upsertTradeIn,
   pushReviewDevice,
+  type IDemoCheckResult,
 } from '../demoBus';
 
 const simulateDelay = async () => {
@@ -39,6 +48,11 @@ const simulateDelay = async () => {
 
 /** App normalises to the last 10 digits (Login.tsx); seeded users carry a +91 prefix. */
 const normalizePhone = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
+
+/** CLOUD-P0-16 — item_key list the H5 page is expected to cover (PRD 检测结果数据模型) */
+const CHECK_ITEM_KEYS = [
+  'screen_display', 'screen_touch', 'sensors', 'speaker_mic', 'camera', 'buttons',
+];
 
 /** APP-P0-10 热门搜索 Top 10 */
 const HOT_SEARCHES = [
@@ -382,6 +396,121 @@ export const handlers = [
     await simulateDelay();
     const user = users.find((u) => u.id === String(params.id));
     return HttpResponse.json({ user: user || null });
+  }),
+
+  /**
+   * CLOUD-P0-16 H5 检测页中转服务 (relay for TAB-P0-14)
+   * The mock plays the cloud relay role: the tablet issues/observes a check token, the H5
+   * page on the inspected phone consumes it and reports results. State rides the demoBus so
+   * the tablet tab and the H5 tab stay in sync on the same origin.
+   */
+  http.post('/api/inspections/:sessionId/check-token', async ({ params }) => {
+    await simulateDelay();
+    const sessionId = String(params.sessionId);
+    const session = issueCheckSession(sessionId, 'ST-MH-0001');
+    return HttpResponse.json({ success: true, ...session });
+  }),
+
+  http.get('/api/check/:token', async ({ params }) => {
+    await simulateDelay();
+    const token = String(params.token);
+    const existing = getCheckSessionByToken(token);
+    if (!existing) {
+      return HttpResponse.json({ error: 'Invalid token' }, { status: 404 });
+    }
+    if (!isCheckSessionLive(existing)) {
+      return HttpResponse.json({ error: 'Token expired' }, { status: 410 });
+    }
+    // One-time consumption: the first visit binds, any later visit is Gone
+    const session = existing.status === 'issued' ? consumeCheckSession(token) : null;
+    if (!session) {
+      return HttpResponse.json({ error: 'Token already used' }, { status: 410 });
+    }
+    return HttpResponse.json({
+      sessionId: session.sessionId,
+      expiresAt: session.expiresAt,
+      items: CHECK_ITEM_KEYS,
+    });
+  }),
+
+  http.post('/api/check/:token/results', async ({ params, request }) => {
+    await simulateDelay();
+    const token = String(params.token);
+    const session = getCheckSessionByToken(token);
+    if (!session) return HttpResponse.json({ error: 'Invalid token' }, { status: 404 });
+    if (!isCheckSessionLive(session)) return HttpResponse.json({ error: 'Token expired' }, { status: 410 });
+    const body = (await request.json()) as {
+      itemKey: string;
+      status: IDemoCheckResult['status'];
+      value?: string;
+      verdictSource?: IDemoCheckResult['verdictSource'];
+      fingerprint?: { userAgent: string; deviceMemoryGb: number | null; cpuCores: number | null };
+    };
+    if (!body.itemKey) return HttpResponse.json({ error: 'itemKey required' }, { status: 400 });
+    const next = putCheckResult(token, {
+      itemKey: body.itemKey,
+      status: body.status,
+      value: body.value ?? '',
+      channel: 'h5',
+      verdictSource: body.verdictSource ?? 'h5_auto',
+      capturedAt: new Date().toISOString(),
+    });
+    if (body.fingerprint) {
+      patchCheckSession(token, {
+        fingerprint: { ...body.fingerprint, capturedAt: new Date().toISOString() },
+      });
+    }
+    return HttpResponse.json({ success: true, results: next?.results ?? {} });
+  }),
+
+  http.get('/api/check/:token/command', async ({ params }) => {
+    await simulateDelay();
+    const token = String(params.token);
+    const session = getCheckSessionByToken(token);
+    if (!session) return HttpResponse.json({ error: 'Invalid token' }, { status: 404 });
+    if (!isCheckSessionLive(session)) return HttpResponse.json({ error: 'Token expired' }, { status: 410 });
+    const command = session.command ?? null;
+    return HttpResponse.json({ command });
+  }),
+
+  http.get('/api/inspections/:sessionId/check-progress', async ({ params }) => {
+    await simulateDelay();
+    const sessionId = String(params.sessionId);
+    const session = getCheckSessionBySessionId(sessionId);
+    if (!session) {
+      return HttpResponse.json({ sessionId, status: 'none', results: {}, fingerprint: null });
+    }
+    const live = isCheckSessionLive(session);
+    return HttpResponse.json({
+      sessionId,
+      token: session.token,
+      status: live ? session.status : 'expired',
+      expiresAt: session.expiresAt,
+      results: session.results,
+      fingerprint: session.fingerprint ?? null,
+    });
+  }),
+
+  http.post('/api/inspections/:sessionId/check-retest/:itemKey', async ({ params }) => {
+    await simulateDelay();
+    const sessionId = String(params.sessionId);
+    const itemKey = String(params.itemKey);
+    const session = getCheckSessionBySessionId(sessionId);
+    if (!session) return HttpResponse.json({ error: 'No check session' }, { status: 404 });
+    if (!isCheckSessionLive(session)) return HttpResponse.json({ error: 'Token expired' }, { status: 410 });
+    // 幂等：复测覆盖旧结果由 H5 重新上报时完成；此处仅下发指令
+    setCheckCommand(session.token, { type: 'retest', itemKey, issuedAt: new Date().toISOString() });
+    return HttpResponse.json({ success: true, itemKey });
+  }),
+
+  http.post('/api/inspections/:sessionId/check-finish', async ({ params }) => {
+    await simulateDelay();
+    const sessionId = String(params.sessionId);
+    const session = getCheckSessionBySessionId(sessionId);
+    if (!session) return HttpResponse.json({ error: 'No check session' }, { status: 404 });
+    setCheckCommand(session.token, { type: 'finish', issuedAt: new Date().toISOString() });
+    patchCheckSession(session.token, { status: 'done' });
+    return HttpResponse.json({ success: true });
   }),
 
   // OTP

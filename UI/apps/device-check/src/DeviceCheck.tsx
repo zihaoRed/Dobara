@@ -2,17 +2,52 @@ import React, { useEffect, useRef, useState } from 'react';
 
 /**
  * TAB-P0-14 — on-device H5 check page (runs in the browser of the phone being inspected).
- * Opened by the tablet (Android: ADB VIEW intent / iOS: QR scan) with a one-time token.
- * This implementation runs locally. Backend/session relay integration is intentionally deferred.
+ * Opened by the tablet (Android: ADB VIEW intent / iOS: QR scan) with a one-time token,
+ * relayed through the CLOUD-P0-16 service: the token binds this page to the tablet's
+ * inspection session, each finished item is reported up, and retest/finish commands come
+ * back down on a 2-second poll (the page keeps no long-lived connection).
  * Physical buttons are guided here but judged by the tablet via ADB — not by this page.
  */
 
 type TStepKey = 'screen' | 'touch' | 'sensors' | 'speaker' | 'mic' | 'camera' | 'buttons';
 type TResult = 'pass' | 'fail' | 'unauthorized' | 'unsupported' | 'external' | 'unknown';
 
+/** Maps an H5 step onto the CLOUD-P0-16 item_key namespace (speaker+mic share one item) */
+const ITEM_KEY_OF: Record<TStepKey, string> = {
+  screen: 'screen_display',
+  touch: 'screen_touch',
+  sensors: 'sensors',
+  speaker: 'speaker_mic',
+  mic: 'speaker_mic',
+  camera: 'camera',
+  buttons: 'buttons',
+};
+
+/** Result → the status vocabulary the relay/tablet understand */
+function relayStatus(r: TResult): 'normal' | 'abnormal' | 'timeout' | 'manual' | 'unauthorized' | 'pending_network' {
+  switch (r) {
+    case 'pass': return 'normal';
+    case 'fail': return 'abnormal';
+    case 'unauthorized': return 'unauthorized';
+    case 'external': return 'manual';
+    default: return 'timeout';
+  }
+}
+
 const params = new URLSearchParams(window.location.search);
 const IS_DEMO = params.get('demo') === '1';
-const initialToken = params.get('token')?.trim() || `LOCAL-${Date.now().toString(36).toUpperCase()}`;
+const URL_TOKEN = params.get('token')?.trim() || '';
+const initialToken = URL_TOKEN || `LOCAL-${Date.now().toString(36).toUpperCase()}`;
+
+/** Anti-cheat fingerprint (CLOUD-P0-16): compared against the tablet's ADB model read */
+function readFingerprint() {
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  return {
+    userAgent: navigator.userAgent,
+    deviceMemoryGb: typeof nav.deviceMemory === 'number' ? nav.deviceMemory : null,
+    cpuCores: navigator.hardwareConcurrency || null,
+  };
+}
 
 function mediaFailure(error: unknown): Extract<TResult, 'unauthorized' | 'unsupported' | 'fail'> {
   const name = error instanceof DOMException ? error.name : '';
@@ -74,12 +109,60 @@ export default function DeviceCheck() {
     screen: 'unknown', touch: 'unknown', sensors: 'unknown',
     speaker: 'unknown', mic: 'unknown', camera: 'unknown', buttons: 'unknown',
   });
+  /** Set when the relay rejects the token (expired / already used) */
+  const [linkError, setLinkError] = useState('');
+  const [linking, setLinking] = useState(false);
+  /** Offline degrade (TAB-P0-14 断网降级): results are held locally and flushed on reconnect */
+  const [offline, setOffline] = useState(!navigator.onLine);
+  const [retestKey, setRetestKey] = useState<TStepKey | null>(null);
+  const resultsRef = useRef(results);
+  const reportedRef = useRef<Set<string>>(new Set());
+  const pendingRef = useRef<{ key: TStepKey; r: TResult }[]>([]);
+
+  resultsRef.current = results;
+  /** A real relay session exists only when the tablet supplied a token via URL */
+  const linked = !!URL_TOKEN;
+
+  /** Report one item up to the relay; queue it locally when offline */
+  const report = (key: TStepKey, r: TResult) => {
+    if (!linked) return;
+    if (!navigator.onLine) {
+      pendingRef.current.push({ key, r });
+      setOffline(true);
+      return;
+    }
+    const itemKey = ITEM_KEY_OF[key];
+    // speaker + mic share one item_key — send the combined verdict so the later step
+    // does not silently overwrite the earlier one
+    const combined =
+      itemKey === 'speaker_mic' && resultsRef.current[key === 'mic' ? 'speaker' : 'mic'] !== 'unknown'
+        ? `${resultsRef.current.speaker === 'pass' ? 'Speaker OK' : `Speaker ${resultsRef.current.speaker}`} · ${resultsRef.current.mic === 'pass' ? 'Mic OK' : `Mic ${resultsRef.current.mic}`}`
+        : String(r);
+    const first = !reportedRef.current.has(itemKey);
+    reportedRef.current.add(itemKey);
+    fetch(`/api/check/${token}/results`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        itemKey,
+        status: relayStatus(r),
+        value: combined,
+        verdictSource: r === 'external' ? 'adb' : 'h5_auto',
+        ...(first ? { fingerprint: readFingerprint() } : {}),
+      }),
+    }).catch(() => {
+      pendingRef.current.push({ key, r });
+      reportedRef.current.delete(itemKey);
+    });
+  };
 
   const setResult = (key: TStepKey, r: TResult) =>
     setResults((prev) => ({ ...prev, [key]: r }));
 
   const finishStep = (key: TStepKey, r: TResult) => {
     setResult(key, r);
+    report(key, r);
+    setRetestKey(null);
     setStepIdx((i) => i + 1);
   };
 
@@ -90,18 +173,96 @@ export default function DeviceCheck() {
     if (phase === 'testing' && stepIdx >= STEPS.length) setPhase('done');
   }, [phase, stepIdx]);
 
+  // Online/offline tracking + flush of results held during an outage
+  useEffect(() => {
+    const goOnline = () => {
+      setOffline(false);
+      const queued = pendingRef.current;
+      pendingRef.current = [];
+      queued.forEach(({ key, r }) => report(key, r));
+    };
+    const goOffline = () => setOffline(true);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  });
+
+  // Bind the token on the relay before testing starts (one-time consumption)
+  const startCheck = async () => {
+    if (!linked) {
+      setPhase('testing');
+      return;
+    }
+    setLinking(true);
+    setLinkError('');
+    try {
+      const res = await fetch(`/api/check/${token}`);
+      if (res.status === 410 || res.status === 404) {
+        setLinkError('This check link has expired or was already used. Ask the clerk to issue a new one.');
+        return;
+      }
+      if (!res.ok) throw new Error('relay unavailable');
+      setPhase('testing');
+    } catch {
+      // Relay unreachable — run locally and report the interruption instead of blocking the clerk
+      setOffline(true);
+      setPhase('testing');
+    } finally {
+      setLinking(false);
+    }
+  };
+
+  // 2-second downlink poll (TAB-P0-14: the phone browser keeps no long connection)
+  useEffect(() => {
+    if (!linked || phase === 'token' || !token) return;
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const res = await fetch(`/api/check/${token}/command`);
+        if (!res.ok) return;
+        const { command } = (await res.json()) as { command: { type: string; itemKey?: string } | null };
+        if (cancelled || !command) return;
+        if (command.type === 'finish') {
+          setPhase('done');
+          return;
+        }
+        if (command.type === 'retest' && command.itemKey) {
+          const key = (Object.keys(ITEM_KEY_OF) as TStepKey[]).find(
+            (k) => ITEM_KEY_OF[k] === command.itemKey,
+          );
+          if (!key) return;
+          // Clear the command so it is not replayed on the next poll
+          await fetch(`/api/check/${token}/results`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemKey: command.itemKey, status: relayStatus(resultsRef.current[key]), value: 'Retest requested…' }) }).catch(() => null);
+          reportedRef.current.delete(command.itemKey);
+          setResults((prev) => ({ ...prev, [key]: 'unknown' }));
+          setRetestKey(key);
+          setStepIdx(STEPS.findIndex((s) => s.key === key));
+        }
+      } catch { /* relay unreachable — stay on the current step */ }
+    };
+    const id = setInterval(tick, 2000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [linked, phase, token]);
+
   return (
     <div className="dc-app" style={{ display: 'flex', flexDirection: 'column', maxWidth: 480, margin: '0 auto', width: '100%' }}>
       {phase === 'token' && (
         <TokenGate
           token={token}
           setToken={setToken}
-          onStart={() => setPhase('testing')}
+          linked={linked}
+          linking={linking}
+          linkError={linkError}
+          offline={offline}
+          onStart={startCheck}
         />
       )}
       {phase === 'testing' && step && (
         <>
-          <Header stepIdx={stepIdx} token={token} />
+          <Header stepIdx={stepIdx} token={token} retestKey={retestKey} offline={offline} />
           <div style={{ flex: 1, padding: 16, display: 'flex', flexDirection: 'column' }}>
             {step.key === 'screen' && <ScreenTest onDone={(r) => finishStep('screen', r)} />}
             {step.key === 'touch' && <TouchTest onDone={(r) => finishStep('touch', r)} />}
@@ -120,12 +281,14 @@ export default function DeviceCheck() {
 
 /* ---------- Header ---------- */
 
-function Header({ stepIdx, token }: { stepIdx: number; token: string }) {
+function Header({ stepIdx, token, retestKey, offline }: { stepIdx: number; token: string; retestKey: TStepKey | null; offline: boolean }) {
   return (
     <header className="dc-header" style={{ background: BRAND, color: '#fff', padding: '14px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontWeight: 800, letterSpacing: '-0.02em' }}>Dobara · Device Check</span>
-        <span style={{ fontSize: 12, opacity: 0.75, fontFamily: 'monospace' }}>token {token}</span>
+        <span style={{ fontSize: 12, opacity: 0.75, fontFamily: 'monospace' }}>
+          {token.length > 12 ? `${token.slice(0, 8)}…` : token}
+        </span>
       </div>
       <div style={{ display: 'flex', gap: 4, marginTop: 10 }}>
         {STEPS.map((s, i) => (
@@ -138,22 +301,49 @@ function Header({ stepIdx, token }: { stepIdx: number; token: string }) {
           />
         ))}
       </div>
-      <p style={{ fontSize: 12, opacity: 0.8, marginTop: 8 }}>
-        Step {stepIdx + 1}/{STEPS.length} · {STEPS[stepIdx]?.label} — local inspection
+      <p style={{ fontSize: 12, opacity: 0.8, marginTop: 8 }} data-testid="dc-step-label">
+        Step {stepIdx + 1}/{STEPS.length} · {STEPS[stepIdx]?.label}
+        {retestKey ? ' — retest requested by the clerk' : ''}
       </p>
+      {offline && (
+        <p style={{ fontSize: 12, marginTop: 6, color: '#ffd9d5' }} data-testid="dc-offline-banner">
+          Offline — results are held on this phone and sent when the connection returns.
+        </p>
+      )}
     </header>
   );
 }
 
 /* ---------- Token gate ---------- */
 
-function TokenGate({ token, setToken, onStart }: { token: string; setToken: (t: string) => void; onStart: () => void }) {
-  const [linking, setLinking] = useState(false);
-  const start = () => {
-    setLinking(true);
-    // Keep a short transition so accidental double taps cannot start two flows.
-    setTimeout(onStart, 900);
-  };
+function TokenGate({
+  token,
+  setToken,
+  linked,
+  linking,
+  linkError,
+  offline,
+  onStart,
+}: {
+  token: string;
+  setToken: (t: string) => void;
+  linked: boolean;
+  linking: boolean;
+  linkError: string;
+  offline: boolean;
+  onStart: () => void;
+}) {
+  // A tablet-issued link has already been rejected — nothing to start
+  if (linkError) {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 24, gap: 16 }} data-testid="dc-link-error">
+        <div style={{ ...card, borderColor: '#f0c9c5', background: '#fdf6f5' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: DANGER, marginBottom: 8 }}>Link expired</h1>
+          <p style={{ fontSize: 14, color: '#5c6863', lineHeight: 1.6 }}>{linkError}</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 24, gap: 16 }}>
       <div style={{ textAlign: 'center', marginBottom: 8 }}>
@@ -171,22 +361,30 @@ function TokenGate({ token, setToken, onStart }: { token: string; setToken: (t: 
           data-testid="dc-token-input"
           value={token}
           onChange={(e) => setToken(e.target.value)}
-          style={{ width: '100%', marginTop: 8, padding: '14px 12px', borderRadius: 10, border: '1px solid #dde3df', fontSize: 16, fontFamily: 'monospace', background: '#f5f6f5' }}
+          readOnly={linked}
+          style={{ width: '100%', marginTop: 8, padding: '14px 12px', borderRadius: 10, border: '1px solid #dde3df', fontSize: 16, fontFamily: 'monospace', background: linked ? '#eef2f0' : '#f5f6f5' }}
         />
-        <p style={{ fontSize: 12, color: '#8a9590', marginTop: 8, lineHeight: 1.5 }}>
-          A local ID is generated automatically. A future tablet integration can provide one with ?token=… in the URL.
+        <p style={{ fontSize: 12, color: '#8a9590', marginTop: 8, lineHeight: 1.5 }} data-testid="dc-link-hint">
+          {linked
+            ? 'Linked to the store tablet. Results report back automatically as you go.'
+            : 'No tablet token in this URL — the check runs locally and results stay on this device.'}
         </p>
-        <button data-testid="dc-start" style={{ ...btn('primary'), width: '100%', marginTop: 14 }} disabled={linking || !token.trim()} onClick={start}>
-          {linking ? 'Linking to session…' : 'Start check'}
+        <button data-testid="dc-start" style={{ ...btn('primary'), width: '100%', marginTop: 14 }} disabled={linking || !token.trim()} onClick={onStart}>
+          {linking ? 'Linking to session…' : linked ? 'Link & start check' : 'Start check'}
         </button>
       </div>
+      {offline && (
+        <p style={{ fontSize: 13, color: '#8a6134', textAlign: 'center', lineHeight: 1.5 }} data-testid="dc-offline-notice">
+          No connection right now — you can still run the tests; results will be handed over once back online.
+        </p>
+      )}
       {!window.isSecureContext && (
         <p style={{ fontSize: 13, color: DANGER, textAlign: 'center', lineHeight: 1.5 }}>
           This page is not in a secure context. Camera, microphone and sensors require HTTPS (localhost is allowed).
         </p>
       )}
       <p style={{ fontSize: 12, color: '#b0bab5', textAlign: 'center' }}>
-        Local browser check · {navigator.hardwareConcurrency || '?'} logical cores · results stay on this device
+        Browser check · {navigator.hardwareConcurrency || '?'} logical cores
       </p>
     </div>
   );

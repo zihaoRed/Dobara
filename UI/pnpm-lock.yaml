@@ -65,6 +65,9 @@ importers:
 
   apps/device-check:
     dependencies:
+      '@dobara/mock':
+        specifier: workspace:*
+        version: link:../../packages/shared-mock
       react:
         specifier: ^18.2.0
         version: 18.3.1

@@ -76,6 +76,11 @@ def run():
             # Android IMEI secret-code wizard (v1.8): tablet types *#06, clerk presses the final #
             page.get_by_test_id("imei-wizard").wait_for()
             page.get_by_test_id("imei-pressed-hash").click()
+            # H5-owned items (screen/touch/sensors/camera/speaker-mic) are produced by the
+            # phone over the CLOUD-P0-16 relay and are never fabricated by the tablet —
+            # h5_linkage.py exercises that real path. This flow has no second device, so it
+            # uses the explicitly-labelled demo shortcut.
+            page.get_by_test_id("sim-h5-results").click()
             page.get_by_test_id("hardware-continue").wait_for(state="visible", timeout=30000)
             # Color gate: walk-in (no appointment) → continue disabled until clerk confirms color
             page.get_by_test_id("color-confirm").wait_for()
