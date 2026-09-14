@@ -40,6 +40,45 @@ const simulateDelay = async () => {
 /** App normalises to the last 10 digits (Login.tsx); seeded users carry a +91 prefix. */
 const normalizePhone = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
 
+/** APP-P0-10 热门搜索 Top 10 */
+const HOT_SEARCHES = [
+  'iPhone 14', 'iPhone 13', 'Galaxy S22', 'OnePlus Nord', 'Xiaomi 14',
+  'iPhone 15', 'Galaxy S21', 'iPhone 12', 'Mi 11', 'Nord 2',
+];
+
+/** Levenshtein — powers the "did you mean" spelling suggestion */
+function editDistance(a: string, b: string): number {
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let diag = prev[0];
+    prev[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = prev[j];
+      prev[j] = Math.min(
+        prev[j] + 1,
+        prev[j - 1] + 1,
+        diag + (a[i - 1] === b[j - 1] ? 0 : 1),
+      );
+      diag = tmp;
+    }
+  }
+  return prev[b.length];
+}
+
+/** Nearest hot-search term within edit distance 2, else null */
+function nearestSearchTerm(q: string): string | null {
+  let best: string | null = null;
+  let bestDist = 3;
+  for (const term of HOT_SEARCHES) {
+    const d = editDistance(q, term.toLowerCase());
+    if (d < bestDist) {
+      bestDist = d;
+      best = term;
+    }
+  }
+  return best;
+}
+
 const lockTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function releaseLock(imei: string) {
@@ -90,11 +129,19 @@ export const handlers = [
 
     let filtered = getAvailableDevices();
 
-    if (brand) filtered = filtered.filter((d) => d.brandId === brand);
-    if (modelId) filtered = filtered.filter((d) => d.modelId === modelId);
-    if (grade) filtered = filtered.filter((d) => d.grade === grade);
-    if (storage) filtered = filtered.filter((d) => d.storage === storage);
-    if (color) filtered = filtered.filter((d) => d.color.toLowerCase() === color.toLowerCase());
+    // Multi-select filters (APP-P0-10): each param accepts a comma-separated list
+    const asList = (v: string | null) => (v ? v.split(',').filter(Boolean) : []);
+    const brandList = asList(brand);
+    const modelList = asList(modelId);
+    const gradeList = asList(grade);
+    const storageList = asList(storage);
+    const colorList = asList(color).map((c) => c.toLowerCase());
+
+    if (brandList.length) filtered = filtered.filter((d) => brandList.includes(d.brandId));
+    if (modelList.length) filtered = filtered.filter((d) => modelList.includes(d.modelId));
+    if (gradeList.length) filtered = filtered.filter((d) => gradeList.includes(d.grade));
+    if (storageList.length) filtered = filtered.filter((d) => storageList.includes(d.storage));
+    if (colorList.length) filtered = filtered.filter((d) => colorList.includes(d.color.toLowerCase()));
     if (minPrice) filtered = filtered.filter((d) => d.price >= Number(minPrice));
     if (maxPrice) filtered = filtered.filter((d) => d.price <= Number(maxPrice));
     if (city) filtered = filtered.filter((d) => d.city === city);
@@ -229,27 +276,33 @@ export const handlers = [
     return HttpResponse.json({ success: true });
   }),
 
+  // Hot searches (APP-P0-10 Top 10) — shown when the search box is empty
+  http.get('/api/search/hot', async () => {
+    await simulateDelay();
+    return HttpResponse.json({ hot: HOT_SEARCHES });
+  }),
+
   http.get('/api/search/suggest', async ({ request }) => {
     await simulateDelay();
     const q = new URL(request.url).searchParams.get('q')?.toLowerCase() || '';
-    const hot = ['iPhone 14', 'iPhone 13', 'Galaxy S22', 'OnePlus Nord', 'Xiaomi 14'];
     if (!q) {
-      return HttpResponse.json({ suggestions: hot, history: ['iPhone 13', 'Samsung'] });
+      return HttpResponse.json({ suggestions: [], history: [], didYouMean: null });
     }
-    const suggestions: string[] = [];
-    brands.forEach((b) => {
-      if (b.name.toLowerCase().includes(q) || q.includes(b.name.toLowerCase().slice(0, 2))) {
-        suggestions.push(b.name);
-      }
-    });
+    const pool: string[] = [];
+    brands.forEach((b) => pool.push(b.name));
     models.forEach((m) => {
       const brand = getBrandById(m.brandId);
-      const label = `${brand?.name || ''} ${m.name}`.trim();
-      if (label.toLowerCase().includes(q) || m.name.toLowerCase().includes(q)) {
-        suggestions.push(label);
-      }
+      pool.push(`${brand?.name || ''} ${m.name}`.trim());
     });
-    return HttpResponse.json({ suggestions: [...new Set(suggestions)].slice(0, 10), history: [] });
+    const labels = [...new Set(pool)];
+    // APP-P0-10: 精确匹配 > 前缀匹配 > 模糊匹配
+    const exact = labels.filter((l) => l.toLowerCase() === q);
+    const prefix = labels.filter((l) => l.toLowerCase().startsWith(q));
+    const fuzzy = labels.filter((l) => l.toLowerCase().includes(q) && !prefix.includes(l));
+    const unique = [...exact, ...prefix, ...fuzzy].slice(0, 10);
+    // Typo correction (APP-P0-10 拼写纠错): only when nothing matched
+    const didYouMean = unique.length === 0 ? nearestSearchTerm(q) : null;
+    return HttpResponse.json({ suggestions: unique, history: [], didYouMean });
   }),
 
   // After-sales

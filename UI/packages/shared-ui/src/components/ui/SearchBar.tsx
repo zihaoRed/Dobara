@@ -9,6 +9,10 @@ interface SearchBarProps {
   showExtras?: boolean;
   onCameraClick?: () => void;
   onMicClick?: () => void;
+  /** Called on Enter — APP-P0-10 commits the term (records search history) */
+  onSubmit?: (value: string) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({
@@ -19,6 +23,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   showExtras = false,
   onCameraClick,
   onMicClick,
+  onSubmit,
+  onFocus,
+  onBlur,
 }) => {
   return (
     <div className={`relative ${className}`}>
@@ -30,6 +37,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onSubmit?.(value);
+        }}
         placeholder={placeholder}
         className={`w-full h-[44px] pl-10 ${showExtras ? 'pr-20' : 'pr-4'} rounded-full border border-border bg-surface-container text-body placeholder:text-text-placeholder focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent shadow-sm`}
       />

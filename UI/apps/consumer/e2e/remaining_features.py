@@ -55,17 +55,64 @@ def run():
             print(f"FAIL address: {e}")
             page.screenshot(path="e2e-fail-address.png", full_page=True)
 
-        # Mall filters + list/grid
+        # Mall filters + view toggle + APP-P0-10 search features
         try:
             page.goto(f"{BASE}/buy", wait_until="domcontentloaded")
             expect(page.get_by_test_id("mall-home")).to_be_visible(timeout=15000)
+
+            # --- Multi-select filters (品牌/型号/成色/容量/颜色 all support multi-select) ---
             page.get_by_test_id("filter-toggle").click()
             expect(page.get_by_test_id("filter-panel")).to_be_visible()
-            page.get_by_role("button", name="Apple").click()
-            page.wait_for_timeout(600)
+            panel = page.get_by_test_id("filter-panel")
+            panel.get_by_role("button", name="Apple", exact=True).click()
+            panel.get_by_role("button", name="Samsung", exact=True).click()
+            page.wait_for_timeout(700)
+            chips = page.get_by_test_id("filter-chips")
+            expect(chips.get_by_text("Apple")).to_be_visible()
+            expect(chips.get_by_text("Samsung")).to_be_visible()
+            # Removing one keeps the other — proves multi-select, not radio behaviour
+            chips.get_by_text("Apple").first.click()
+            page.wait_for_timeout(700)
+            expect(page.get_by_test_id("filter-chips").get_by_text("Samsung")).to_be_visible()
+            expect(page.get_by_test_id("filter-chips").get_by_text("Apple")).to_have_count(0)
+            chips.get_by_text("Samsung").first.click()
+            page.wait_for_timeout(500)
+
+            # --- Similar devices when results are thin (< 3) ---
+            panel.get_by_role("button", name="Blue Haze", exact=True).click()
+            page.wait_for_timeout(900)
+            expect(page.get_by_test_id("similar-devices")).to_be_visible(timeout=8000)
+            print("PASS mall multi-select filters + similar devices")
+
+            # --- View toggle ---
+            page.get_by_test_id("filter-toggle").click()
             page.get_by_test_id("view-list").click()
             expect(page.get_by_test_id("device-grid")).to_be_visible()
-            print("PASS mall filters / view toggle")
+
+            # --- Search history + trending panel (empty query, focused) ---
+            box = page.get_by_role("textbox").first
+            box.click()
+            page.wait_for_timeout(600)
+            expect(page.get_by_test_id("search-history-panel")).to_be_visible(timeout=8000)
+            expect(page.get_by_test_id("search-hot")).to_be_visible()
+            page.get_by_test_id("search-hot").get_by_role("button").first.click()
+            page.wait_for_timeout(900)
+            expect(box).to_have_value("iPhone 14")
+            # Committed term is recorded — reopening shows it under Recent
+            box.fill("")
+            box.click()
+            page.wait_for_timeout(600)
+            expect(page.get_by_test_id("search-history")).to_be_visible(timeout=8000)
+            expect(page.get_by_test_id("search-history").get_by_text("iPhone 14")).to_be_visible()
+
+            # --- Spelling correction ---
+            box.fill("iphon 14")
+            page.wait_for_timeout(1000)
+            expect(page.get_by_test_id("search-didyoumean")).to_be_visible(timeout=8000)
+            page.get_by_test_id("search-didyoumean").click()
+            page.wait_for_timeout(600)
+            expect(box).to_have_value("iPhone 14")
+            print("PASS mall search history / trending / spelling correction")
         except Exception as e:
             failures.append(f"mall: {e}")
             print(f"FAIL mall: {e}")

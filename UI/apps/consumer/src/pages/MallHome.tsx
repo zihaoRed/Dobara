@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DeviceCard, SearchBar, SkeletonCard, EmptyState, Button, Card, Badge } from '@dobara/ui';
-import { Filter, X, LayoutGrid, List, ArrowUpDown } from 'lucide-react';
+import { Filter, X, LayoutGrid, List, ArrowUpDown, Clock, Flame } from 'lucide-react';
 import type { IDevice, IBrand, IModel } from '@dobara/utils';
 import { getUserCity } from '../lib/userCity';
 
@@ -13,6 +13,36 @@ const SORTS = [
   { key: 'newest', label: 'Newest' },
   { key: 'grade', label: 'Best grade' },
 ];
+
+/** APP-P0-10 — search history (5 most recent) persisted locally */
+const HISTORY_KEY = 'dobara_mall_search_history';
+const HISTORY_MAX = 5;
+
+function loadHistory(): string[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? (JSON.parse(raw) as string[]).slice(0, HISTORY_MAX) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistHistory(term: string): string[] {
+  const t = term.trim();
+  if (!t) return loadHistory();
+  const next = [t, ...loadHistory().filter((x) => x.toLowerCase() !== t.toLowerCase())].slice(0, HISTORY_MAX);
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+  } catch { /* ignore quota / private mode */ }
+  return next;
+}
+
+function dropHistory(): string[] {
+  try {
+    localStorage.removeItem(HISTORY_KEY);
+  } catch { /* ignore */ }
+  return [];
+}
 
 const DEMO_DEVICES: IDevice[] = [
   { imei: '350000000000001', brandId: 'apple', modelId: 'iphone13', grade: 'A', color: 'Midnight', storage: '128GB', status: 'available', price: 42000, originalPrice: 38000, city: 'Mumbai', warehouseId: 'wh-mum' },
@@ -32,20 +62,28 @@ const DEMO_BRANDS: IBrand[] = [
   { id: 'oneplus', name: 'OnePlus' },
 ];
 
+const HOT_FALLBACK = ['iPhone 14', 'iPhone 13', 'Galaxy S22', 'OnePlus Nord', 'Xiaomi 14'];
+
 const PLACEHOLDERS = ['Search brands, models...', 'Try iPhone 14 Pro', 'Search Galaxy S23', 'Try OnePlus 11'];
+
+/** Toggle a value in a multi-select filter list (APP-P0-10: 五个维度均支持多选) */
+const toggleIn = (list: string[], value: string) =>
+  list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
 
 export function MallHome() {
   const navigate = useNavigate();
   const [devices, setDevices] = useState<IDevice[]>([]);
+  /** Unfiltered pool — backs "similar devices" recommendations */
+  const [allDevices, setAllDevices] = useState<IDevice[]>([]);
   const [brands, setBrands] = useState<IBrand[]>([]);
   const [models, setModels] = useState<IModel[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [brandFilter, setBrandFilter] = useState('');
-  const [modelFilter, setModelFilter] = useState('');
-  const [gradeFilter, setGradeFilter] = useState('');
-  const [storageFilter, setStorageFilter] = useState('');
-  const [colorFilter, setColorFilter] = useState('');
+  const [brandFilters, setBrandFilters] = useState<string[]>([]);
+  const [modelFilters, setModelFilters] = useState<string[]>([]);
+  const [gradeFilters, setGradeFilters] = useState<string[]>([]);
+  const [storageFilters, setStorageFilters] = useState<string[]>([]);
+  const [colorFilters, setColorFilters] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(100000);
   const [sort, setSort] = useState('default');
@@ -54,45 +92,72 @@ export function MallHome() {
   const [phIdx, setPhIdx] = useState(0);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggest, setShowSuggest] = useState(false);
+  const [didYouMean, setDidYouMean] = useState('');
+  const [history, setHistory] = useState<string[]>([]);
+  const [hot, setHot] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
 
+  // Placeholder rotation stops once the user engages with the search box（APP-P0-10 验收）
   useEffect(() => {
+    if (showSuggest) return;
     const t = setInterval(() => setPhIdx((i) => (i + 1) % PLACEHOLDERS.length), 3000);
     return () => clearInterval(t);
-  }, []);
+  }, [showSuggest]);
 
   useEffect(() => {
     fetch('/api/brands').then((r) => r.json()).then((d) => setBrands(d.brands)).catch(() => setBrands(DEMO_BRANDS));
+    fetch('/api/devices')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => setAllDevices(d.devices ?? []))
+      .catch(() => setAllDevices(DEMO_DEVICES));
+    fetch('/api/search/hot')
+      .then((r) => r.json())
+      .then((d) => setHot(d.hot || []))
+      .catch(() => setHot(HOT_FALLBACK));
+    setHistory(loadHistory());
   }, []);
 
+  // Models follow the selected brands; drop any model that no longer applies
   useEffect(() => {
-    if (!brandFilter) {
+    if (brandFilters.length === 0) {
       setModels([]);
-      setModelFilter('');
+      setModelFilters([]);
       return;
     }
-    fetch(`/api/models?brandId=${brandFilter}`)
-      .then((r) => r.json())
-      .then((d) => setModels(d.models || []))
-      .catch(() => setModels([]));
-  }, [brandFilter]);
+    Promise.all(
+      brandFilters.map((b) =>
+        fetch(`/api/models?brandId=${b}`)
+          .then((r) => r.json())
+          .then((d) => (d.models || []) as IModel[])
+          .catch(() => [] as IModel[]),
+      ),
+    ).then((lists) => {
+      const list = lists.flat();
+      setModels(list);
+      setModelFilters((prev) => prev.filter((id) => list.some((m) => m.id === id)));
+    });
+  }, [brandFilters]);
 
   useEffect(() => {
     if (!search.trim()) {
       setSuggestions([]);
+      setDidYouMean('');
       return;
     }
     const t = setTimeout(() => {
       fetch(`/api/search/suggest?q=${encodeURIComponent(search)}`)
         .then((r) => r.json())
-        .then((d) => setSuggestions(d.suggestions || []))
+        .then((d) => {
+          setSuggestions(d.suggestions || []);
+          setDidYouMean(d.didYouMean || '');
+        })
         .catch(() => {
           const q = search.toLowerCase();
-          setSuggestions(
-            ['Apple iPhone 13', 'Apple iPhone 14', 'Samsung Galaxy S22', 'OnePlus Nord 2']
-              .filter((s) => s.toLowerCase().includes(q))
-              .slice(0, 10),
-          );
+          const hits = ['Apple iPhone 13', 'Apple iPhone 14', 'Samsung Galaxy S22', 'OnePlus Nord 2']
+            .filter((s) => s.toLowerCase().includes(q))
+            .slice(0, 10);
+          setSuggestions(hits);
+          setDidYouMean(hits.length === 0 ? 'Apple iPhone 13' : '');
         });
     }, 200);
     return () => clearTimeout(t);
@@ -103,11 +168,11 @@ export function MallHome() {
     try {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
-      if (brandFilter) params.set('brand', brandFilter);
-      if (modelFilter) params.set('model', modelFilter);
-      if (gradeFilter) params.set('grade', gradeFilter);
-      if (storageFilter) params.set('storage', storageFilter);
-      if (colorFilter) params.set('color', colorFilter);
+      if (brandFilters.length) params.set('brand', brandFilters.join(','));
+      if (modelFilters.length) params.set('model', modelFilters.join(','));
+      if (gradeFilters.length) params.set('grade', gradeFilters.join(','));
+      if (storageFilters.length) params.set('storage', storageFilters.join(','));
+      if (colorFilters.length) params.set('color', colorFilters.join(','));
       if (minPrice > 0) params.set('minPrice', String(minPrice));
       if (maxPrice < 100000) params.set('maxPrice', String(maxPrice));
       if (sort) params.set('sort', sort);
@@ -125,10 +190,11 @@ export function MallHome() {
           return terms.every((t) => hay.includes(t));
         });
       }
-      if (brandFilter) filtered = filtered.filter((d) => d.brandId === brandFilter);
-      if (gradeFilter) filtered = filtered.filter((d) => d.grade === gradeFilter);
-      if (storageFilter) filtered = filtered.filter((d) => d.storage === storageFilter);
-      if (colorFilter) filtered = filtered.filter((d) => d.color === colorFilter);
+      if (brandFilters.length) filtered = filtered.filter((d) => brandFilters.includes(d.brandId));
+      if (modelFilters.length) filtered = filtered.filter((d) => modelFilters.includes(d.modelId));
+      if (gradeFilters.length) filtered = filtered.filter((d) => gradeFilters.includes(d.grade));
+      if (storageFilters.length) filtered = filtered.filter((d) => storageFilters.includes(d.storage));
+      if (colorFilters.length) filtered = filtered.filter((d) => colorFilters.includes(d.color));
       filtered = filtered.filter((d) => d.price >= minPrice && d.price <= maxPrice);
       if (sort === 'price_asc') filtered.sort((a, b) => a.price - b.price);
       if (sort === 'price_desc') filtered.sort((a, b) => b.price - a.price);
@@ -142,29 +208,50 @@ export function MallHome() {
     } finally {
       setLoading(false);
     }
-  }, [search, brandFilter, modelFilter, gradeFilter, storageFilter, colorFilter, minPrice, maxPrice, sort]);
+  }, [search, brandFilters, modelFilters, gradeFilters, storageFilters, colorFilters, minPrice, maxPrice, sort]);
 
   useEffect(() => { fetchDevices(); }, [fetchDevices]);
 
+  /** APP-P0-10 — similar devices when the result set is thin (< 3) */
+  const similarDevices = useMemo(() => {
+    if (loading || devices.length === 0 || devices.length >= 3) return [];
+    const shown = new Set(devices.map((d) => d.imei));
+    const brandIds = new Set(devices.map((d) => d.brandId));
+    const prices = devices.map((d) => d.price);
+    const lo = Math.min(...prices) * 0.7;
+    const hi = Math.max(...prices) * 1.3;
+    return allDevices
+      .filter((d) => !shown.has(d.imei) && d.status === 'available' && (brandIds.has(d.brandId) || (d.price >= lo && d.price <= hi)))
+      .slice(0, 4);
+  }, [devices, allDevices, loading]);
+
   const activeChips = useMemo(() => {
     const chips: { key: string; label: string; clear: () => void }[] = [];
-    if (brandFilter) chips.push({ key: 'brand', label: brands.find((b) => b.id === brandFilter)?.name || brandFilter, clear: () => { setBrandFilter(''); setModelFilter(''); } });
-    if (modelFilter) chips.push({ key: 'model', label: models.find((m) => m.id === modelFilter)?.name || modelFilter, clear: () => setModelFilter('') });
-    if (gradeFilter) chips.push({ key: 'grade', label: `Grade ${gradeFilter}`, clear: () => setGradeFilter('') });
-    if (storageFilter) chips.push({ key: 'storage', label: storageFilter, clear: () => setStorageFilter('') });
-    if (colorFilter) chips.push({ key: 'color', label: colorFilter, clear: () => setColorFilter('') });
+    brandFilters.forEach((id) => chips.push({ key: `brand:${id}`, label: brands.find((b) => b.id === id)?.name || id, clear: () => setBrandFilters((p) => p.filter((x) => x !== id)) }));
+    modelFilters.forEach((id) => chips.push({ key: `model:${id}`, label: models.find((m) => m.id === id)?.name || id, clear: () => setModelFilters((p) => p.filter((x) => x !== id)) }));
+    gradeFilters.forEach((g) => chips.push({ key: `grade:${g}`, label: `Grade ${g}`, clear: () => setGradeFilters((p) => p.filter((x) => x !== g)) }));
+    storageFilters.forEach((s) => chips.push({ key: `storage:${s}`, label: s, clear: () => setStorageFilters((p) => p.filter((x) => x !== s)) }));
+    colorFilters.forEach((c) => chips.push({ key: `color:${c}`, label: c, clear: () => setColorFilters((p) => p.filter((x) => x !== c)) }));
     if (minPrice > 0 || maxPrice < 100000) chips.push({ key: 'price', label: `₹${minPrice}–₹${maxPrice}`, clear: () => { setMinPrice(0); setMaxPrice(100000); } });
     return chips;
-  }, [brandFilter, modelFilter, gradeFilter, storageFilter, colorFilter, minPrice, maxPrice, brands, models]);
+  }, [brandFilters, modelFilters, gradeFilters, storageFilters, colorFilters, minPrice, maxPrice, brands, models]);
 
   const clearFilters = () => {
-    setBrandFilter('');
-    setModelFilter('');
-    setGradeFilter('');
-    setStorageFilter('');
-    setColorFilter('');
+    setBrandFilters([]);
+    setModelFilters([]);
+    setGradeFilters([]);
+    setStorageFilters([]);
+    setColorFilters([]);
     setMinPrice(0);
     setMaxPrice(100000);
+  };
+
+  /** Commit a search term — runs it and records it in history */
+  const commitSearch = (term: string) => {
+    const t = term.trim();
+    setSearch(t);
+    if (t) setHistory(persistHistory(t));
+    setShowSuggest(false);
   };
 
   const storages = ['64GB', '128GB', '256GB', '512GB'];
@@ -175,6 +262,10 @@ export function MallHome() {
     const map: Record<string, string> = { iphone13: 'iPhone 13', iphone12: 'iPhone 12', iphone14: 'iPhone 14', galaxys22: 'Galaxy S22', galaxys21: 'Galaxy S21', mi11: 'Mi 11', nord2: 'Nord 2' };
     return models.find((m) => m.id === modelId)?.name || map[modelId] || modelId;
   };
+
+  const showHistoryPanel = showSuggest && !search.trim() && (history.length > 0 || hot.length > 0);
+  // Spelling correction only arrives when nothing matched, so it must render on its own
+  const showSuggestPanel = showSuggest && !!search.trim() && (suggestions.length > 0 || !!didYouMean);
 
   return (
     <div className="max-w-lg md:max-w-7xl mx-auto py-4" data-testid="mall-home">
@@ -197,6 +288,9 @@ export function MallHome() {
             placeholder={PLACEHOLDERS[phIdx]}
             className="flex-1"
             showExtras
+            onSubmit={commitSearch}
+            onFocus={() => setShowSuggest(true)}
+            onBlur={() => setTimeout(() => setShowSuggest(false), 120)}
           />
           <Button
             variant="secondary"
@@ -209,18 +303,75 @@ export function MallHome() {
             {activeChips.length > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary-500 rounded-full" />}
           </Button>
         </div>
-        {showSuggest && suggestions.length > 0 && (
-          <Card className="absolute z-20 left-0 right-12 mt-1 !p-2" data-testid="search-suggest">
+
+        {showSuggestPanel && (
+          <Card
+            className="absolute z-20 left-0 right-12 mt-1 !p-2"
+            data-testid="search-suggest"
+            onMouseDown={(e) => e.preventDefault()}
+          >
             {suggestions.map((s) => (
               <button
                 key={s}
                 type="button"
                 className="w-full text-left px-3 py-2 text-caption hover:bg-surface-low rounded-md"
-                onClick={() => { setSearch(s); setShowSuggest(false); }}
+                onClick={() => commitSearch(s)}
               >
                 {s}
               </button>
             ))}
+            {didYouMean && (
+              <button
+                type="button"
+                className="w-full text-left px-3 py-2 text-caption text-primary-600 hover:bg-surface-low rounded-md"
+                onClick={() => commitSearch(didYouMean)}
+                data-testid="search-didyoumean"
+              >
+                Did you mean <span className="font-semibold">{didYouMean}</span>?
+              </button>
+            )}
+          </Card>
+        )}
+
+        {showHistoryPanel && (
+          <Card
+            className="absolute z-20 left-0 right-12 mt-1 !p-3 space-y-3"
+            data-testid="search-history-panel"
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {history.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-eyebrow text-text-muted uppercase flex items-center gap-1">
+                    <Clock size={12} /> Recent
+                  </span>
+                  <button type="button" className="text-caption text-primary-500" onClick={() => setHistory(dropHistory())} data-testid="clear-search-history">
+                    Clear
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2" data-testid="search-history">
+                  {history.map((h) => (
+                    <button key={h} type="button" onClick={() => commitSearch(h)}>
+                      <Badge variant="neutral">{h}</Badge>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {hot.length > 0 && (
+              <div>
+                <span className="text-eyebrow text-text-muted uppercase flex items-center gap-1 mb-1">
+                  <Flame size={12} /> Trending
+                </span>
+                <div className="flex flex-wrap gap-2" data-testid="search-hot">
+                  {hot.map((h) => (
+                    <button key={h} type="button" onClick={() => commitSearch(h)}>
+                      <Badge variant="accent">{h}</Badge>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </Card>
         )}
       </div>
@@ -257,9 +408,9 @@ export function MallHome() {
           <div>
             <p className="text-caption text-text-muted mb-2 font-semibold">Brand</p>
             <div className="flex flex-wrap gap-2">
-              <Chip active={!brandFilter} onClick={() => { setBrandFilter(''); setModelFilter(''); }}>All</Chip>
+              <Chip active={brandFilters.length === 0} onClick={() => { setBrandFilters([]); setModelFilters([]); }}>All</Chip>
               {brands.map((b) => (
-                <Chip key={b.id} active={brandFilter === b.id} onClick={() => setBrandFilter(b.id)}>{b.name}</Chip>
+                <Chip key={b.id} active={brandFilters.includes(b.id)} onClick={() => setBrandFilters((p) => toggleIn(p, b.id))}>{b.name}</Chip>
               ))}
             </div>
           </div>
@@ -267,9 +418,9 @@ export function MallHome() {
             <div>
               <p className="text-caption text-text-muted mb-2 font-semibold">Model</p>
               <div className="flex flex-wrap gap-2">
-                <Chip active={!modelFilter} onClick={() => setModelFilter('')}>All</Chip>
+                <Chip active={modelFilters.length === 0} onClick={() => setModelFilters([])}>All</Chip>
                 {models.map((m) => (
-                  <Chip key={m.id} active={modelFilter === m.id} onClick={() => setModelFilter(m.id)}>{m.name}</Chip>
+                  <Chip key={m.id} active={modelFilters.includes(m.id)} onClick={() => setModelFilters((p) => toggleIn(p, m.id))}>{m.name}</Chip>
                 ))}
               </div>
             </div>
@@ -277,27 +428,27 @@ export function MallHome() {
           <div>
             <p className="text-caption text-text-muted mb-2 font-semibold">Grade</p>
             <div className="flex flex-wrap gap-2">
-              <Chip active={!gradeFilter} onClick={() => setGradeFilter('')}>All</Chip>
+              <Chip active={gradeFilters.length === 0} onClick={() => setGradeFilters([])}>All</Chip>
               {GRADES.map((g) => (
-                <Chip key={g} active={gradeFilter === g} onClick={() => setGradeFilter(g)}>Grade {g}</Chip>
+                <Chip key={g} active={gradeFilters.includes(g)} onClick={() => setGradeFilters((p) => toggleIn(p, g))}>Grade {g}</Chip>
               ))}
             </div>
           </div>
           <div>
             <p className="text-caption text-text-muted mb-2 font-semibold">Storage</p>
             <div className="flex flex-wrap gap-2">
-              <Chip active={!storageFilter} onClick={() => setStorageFilter('')}>All</Chip>
+              <Chip active={storageFilters.length === 0} onClick={() => setStorageFilters([])}>All</Chip>
               {storages.map((s) => (
-                <Chip key={s} active={storageFilter === s} onClick={() => setStorageFilter(s)}>{s}</Chip>
+                <Chip key={s} active={storageFilters.includes(s)} onClick={() => setStorageFilters((p) => toggleIn(p, s))}>{s}</Chip>
               ))}
             </div>
           </div>
           <div>
             <p className="text-caption text-text-muted mb-2 font-semibold">Color</p>
             <div className="flex flex-wrap gap-2">
-              <Chip active={!colorFilter} onClick={() => setColorFilter('')}>All</Chip>
+              <Chip active={colorFilters.length === 0} onClick={() => setColorFilters([])}>All</Chip>
               {colors.map((c) => (
-                <Chip key={c} active={colorFilter === c} onClick={() => setColorFilter(c)}>{c}</Chip>
+                <Chip key={c} active={colorFilters.includes(c)} onClick={() => setColorFilters((p) => toggleIn(p, c))}>{c}</Chip>
               ))}
             </div>
           </div>
@@ -319,27 +470,56 @@ export function MallHome() {
       ) : devices.length === 0 ? (
         <EmptyState
           title="No devices found"
-          description="Try adjusting filters or browse all devices."
+          description={
+            didYouMean
+              ? `No matches. Did you mean "${didYouMean}"?`
+              : 'Try other keywords, or browse all devices.'
+          }
           action={<Button onClick={() => { clearFilters(); setSearch(''); }}>View all devices</Button>}
         />
       ) : (
-        <div className={`grid ${grid ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1'} gap-4`} data-testid="device-grid">
-          {devices.map((device) => (
-            <DeviceCard
-              key={device.imei}
-              imei={device.imei}
-              brand={getBrandName(device.brandId)}
-              model={getModelName(device.modelId)}
-              grade={device.grade}
-              price={device.price}
-              originalPrice={device.originalPrice > device.price ? device.originalPrice : Math.round(device.price * 1.25)}
-              storage={device.storage}
-              city={device.city}
-              sameCity={device.city === getUserCity()}
-              onClick={() => navigate(`/buy/product/${device.imei}`)}
-            />
-          ))}
-        </div>
+        <>
+          <div className={`grid ${grid ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1'} gap-4`} data-testid="device-grid">
+            {devices.map((device) => (
+              <DeviceCard
+                key={device.imei}
+                imei={device.imei}
+                brand={getBrandName(device.brandId)}
+                model={getModelName(device.modelId)}
+                grade={device.grade}
+                price={device.price}
+                originalPrice={device.originalPrice > device.price ? device.originalPrice : Math.round(device.price * 1.25)}
+                storage={device.storage}
+                city={device.city}
+                sameCity={device.city === getUserCity()}
+                onClick={() => navigate(`/buy/product/${device.imei}`)}
+              />
+            ))}
+          </div>
+
+          {similarDevices.length > 0 && (
+            <div className="mt-6" data-testid="similar-devices">
+              <h2 className="text-h4 font-heading mb-3">Similar devices</h2>
+              <div className={`grid ${grid ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1'} gap-4`}>
+                {similarDevices.map((device) => (
+                  <DeviceCard
+                    key={device.imei}
+                    imei={device.imei}
+                    brand={getBrandName(device.brandId)}
+                    model={getModelName(device.modelId)}
+                    grade={device.grade}
+                    price={device.price}
+                    originalPrice={device.originalPrice > device.price ? device.originalPrice : Math.round(device.price * 1.25)}
+                    storage={device.storage}
+                    city={device.city}
+                    sameCity={device.city === getUserCity()}
+                    onClick={() => navigate(`/buy/product/${device.imei}`)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
