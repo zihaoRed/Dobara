@@ -108,7 +108,7 @@ export default function InspectionReport() {
     <div className={`p-4 sm:p-6 ${expired ? 'opacity-60 pointer-events-none' : ''}`} data-testid="tablet-report">
       {expired && (
         <div className="mb-4 rounded-lg bg-dobara-error text-white px-4 py-3 text-caption font-semibold pointer-events-auto">
-          Quote expired. Contact ops / re-inspect if needed.
+          Quote expired — the offer is no longer valid. Re-inspect the device to generate a new quote.
         </div>
       )}
 

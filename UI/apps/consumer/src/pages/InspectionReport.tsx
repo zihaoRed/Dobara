@@ -135,8 +135,22 @@ export function InspectionReport() {
       <Button variant="ghost" size="sm" onClick={() => navigate('/sell')} className="mb-1">← Back</Button>
 
       {expired && (
-        <div className="rounded-lg bg-dobara-error text-white px-4 py-3 text-caption font-semibold" data-testid="quote-expired-banner">
-          Quote expired. Please contact the store clerk to re-inspect.
+        <div className="rounded-lg bg-dobara-error text-white px-4 py-3 space-y-2" data-testid="quote-expired-banner">
+          <p className="text-caption font-semibold">
+            This quote expired 30 minutes after it was generated.
+          </p>
+          <p className="text-caption opacity-90">
+            Nothing was charged and your device was not collected. Visit the store to re-inspect and
+            get a fresh offer.
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => navigate('/sell/appointment')}
+            data-testid="expired-rebook"
+          >
+            Book a new appointment
+          </Button>
         </div>
       )}
 

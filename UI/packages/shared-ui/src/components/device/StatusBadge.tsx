@@ -1,6 +1,6 @@
 import React from 'react';
 
-type StatusKey = 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'rejected' | 'confirmed' | 'shipped' | 'returned';
+type StatusKey = 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'expired' | 'rejected' | 'confirmed' | 'shipped' | 'returned';
 
 interface StatusConfig {
   label: string;
@@ -12,6 +12,8 @@ const statusConfigs: Record<StatusKey, StatusConfig> = {
   in_progress: { label: 'In Progress', color: 'bg-dobara-info-light text-[#1e3a8a]' },
   completed: { label: 'Completed', color: 'bg-dobara-success-light text-[#064e3b]' },
   cancelled: { label: 'Cancelled', color: 'bg-surface-high text-text-muted' },
+  // Muted like cancelled — time ran out, user took no action (distinct from rejected)
+  expired: { label: 'Expired', color: 'bg-surface-high text-text-secondary' },
   rejected: { label: 'Rejected', color: 'bg-dobara-error-light text-[#7f1d1d]' },
   confirmed: { label: 'Confirmed', color: 'bg-dobara-success-light text-[#064e3b]' },
   shipped: { label: 'Shipped', color: 'bg-primary-50 text-primary-700' },

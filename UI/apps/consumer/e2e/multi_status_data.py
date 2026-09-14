@@ -10,12 +10,12 @@ BASE = os.environ.get("CONSUMER_BASE", "http://localhost:3010/consumer")
 
 BUY_IDS = ["ORD-PENDING", "ORD-001", "ORD-SHIP", "ORD-DONE", "ORD-CANCEL", "ORD-AS", "ORD-RET"]
 AS_IDS = ["AS-PENDING", "AS-APPROVED", "AS-RETURNING", "AS-REJECTED", "AS-REFUNDED"]
-RCY_IDS = ["RCY-INSPECT", "RCY-CONFIRM", "RCY-DONE", "RCY-REJECT"]
+RCY_IDS = ["RCY-INSPECT", "RCY-CONFIRM", "RCY-EXPIRED", "RCY-DONE", "RCY-REJECT"]
 
 
 def login(page):
     page.goto(f"{BASE}/login", wait_until="domcontentloaded")
-    page.get_by_test_id("login-phone").fill("9876543210")
+    page.get_by_test_id("login-phone").fill("9876543201")
     page.get_by_test_id("send-otp").click()
     page.get_by_test_id("login-otp").wait_for()
     page.get_by_test_id("login-otp").fill("123456")
@@ -55,12 +55,17 @@ def run():
         # Recycling tab
         try:
             page.goto(f"{BASE}/account/orders", wait_until="domcontentloaded")
-            page.get_by_role("button", name=re.compile(r"Recycling")).click()
+            page.get_by_role("button", name=re.compile(r"Exchange")).click()
             for rid in RCY_IDS:
                 expect(page.get_by_test_id(f"recycle-card-{rid}")).to_be_visible(timeout=8000)
             page.get_by_role("button", name="Rejected", exact=True).click()
             expect(page.get_by_test_id("recycle-card-RCY-REJECT")).to_be_visible()
             expect(page.get_by_test_id("recycle-card-RCY-DONE")).to_have_count(0)
+            # Expired quote is its own state — must not be filed under Rejected
+            expect(page.get_by_test_id("recycle-card-RCY-EXPIRED")).to_have_count(0)
+            page.get_by_role("button", name="Quote expired", exact=True).click()
+            expect(page.get_by_test_id("recycle-card-RCY-EXPIRED")).to_be_visible()
+            expect(page.get_by_test_id("recycle-card-RCY-REJECT")).to_have_count(0)
             print("PASS recycle orders multi-status")
         except Exception as e:
             failures.append(f"recycle: {e}")

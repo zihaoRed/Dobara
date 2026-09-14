@@ -75,6 +75,7 @@ const DEMO_RECYCLE: IRecycleOrder[] = [
   },
   { id: 'RCY-INSPECT', sessionId: 'sess-inspect-01', brand: 'Apple', model: 'iPhone 13', amount: 0, status: 'inspecting', createdAt: new Date(Date.now() - 7200000).toISOString() },
   { id: 'RCY-CONFIRM', sessionId: 'sess-confirm-01', brand: 'Samsung', model: 'Galaxy S22', amount: 28000, status: 'pending_confirm', createdAt: new Date(Date.now() - 18000000).toISOString(), grade: 'B' },
+  { id: 'RCY-EXPIRED', sessionId: 'sess-expired-01', brand: 'Apple', model: 'iPhone 11', amount: 19500, status: 'expired', createdAt: new Date(Date.now() - 30 * 3600000).toISOString(), grade: 'B' },
   { id: 'RCY-REDEEM', sessionId: 'sess-003', brand: 'OnePlus', model: 'Nord 2', amount: 14000, status: 'awaiting_redeem', createdAt: new Date(Date.now() - 28800000).toISOString(), grade: 'B' },
   { id: 'RCY-DONE', sessionId: 'sess-done-01', brand: 'Apple', model: 'iPhone 12', amount: 22000, status: 'completed', createdAt: new Date(Date.now() - 6 * 86400000).toISOString(), grade: 'A' },
   { id: 'RCY-REJECT', sessionId: 'sess-reject-01', brand: 'Xiaomi', model: 'Mi 11', amount: 15000, status: 'rejected', createdAt: new Date(Date.now() - 4 * 86400000).toISOString(), grade: 'C' },
@@ -96,6 +97,7 @@ const SELL_FILTERS = [
   { key: 'appointment_pending', label: 'Scheduled' },
   { key: 'inspecting', label: 'Inspecting' },
   { key: 'pending_confirm', label: 'Quote Ready' },
+  { key: 'expired', label: 'Quote expired' },
   { key: 'awaiting_redeem', label: 'Confirm trade-in' },
   { key: 'completed', label: 'Completed' },
   { key: 'rejected', label: 'Rejected' },
@@ -114,11 +116,12 @@ function buyBadge(status: string): 'pending' | 'in_progress' | 'completed' | 'ca
   }
 }
 
-function sellBadge(status: TRecycleStatus): 'pending' | 'in_progress' | 'completed' | 'cancelled' {
+function sellBadge(status: TRecycleStatus): 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'expired' {
   switch (status) {
     case 'appointment_pending': return 'pending';
     case 'inspecting': return 'in_progress';
     case 'pending_confirm': return 'pending';
+    case 'expired': return 'expired';
     case 'awaiting_redeem': return 'in_progress';
     case 'completed': return 'completed';
     case 'rejected': return 'cancelled';
@@ -131,6 +134,7 @@ function sellStatusLabel(status: TRecycleStatus): string {
     case 'appointment_pending': return 'Scheduled';
     case 'awaiting_redeem': return 'Confirm trade-in';
     case 'pending_confirm': return 'Quote Ready';
+    case 'expired': return 'Quote Expired';
     default:
       return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
@@ -213,6 +217,12 @@ export function OrderList() {
     }
     if (order.status === 'awaiting_redeem') {
       navigate(`/sell/redeem/${order.sessionId}`);
+      return;
+    }
+    if (order.status === 'expired') {
+      // Quote lapsed — the report page shows the expired banner + re-inspect guidance
+      setToast('This quote has expired. Visit the store to re-inspect and get a new offer.');
+      navigate(`/sell/report/${order.sessionId}`);
       return;
     }
     if (order.status === 'pending_confirm' || order.status === 'inspecting') {
@@ -391,6 +401,12 @@ export function OrderList() {
                       <p className="text-caption font-semibold text-primary-600">Estimate {est}</p>
                     )}
                   </div>
+                )}
+
+                {order.status === 'expired' && (
+                  <p className="text-eyebrow text-dobara-warning mt-2">
+                    Offer no longer valid — re-inspect at the store to get a new quote
+                  </p>
                 )}
 
                 <div className="flex justify-between items-center">

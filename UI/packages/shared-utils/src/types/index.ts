@@ -187,6 +187,7 @@ export type TRecycleStatus =
   | 'appointment_pending' // booked, awaiting store visit / OTP
   | 'inspecting'
   | 'pending_confirm' // quote ready — accept/reject
+  | 'expired' // quote timed out (30min) with no user decision — recoverable by re-inspection
   | 'awaiting_redeem' // owner entered new-device price — user must confirm
   | 'completed'
   | 'rejected';

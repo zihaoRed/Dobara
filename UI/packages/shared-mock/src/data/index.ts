@@ -211,6 +211,16 @@ export const recycleOrderStore: IRecycleOrder[] = [
     grade: 'B',
   },
   {
+    id: 'RCY-EXPIRED',
+    sessionId: 'sess-expired-01',
+    brand: 'Apple',
+    model: 'iPhone 11',
+    amount: 19500,
+    status: 'expired',
+    createdAt: daysAgo(1, 3),
+    grade: 'B',
+  },
+  {
     id: 'RCY-REDEEM',
     sessionId: 'sess-003',
     brand: 'OnePlus',

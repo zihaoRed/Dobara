@@ -12,7 +12,7 @@ DEMO_IMEI = "350000000000001"
 def login(page):
     page.goto(f"{BASE}/login", wait_until="domcontentloaded")
     page.get_by_test_id("login-phone").wait_for(timeout=20000)
-    page.get_by_test_id("login-phone").fill("9876543210")
+    page.get_by_test_id("login-phone").fill("9876543201")
     page.get_by_test_id("send-otp").click()
     page.get_by_test_id("login-otp").wait_for(timeout=10000)
     page.get_by_test_id("login-otp").fill("123456")

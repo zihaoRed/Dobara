@@ -10,15 +10,17 @@ const RECYCLE_STATUS_LABEL: Record<TRecycleStatus, string> = {
   appointment_pending: 'Appointment Pending',
   inspecting: 'Inspecting',
   pending_confirm: 'Pending Accept',
+  expired: 'Quote Expired',
   awaiting_redeem: 'Awaiting Redeem',
   completed: 'Completed',
   rejected: 'Rejected by User',
 };
 
-const RECYCLE_STATUS_BADGE: Record<TRecycleStatus, 'pending' | 'in_progress' | 'completed' | 'rejected'> = {
+const RECYCLE_STATUS_BADGE: Record<TRecycleStatus, 'pending' | 'in_progress' | 'completed' | 'rejected' | 'expired'> = {
   appointment_pending: 'pending',
   inspecting: 'in_progress',
   pending_confirm: 'pending',
+  expired: 'expired',
   awaiting_redeem: 'pending',
   completed: 'completed',
   rejected: 'rejected',
@@ -28,6 +30,7 @@ const STATUS_FILTERS: { key: string; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'inspecting', label: 'Inspecting' },
   { key: 'pending_confirm', label: 'Pending Accept' },
+  { key: 'expired', label: 'Quote Expired' },
   { key: 'completed', label: 'Completed' },
   { key: 'rejected', label: 'Rejected by User' },
 ];

@@ -19,7 +19,7 @@ import {
   type IAddress,
 } from '../data';
 import type { IOrder, IRecycleOrder } from '@dobara/utils';
-import { calcOrderTotal, LOCK_DURATION_SECONDS } from '@dobara/utils';
+import { calcOrderTotal, LOCK_DURATION_SECONDS, QUOTE_DURATION_SECONDS } from '@dobara/utils';
 import {
   confirmTradeInRedeem,
   getTradeInBus,
@@ -37,6 +37,9 @@ const simulateDelay = async () => {
   await delay(Math.random() * 400 + 200);
 };
 
+/** App normalises to the last 10 digits (Login.tsx); seeded users carry a +91 prefix. */
+const normalizePhone = (p: string) => (p || '').replace(/\D/g, '').slice(-10);
+
 const lockTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function releaseLock(imei: string) {
@@ -49,6 +52,24 @@ function releaseLock(imei: string) {
     clearTimeout(t);
     lockTimers.delete(imei);
   }
+}
+
+/**
+ * Quote validity (CLOUD-P0-01 §3.3.2.3.4): a quote is valid for 30 min from generation.
+ * Once lapsed the order lands in `expired` — recoverable by re-inspection, deliberately
+ * NOT `rejected` (that one means the user actively declined, a different funnel signal).
+ */
+const quoteExpiryBySession = new Map<string, number>();
+// Seeded session whose quote already lapsed
+quoteExpiryBySession.set('sess-expired-01', Date.now() - 60 * 60 * 1000);
+
+function isQuoteExpired(sessionId: string): boolean {
+  const at = quoteExpiryBySession.get(sessionId);
+  return at != null && at <= Date.now();
+}
+
+function registerQuote(sessionId: string, expiresAt: string) {
+  quoteExpiryBySession.set(sessionId, new Date(expiresAt).getTime());
 }
 
 export const handlers = [
@@ -320,7 +341,7 @@ export const handlers = [
     await simulateDelay();
     const body = await request.json() as { phone: string; otp: string };
     if (body.otp === '123456') {
-      const user = users.find((u) => u.phone === body.phone);
+      const user = users.find((u) => normalizePhone(u.phone) === normalizePhone(body.phone));
       return HttpResponse.json({ success: true, userId: user?.id || `u-new-${Date.now()}`, isNew: !user });
     }
     return HttpResponse.json({ error: 'Invalid OTP' }, { status: 400 });
@@ -330,7 +351,7 @@ export const handlers = [
   http.get('/api/appointments', async ({ request }) => {
     await simulateDelay();
     const url = new URL(request.url);
-    const phone = (url.searchParams.get('phone') || '').replace(/\D/g, '').slice(-10);
+    const phone = normalizePhone(url.searchParams.get('phone') || '');
     const today = todayLocal();
     const list = appointments
       .filter((a) => a.phone === phone && a.date === today)
@@ -395,8 +416,13 @@ export const handlers = [
     return HttpResponse.json({ success: true, sessionId: 'sess-001' });
   }),
 
-  http.get('/api/sessions/:sessionId/report', async () => {
+  http.get('/api/sessions/:sessionId/report', async ({ params }) => {
     await simulateDelay();
+    const sid = String(params.sessionId);
+    const expiresAt = isQuoteExpired(sid)
+      ? new Date(quoteExpiryBySession.get(sid)!).toISOString()
+      : new Date(Date.now() + QUOTE_DURATION_SECONDS * 1000).toISOString();
+    if (!quoteExpiryBySession.has(sid)) registerQuote(sid, expiresAt);
     return HttpResponse.json({
       report: {
         deviceSummary: { brand: 'Apple', model: 'iPhone 13', imei: '350000000000001' },
@@ -414,7 +440,7 @@ export const handlers = [
         grade: 'A' as const,
         price: 42000,
         batteryHealth: 87,
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        expiresAt,
       },
     });
   }),
@@ -422,6 +448,17 @@ export const handlers = [
   http.post('/api/sessions/:sessionId/quote/accept', async ({ params }) => {
     await simulateDelay();
     const sessionId = String(params.sessionId);
+    if (isQuoteExpired(sessionId)) {
+      const rcy = recycleOrderStore.find((o) => o.sessionId === sessionId);
+      if (rcy && rcy.status === 'pending_confirm') {
+        rcy.status = 'expired';
+        upsertRecycleOrder({ ...rcy });
+      }
+      return HttpResponse.json(
+        { error: 'Quote expired. Please contact the store clerk to re-inspect.' },
+        { status: 409 },
+      );
+    }
     const rcy = recycleOrderStore.find((o) => o.sessionId === sessionId);
     if (rcy && (rcy.status === 'pending_confirm' || rcy.status === 'inspecting')) {
       rcy.status = 'pending_confirm';
@@ -453,6 +490,17 @@ export const handlers = [
   http.post('/api/sessions/:sessionId/quote/reject', async ({ params }) => {
     await simulateDelay();
     const sessionId = String(params.sessionId);
+    if (isQuoteExpired(sessionId)) {
+      const rcy = recycleOrderStore.find((o) => o.sessionId === sessionId);
+      if (rcy && rcy.status === 'pending_confirm') {
+        rcy.status = 'expired';
+        upsertRecycleOrder({ ...rcy });
+      }
+      return HttpResponse.json(
+        { error: 'Quote expired. Please contact the store clerk to re-inspect.' },
+        { status: 409 },
+      );
+    }
     const rcy = recycleOrderStore.find((o) => o.sessionId === sessionId);
     if (rcy && (rcy.status === 'pending_confirm' || rcy.status === 'inspecting')) {
       rcy.status = 'rejected';
