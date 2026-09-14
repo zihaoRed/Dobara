@@ -1,4 +1,4 @@
-"""E2E: device-check H5 (TAB-P0-14) — token → screen colors → touch → sensors → speaker → mic → camera → buttons (ADB verdict) → summary."""
+"""E2E: local device-check H5 flow, using fake browser media devices."""
 from __future__ import annotations
 
 import os
@@ -6,7 +6,7 @@ import sys
 
 from playwright.sync_api import sync_playwright, expect
 
-BASE = os.environ.get("DEVICE_CHECK_BASE", "http://localhost:3004/device-check/")
+BASE = os.environ.get("DEVICE_CHECK_BASE", "http://localhost:3004/device-check/?demo=1")
 
 
 def run():
@@ -29,6 +29,8 @@ def run():
 
         # 1. screen solid colors
         page.get_by_test_id("dc-screen-area").wait_for()
+        for _ in range(5):
+            page.get_by_role("button", name="Next color").click()
         page.get_by_test_id("dc-screen-pass").click()
 
         # 2. touch paint — sweep every row of the grid to reach ≥90% coverage
@@ -52,22 +54,30 @@ def run():
         page.get_by_test_id("dc-sensors-pass").click()
 
         # 4. speaker — listen confirmation
+        page.get_by_test_id("dc-speaker-left").click()
+        page.get_by_test_id("dc-speaker-right").click()
+        expect(page.get_by_test_id("dc-speaker-pass")).to_be_enabled(timeout=5000)
         page.get_by_test_id("dc-speaker-pass").click()
 
         # 5. microphone — record 3s (fake audio input) then confirm playback
         page.get_by_test_id("dc-mic-record").click()
         page.get_by_test_id("dc-mic-pass").wait_for(state="visible", timeout=10000)
+        playback = page.get_by_test_id("dc-mic-playback")
+        playback.evaluate("el => { el.playbackRate = 4; void el.play(); }")
+        expect(page.get_by_test_id("dc-mic-pass")).to_be_enabled(timeout=10000)
         page.get_by_test_id("dc-mic-pass").click()
 
         # 6. camera — capture a frame then confirm preview
+        page.get_by_test_id("dc-camera-enable").click()
+        expect(page.get_by_test_id("dc-camera-shot")).to_be_enabled(timeout=10000)
         page.get_by_test_id("dc-camera-shot").click()
         page.get_by_test_id("dc-camera-pass").click()
 
-        # 7. buttons — page only guides; the tablet ADB verdict arrives (~2.2s in demo)
+        # 7. buttons — H5 records that an external hardware check is still required
         page.get_by_test_id("dc-buttons-ok").wait_for(state="visible", timeout=15000)
         page.get_by_test_id("dc-buttons-ok").click()
 
-        # summary — results sent to the tablet, token consumed
+        # local summary
         page.get_by_text("Check complete").wait_for()
         print("PASS device-check flow")
         browser.close()

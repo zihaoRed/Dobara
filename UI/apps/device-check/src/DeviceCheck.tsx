@@ -3,12 +3,23 @@ import React, { useEffect, useRef, useState } from 'react';
 /**
  * TAB-P0-14 — on-device H5 check page (runs in the browser of the phone being inspected).
  * Opened by the tablet (Android: ADB VIEW intent / iOS: QR scan) with a one-time token.
- * The tablet stays the master: verdicts flow back through the cloud relay (≤3s).
+ * This implementation runs locally. Backend/session relay integration is intentionally deferred.
  * Physical buttons are guided here but judged by the tablet via ADB — not by this page.
  */
 
 type TStepKey = 'screen' | 'touch' | 'sensors' | 'speaker' | 'mic' | 'camera' | 'buttons';
-type TResult = 'pass' | 'fail' | 'unauthorized' | 'unknown';
+type TResult = 'pass' | 'fail' | 'unauthorized' | 'unsupported' | 'external' | 'unknown';
+
+const params = new URLSearchParams(window.location.search);
+const IS_DEMO = params.get('demo') === '1';
+const initialToken = params.get('token')?.trim() || `LOCAL-${Date.now().toString(36).toUpperCase()}`;
+
+function mediaFailure(error: unknown): Extract<TResult, 'unauthorized' | 'unsupported' | 'fail'> {
+  const name = error instanceof DOMException ? error.name : '';
+  if (name === 'NotAllowedError' || name === 'SecurityError') return 'unauthorized';
+  if (name === 'NotFoundError' || name === 'NotSupportedError' || name === 'TypeError') return 'unsupported';
+  return 'fail';
+}
 
 const STEPS: { key: TStepKey; label: string }[] = [
   { key: 'screen', label: 'Screen colors' },
@@ -57,7 +68,7 @@ const card: React.CSSProperties = {
 
 export default function DeviceCheck() {
   const [phase, setPhase] = useState<'token' | 'testing' | 'done'>('token');
-  const [token, setToken] = useState('DC-DEMO-1234');
+  const [token, setToken] = useState(initialToken);
   const [stepIdx, setStepIdx] = useState(0);
   const [results, setResults] = useState<Record<TStepKey, TResult>>({
     screen: 'unknown', touch: 'unknown', sensors: 'unknown',
@@ -74,13 +85,13 @@ export default function DeviceCheck() {
 
   const step = STEPS[stepIdx];
 
-  // All steps finished → send-to-tablet summary
+  // All steps finished → show the local summary
   useEffect(() => {
     if (phase === 'testing' && stepIdx >= STEPS.length) setPhase('done');
   }, [phase, stepIdx]);
 
   return (
-    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', maxWidth: 480, margin: '0 auto', width: '100%' }}>
+    <div className="dc-app" style={{ display: 'flex', flexDirection: 'column', maxWidth: 480, margin: '0 auto', width: '100%' }}>
       {phase === 'token' && (
         <TokenGate
           token={token}
@@ -111,7 +122,7 @@ export default function DeviceCheck() {
 
 function Header({ stepIdx, token }: { stepIdx: number; token: string }) {
   return (
-    <header style={{ background: BRAND, color: '#fff', padding: '14px 16px' }}>
+    <header className="dc-header" style={{ background: BRAND, color: '#fff', padding: '14px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontWeight: 800, letterSpacing: '-0.02em' }}>Dobara · Device Check</span>
         <span style={{ fontSize: 12, opacity: 0.75, fontFamily: 'monospace' }}>token {token}</span>
@@ -128,7 +139,7 @@ function Header({ stepIdx, token }: { stepIdx: number; token: string }) {
         ))}
       </div>
       <p style={{ fontSize: 12, opacity: 0.8, marginTop: 8 }}>
-        Step {stepIdx + 1}/{STEPS.length} · {STEPS[stepIdx]?.label} — results stream to the tablet
+        Step {stepIdx + 1}/{STEPS.length} · {STEPS[stepIdx]?.label} — local inspection
       </p>
     </header>
   );
@@ -140,7 +151,7 @@ function TokenGate({ token, setToken, onStart }: { token: string; setToken: (t: 
   const [linking, setLinking] = useState(false);
   const start = () => {
     setLinking(true);
-    // Demo: bind the one-time token to the inspection session via the cloud relay
+    // Keep a short transition so accidental double taps cannot start two flows.
     setTimeout(onStart, 900);
   };
   return (
@@ -154,7 +165,7 @@ function TokenGate({ token, setToken, onStart }: { token: string; setToken: (t: 
       </div>
       <div style={card}>
         <label style={{ fontSize: 12, fontWeight: 700, color: '#5c6863', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-          One-time token
+          Inspection ID
         </label>
         <input
           data-testid="dc-token-input"
@@ -163,14 +174,19 @@ function TokenGate({ token, setToken, onStart }: { token: string; setToken: (t: 
           style={{ width: '100%', marginTop: 8, padding: '14px 12px', borderRadius: 10, border: '1px solid #dde3df', fontSize: 16, fontFamily: 'monospace', background: '#f5f6f5' }}
         />
         <p style={{ fontSize: 12, color: '#8a9590', marginTop: 8, lineHeight: 1.5 }}>
-          Normally opened automatically (Android) or by scanning the QR on the tablet (iPhone) — this field is for the demo.
+          A local ID is generated automatically. A future tablet integration can provide one with ?token=… in the URL.
         </p>
         <button data-testid="dc-start" style={{ ...btn('primary'), width: '100%', marginTop: 14 }} disabled={linking || !token.trim()} onClick={start}>
           {linking ? 'Linking to session…' : 'Start check'}
         </button>
       </div>
+      {!window.isSecureContext && (
+        <p style={{ fontSize: 13, color: DANGER, textAlign: 'center', lineHeight: 1.5 }}>
+          This page is not in a secure context. Camera, microphone and sensors require HTTPS (localhost is allowed).
+        </p>
+      )}
       <p style={{ fontSize: 12, color: '#b0bab5', textAlign: 'center' }}>
-        Device fingerprint (UA · memory · cores) is reported for cross-check — {navigator.hardwareConcurrency || '?'} cores detected
+        Local browser check · {navigator.hardwareConcurrency || '?'} logical cores · results stay on this device
       </p>
     </div>
   );
@@ -181,7 +197,8 @@ function TokenGate({ token, setToken, onStart }: { token: string; setToken: (t: 
 function ScreenTest({ onDone }: { onDone: (r: TResult) => void }) {
   const [idx, setIdx] = useState(0);
   const c = SOLID_COLORS[idx];
-  const next = () => (idx < SOLID_COLORS.length - 1 ? setIdx(idx + 1) : undefined);
+  const allViewed = idx === SOLID_COLORS.length - 1;
+  const next = () => (idx < SOLID_COLORS.length - 1 ? setIdx((i) => i + 1) : undefined);
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', borderRadius: 16, overflow: 'hidden', border: '1px solid #dde3df', background: c.hex, color: c.text, transition: 'background 200ms' }}>
       <div style={{ padding: 16, textAlign: 'center' }}>
@@ -197,10 +214,11 @@ function ScreenTest({ onDone }: { onDone: (r: TResult) => void }) {
         </button>
         <button
           data-testid="dc-screen-pass"
-          style={{ ...btn('primary'), flex: idx === SOLID_COLORS.length - 1 ? 2 : 1 }}
+          style={{ ...btn('primary'), flex: allViewed ? 2 : 1, opacity: allViewed ? 1 : 0.45 }}
+          disabled={!allViewed}
           onClick={() => onDone('pass')}
         >
-          {idx === SOLID_COLORS.length - 1 ? 'All clean ✓' : 'Clean ✓'}
+          {allViewed ? 'All colors clean ✓' : 'View every color'}
         </button>
         <button style={btn('danger')} onClick={() => onDone('fail')}>Defect ✗</button>
       </div>
@@ -216,6 +234,7 @@ const ROWS = 20;
 function TouchTest({ onDone }: { onDone: (r: TResult) => void }) {
   const [cells, setCells] = useState<Set<number>>(new Set());
   const ref = useRef<HTMLDivElement | null>(null);
+  const previousRef = useRef<{ col: number; row: number } | null>(null);
   const coverage = cells.size / (COLS * ROWS);
   const thresholdMet = coverage >= 0.9;
 
@@ -225,8 +244,21 @@ function TouchTest({ onDone }: { onDone: (r: TResult) => void }) {
     const rect = el.getBoundingClientRect();
     const col = Math.min(COLS - 1, Math.max(0, Math.floor(((e.clientX - rect.left) / rect.width) * COLS)));
     const row = Math.min(ROWS - 1, Math.max(0, Math.floor(((e.clientY - rect.top) / rect.height) * ROWS)));
-    const id = row * COLS + col;
-    setCells((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+    const from = previousRef.current ?? { col, row };
+    const steps = Math.max(Math.abs(col - from.col), Math.abs(row - from.row), 1);
+    const ids: number[] = [];
+    for (let i = 0; i <= steps; i += 1) {
+      const x = Math.round(from.col + ((col - from.col) * i) / steps);
+      const y = Math.round(from.row + ((row - from.row) * i) / steps);
+      ids.push(y * COLS + x);
+    }
+    previousRef.current = { col, row };
+    setCells((prev) => {
+      if (ids.every((id) => prev.has(id))) return prev;
+      const next = new Set(prev);
+      ids.forEach((id) => next.add(id));
+      return next;
+    });
   };
 
   return (
@@ -241,8 +273,10 @@ function TouchTest({ onDone }: { onDone: (r: TResult) => void }) {
       <div
         ref={ref}
         data-testid="dc-touch-area"
-        onPointerDown={paint}
-        onPointerMove={(e) => e.buttons > 0 && paint(e)}
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); previousRef.current = null; paint(e); }}
+        onPointerMove={(e) => e.currentTarget.hasPointerCapture(e.pointerId) && paint(e)}
+        onPointerUp={(e) => { e.currentTarget.releasePointerCapture(e.pointerId); previousRef.current = null; }}
+        onPointerCancel={() => { previousRef.current = null; }}
         style={{ flex: 1, minHeight: 260, display: 'grid', gridTemplateColumns: `repeat(${COLS}, 1fr)`, gridTemplateRows: `repeat(${ROWS}, 1fr)`, gap: 1, background: '#eef0ee', borderRadius: 16, border: '1px solid #dde3df', touchAction: 'none', overflow: 'hidden', padding: 4 }}
       >
         {Array.from({ length: COLS * ROWS }, (_, i) => (
@@ -273,6 +307,7 @@ function SensorsTest({ onDone }: { onDone: (r: TResult) => void }) {
   const [angles, setAngles] = useState<{ a: number; b: number; g: number } | null>(null);
   const [acc, setAcc] = useState<Record<TAxisKey, number>>({ alpha: 0, beta: 0, gamma: 0 });
   const [needPermission, setNeedPermission] = useState(false);
+  const [support, setSupport] = useState<'checking' | 'listening' | 'unsupported'>('checking');
   const prevRef = useRef<{ a: number; b: number; g: number } | null>(null);
 
   // Guided stage = first axis that hasn't rotated enough yet
@@ -281,17 +316,30 @@ function SensorsTest({ onDone }: { onDone: (r: TResult) => void }) {
   const stage = SENSOR_AXES[Math.min(Math.max(stageIdx, 0), SENSOR_AXES.length - 1)];
 
   useEffect(() => {
+    if (!('DeviceOrientationEvent' in window) || !window.isSecureContext) {
+      setSupport('unsupported');
+      return;
+    }
     // iOS 13+ gates motion sensors behind an explicit permission request
     const doe = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
-    if (typeof doe.requestPermission === 'function') setNeedPermission(true);
+    const requiresPermission = typeof doe.requestPermission === 'function';
+    if (requiresPermission) setNeedPermission(true);
+    const noSignalTimer = requiresPermission ? null : window.setTimeout(() => setSupport('unsupported'), 5000);
     const handler = (e: DeviceOrientationEvent) => {
-      const cur = { a: e.alpha ?? 0, b: e.beta ?? 0, g: e.gamma ?? 0 };
+      if (e.alpha == null || e.beta == null || e.gamma == null) return;
+      if (noSignalTimer) window.clearTimeout(noSignalTimer);
+      const cur = { a: e.alpha, b: e.beta, g: e.gamma };
+      setSupport('listening');
       setAngles(cur);
       const p = prevRef.current;
       prevRef.current = cur;
       if (p) {
         // Shortest-arc delta so 359°→1° counts as 2° of rotation, not 358°
-        const delta = (x: number, y: number) => (Math.abs(x - y) > 180 ? 360 - Math.abs(x - y) : Math.abs(x - y));
+        const delta = (x: number, y: number) => {
+          const raw = Math.abs(x - y);
+          const shortest = raw > 180 ? 360 - raw : raw;
+          return shortest >= 1 && shortest <= 45 ? shortest : 0;
+        };
         setAcc((prev) => ({
           alpha: prev.alpha + delta(cur.a, p.a),
           beta: prev.beta + delta(cur.b, p.b),
@@ -300,15 +348,18 @@ function SensorsTest({ onDone }: { onDone: (r: TResult) => void }) {
       }
     };
     window.addEventListener('deviceorientation', handler);
-    return () => window.removeEventListener('deviceorientation', handler);
+    return () => {
+      window.removeEventListener('deviceorientation', handler);
+      if (noSignalTimer) window.clearTimeout(noSignalTimer);
+    };
   }, []);
 
   const requestIosPermission = async () => {
     try {
       const doe = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
       const res = await doe.requestPermission?.();
-      if (res === 'denied') onDone('unauthorized');
-      else setNeedPermission(false);
+      if (res !== 'granted') onDone('unauthorized');
+      else { setNeedPermission(false); setSupport('listening'); }
     } catch {
       onDone('unauthorized');
     }
@@ -382,14 +433,22 @@ function SensorsTest({ onDone }: { onDone: (r: TResult) => void }) {
       {needPermission && (
         <button style={btn('ghost')} onClick={requestIosPermission}>Enable motion sensors</button>
       )}
-      <p style={{ fontSize: 12, color: '#b0bab5', textAlign: 'center' }}>
-        Desktop preview has no sensors — the demo button completes the guided axis
-      </p>
+      {support === 'unsupported' && (
+        <p style={{ fontSize: 13, color: '#92610a', textAlign: 'center', lineHeight: 1.5 }}>
+          Orientation sensors are unavailable in this browser or context. Use HTTPS and check browser motion permissions.
+        </p>
+      )}
+      {support === 'checking' && !needPermission && (
+        <p style={{ fontSize: 12, color: '#8a9590', textAlign: 'center' }}>Waiting for orientation sensor data…</p>
+      )}
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {!allDone && (
+        {IS_DEMO && !allDone && (
           <button style={btn('ghost')} data-testid="dc-sensors-simulate" onClick={simulateMotion}>
             Simulate this axis (demo)
           </button>
+        )}
+        {support === 'unsupported' && (
+          <button style={btn('ghost')} onClick={() => onDone('unsupported')}>Continue as unsupported</button>
         )}
         <div style={{ display: 'flex', gap: 10 }}>
           <button
@@ -418,36 +477,44 @@ function SensorsTest({ onDone }: { onDone: (r: TResult) => void }) {
 /* ---------- 4. Speaker ---------- */
 
 function SpeakerTest({ onDone }: { onDone: (r: TResult) => void }) {
-  const playTone = (pan: number, freq = 440) => {
+  const [played, setPlayed] = useState({ left: false, right: false });
+  const [unavailable, setUnavailable] = useState(false);
+  const playTone = (side: 'left' | 'right', freq = 440) => {
     try {
-      const ctx = new AudioContext();
-      const osc = ctx.createOscillator();
-      const panner = ctx.createStereoPanner();
-      osc.frequency.value = freq;
-      panner.pan.value = pan;
-      osc.connect(panner);
-      panner.connect(ctx.destination);
-      osc.start();
-      setTimeout(() => { osc.stop(); void ctx.close(); }, 900);
-    } catch { /* audio unavailable */ }
+      const AudioCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtor) throw new Error('Web Audio unavailable');
+      const ctx = new AudioCtor();
+      const duration = 0.9;
+      const buffer = ctx.createBuffer(2, Math.ceil(ctx.sampleRate * duration), ctx.sampleRate);
+      const target = buffer.getChannelData(side === 'left' ? 0 : 1);
+      for (let i = 0; i < target.length; i += 1) target[i] = Math.sin((2 * Math.PI * freq * i) / ctx.sampleRate) * 0.22;
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.onended = () => { setPlayed((p) => ({ ...p, [side]: true })); void ctx.close(); };
+      void ctx.resume().then(() => source.start()).catch(() => { setUnavailable(true); void ctx.close(); });
+      setUnavailable(false);
+    } catch { setUnavailable(true); }
   };
+  const bothPlayed = played.left && played.right;
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={card}>
         <p style={{ fontSize: 15, fontWeight: 700 }}>Play each side and listen</p>
         <p style={{ fontSize: 13, color: '#5c6863', marginTop: 4 }}>Turn media volume up. Each tone plays ~1s on one channel only.</p>
         <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-          <button style={btn('ghost')} onClick={() => playTone(-1)}>◀ Left</button>
-          <button style={btn('ghost')} onClick={() => playTone(1)}>Right ▶</button>
-          <button style={btn('ghost')} onClick={() => { playTone(-1); setTimeout(() => playTone(1), 1000); }}>Both</button>
+          <button data-testid="dc-speaker-left" style={btn('ghost')} onClick={() => playTone('left')}>{played.left ? '✓ ' : ''}◀ Left</button>
+          <button data-testid="dc-speaker-right" style={btn('ghost')} onClick={() => playTone('right')}>{played.right ? '✓ ' : ''}Right ▶</button>
         </div>
+        {unavailable && <p style={{ fontSize: 13, color: '#92610a', marginTop: 10 }}>Web Audio is unavailable in this browser.</p>}
       </div>
       <div style={{ marginTop: 'auto', display: 'flex', gap: 10 }}>
-        <button data-testid="dc-speaker-pass" style={{ ...btn('primary'), flex: 2 }} onClick={() => onDone('pass')}>
-          Heard both sides ✓
+        <button data-testid="dc-speaker-pass" disabled={!bothPlayed} style={{ ...btn('primary'), flex: 2, opacity: bothPlayed ? 1 : 0.45 }} onClick={() => onDone('pass')}>
+          {bothPlayed ? 'Heard both sides ✓' : 'Play both channels first'}
         </button>
         <button style={btn('danger')} onClick={() => onDone('fail')}>No sound ✗</button>
       </div>
+      {unavailable && <button style={btn('ghost')} onClick={() => onDone('unsupported')}>Continue as unsupported</button>}
     </div>
   );
 }
@@ -455,30 +522,48 @@ function SpeakerTest({ onDone }: { onDone: (r: TResult) => void }) {
 /* ---------- 5. Microphone ---------- */
 
 function MicTest({ onDone }: { onDone: (r: TResult) => void }) {
-  const [state, setState] = useState<'idle' | 'recording' | 'recorded' | 'denied'>('idle');
+  const [state, setState] = useState<'idle' | 'recording' | 'recorded' | 'error'>('idle');
+  const [failure, setFailure] = useState<Extract<TResult, 'unauthorized' | 'unsupported' | 'fail'> | null>(null);
   const [url, setUrl] = useState<string | null>(null);
+  const [playedBack, setPlayedBack] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const stopTimerRef = useRef<number | null>(null);
 
-  useEffect(() => () => recorderRef.current?.stream.getTracks().forEach((t) => t.stop()), []);
+  useEffect(() => () => {
+    recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
+    if (stopTimerRef.current) window.clearTimeout(stopTimerRef.current);
+    if (url) URL.revokeObjectURL(url);
+  }, [url]);
 
   const record = async () => {
     try {
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+        throw new DOMException('Recording is unsupported', 'NotSupportedError');
+      }
+      if (url) URL.revokeObjectURL(url);
+      setUrl(null);
+      setPlayedBack(false);
+      setFailure(null);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream);
+      const candidates = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'];
+      const mimeType = candidates.find((type) => MediaRecorder.isTypeSupported(type));
+      const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       recorderRef.current = rec;
       chunksRef.current = [];
-      rec.ondataavailable = (e) => chunksRef.current.push(e.data);
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       rec.onstop = () => {
-        setUrl(URL.createObjectURL(new Blob(chunksRef.current, { type: 'audio/webm' })));
+        const blob = new Blob(chunksRef.current, { type: rec.mimeType || mimeType || 'audio/webm' });
+        setUrl(URL.createObjectURL(blob));
         setState('recorded');
         stream.getTracks().forEach((t) => t.stop());
       };
-      rec.start();
+      rec.start(250);
       setState('recording');
-      setTimeout(() => rec.state !== 'inactive' && rec.stop(), 3000);
-    } catch {
-      setState('denied');
+      stopTimerRef.current = window.setTimeout(() => rec.state !== 'inactive' && rec.stop(), 3000);
+    } catch (error) {
+      setFailure(mediaFailure(error));
+      setState('error');
     }
   };
 
@@ -495,21 +580,23 @@ function MicTest({ onDone }: { onDone: (r: TResult) => void }) {
         >
           {state === 'recording' ? '● Recording…' : state === 'recorded' ? 'Re-record' : 'Record'}
         </button>
-        {state === 'denied' && (
-          <p style={{ fontSize: 13, color: DANGER, marginTop: 10 }}>
-            Microphone permission denied — recorded as “unauthorized”, not a hardware fault.
+        {state === 'error' && (
+          <p style={{ fontSize: 13, color: failure === 'fail' ? DANGER : '#92610a', marginTop: 10 }}>
+            {failure === 'unauthorized' ? 'Microphone permission was denied.' : failure === 'unsupported' ? 'Microphone recording is unavailable in this browser or context.' : 'The microphone could not be started.'}
           </p>
         )}
-        {url && <audio controls src={url} style={{ width: '100%', marginTop: 12 }} />}
+        {url && <audio data-testid="dc-mic-playback" controls src={url} onEnded={() => setPlayedBack(true)} style={{ width: '100%', marginTop: 12 }} />}
       </div>
-      {state === 'denied' && (
-        <button data-testid="dc-mic-unauth" style={{ ...btn('ghost'), marginTop: 'auto' }} onClick={() => onDone('unauthorized')}>
-          Continue as unauthorized
+      {state === 'error' && failure && (
+        <button data-testid="dc-mic-unauth" style={{ ...btn('ghost'), marginTop: 'auto' }} onClick={() => onDone(failure)}>
+          Continue as {failure}
         </button>
       )}
       {state === 'recorded' && (
         <div style={{ marginTop: 'auto', display: 'flex', gap: 10 }}>
-          <button data-testid="dc-mic-pass" style={{ ...btn('primary'), flex: 2 }} onClick={() => onDone('pass')}>Heard playback ✓</button>
+          <button data-testid="dc-mic-pass" disabled={!playedBack} style={{ ...btn('primary'), flex: 2, opacity: playedBack ? 1 : 0.45 }} onClick={() => onDone('pass')}>
+            {playedBack ? 'Playback clear ✓' : 'Play the full recording first'}
+          </button>
           <button style={btn('danger')} onClick={() => onDone('fail')}>Silent ✗</button>
         </div>
       )}
@@ -523,42 +610,60 @@ function CameraTest({ onDone }: { onDone: (r: TResult) => void }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [facing, setFacing] = useState<'user' | 'environment'>('user');
-  const [err, setErr] = useState<string | null>(null);
+  const [enabled, setEnabled] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [failure, setFailure] = useState<Extract<TResult, 'unauthorized' | 'unsupported' | 'fail'> | null>(null);
+  const [cameraCount, setCameraCount] = useState(0);
+  const [captured, setCaptured] = useState<Set<'user' | 'environment'>>(new Set());
   const [shot, setShot] = useState<string | null>(null);
 
   const start = async (f: 'user' | 'environment') => {
     try {
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        throw new DOMException('Camera is unsupported', 'NotSupportedError');
+      }
       streamRef.current?.getTracks().forEach((t) => t.stop());
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: f } });
+      setReady(false);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: f } } });
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
-      setErr(null);
-    } catch {
-      setErr('denied');
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      setCameraCount(devices.filter((d) => d.kind === 'videoinput').length);
+      setEnabled(true);
+      setFailure(null);
+    } catch (error) {
+      setFailure(mediaFailure(error));
     }
   };
 
-  useEffect(() => {
-    void start(facing);
-    return () => streamRef.current?.getTracks().forEach((t) => t.stop());
-  }, [facing]);
+  useEffect(() => () => streamRef.current?.getTracks().forEach((t) => t.stop()), []);
+
+  const flip = () => {
+    const next = facing === 'user' ? 'environment' : 'user';
+    setFacing(next);
+    setShot(null);
+    void start(next);
+  };
 
   const capture = () => {
     const v = videoRef.current;
-    if (!v) return;
+    if (!v || !ready || v.videoWidth === 0 || v.videoHeight === 0) return;
     const c = document.createElement('canvas');
-    c.width = v.videoWidth || 640;
-    c.height = v.videoHeight || 480;
+    c.width = v.videoWidth;
+    c.height = v.videoHeight;
     c.getContext('2d')?.drawImage(v, 0, 0, c.width, c.height);
     setShot(c.toDataURL('image/jpeg', 0.8));
+    setCaptured((prev) => new Set(prev).add(facing));
   };
+  const requiredShots = cameraCount > 1 ? 2 : 1;
+  const complete = captured.size >= requiredShots;
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ ...card, padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ aspectRatio: '4/3', borderRadius: 12, overflow: 'hidden', background: '#0f1a17', position: 'relative' }}>
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <video ref={videoRef} autoPlay playsInline muted onLoadedMetadata={() => setReady(true)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           {shot && (
             <img
               src={shot}
@@ -567,27 +672,35 @@ function CameraTest({ onDone }: { onDone: (r: TResult) => void }) {
             />
           )}
         </div>
+        {!enabled && !failure && (
+          <button data-testid="dc-camera-enable" style={btn('primary')} onClick={() => void start(facing)}>Enable camera</button>
+        )}
         <div style={{ display: 'flex', gap: 10 }}>
-          <button style={{ ...btn('ghost'), flex: 1 }} onClick={() => setFacing(facing === 'user' ? 'environment' : 'user')}>
-            Flip ({facing === 'user' ? 'front' : 'rear'})
+          <button disabled={!enabled || cameraCount < 2} style={{ ...btn('ghost'), flex: 1, opacity: enabled && cameraCount > 1 ? 1 : 0.45 }} onClick={flip}>
+            Switch to {facing === 'user' ? 'rear' : 'front'}
           </button>
-          <button data-testid="dc-camera-shot" style={{ ...btn('ghost'), flex: 1 }} onClick={capture}>Capture</button>
+          <button data-testid="dc-camera-shot" disabled={!ready} style={{ ...btn('ghost'), flex: 1, opacity: ready ? 1 : 0.45 }} onClick={capture}>
+            {captured.has(facing) ? 'Captured ✓' : 'Capture'}
+          </button>
         </div>
-        {err === 'denied' && (
-          <p style={{ fontSize: 13, color: DANGER }}>
-            Camera permission denied — recorded as “unauthorized”, not a hardware fault.
+        {enabled && <p style={{ fontSize: 12, color: '#8a9590' }}>{cameraCount || 1} camera device(s) found · capture {requiredShots} view(s)</p>}
+        {failure && (
+          <p style={{ fontSize: 13, color: failure === 'fail' ? DANGER : '#92610a' }}>
+            {failure === 'unauthorized' ? 'Camera permission was denied.' : failure === 'unsupported' ? 'Camera access is unavailable in this browser or context.' : 'The camera could not be started.'}
           </p>
         )}
       </div>
       <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {err === 'denied' && (
-          <button data-testid="dc-camera-unauth" style={btn('ghost')} onClick={() => onDone('unauthorized')}>
-            Continue as unauthorized
+        {failure && (
+          <button data-testid="dc-camera-unauth" style={btn('ghost')} onClick={() => onDone(failure)}>
+            Continue as {failure}
           </button>
         )}
-        {err !== 'denied' && (
+        {!failure && (
           <div style={{ display: 'flex', gap: 10 }}>
-            <button data-testid="dc-camera-pass" style={{ ...btn('primary'), flex: 2 }} onClick={() => onDone('pass')}>Preview OK ✓</button>
+            <button data-testid="dc-camera-pass" disabled={!complete} style={{ ...btn('primary'), flex: 2, opacity: complete ? 1 : 0.45 }} onClick={() => onDone('pass')}>
+              {complete ? 'Required cameras OK ✓' : 'Capture required views'}
+            </button>
             <button style={btn('danger')} onClick={() => onDone('fail')}>Black / dark ✗</button>
           </div>
         )}
@@ -599,12 +712,6 @@ function CameraTest({ onDone }: { onDone: (r: TResult) => void }) {
 /* ---------- 7. Buttons — guided here, judged by tablet ADB ---------- */
 
 function ButtonsGuide({ onVerdict }: { onVerdict: (r: TResult) => void }) {
-  const [waiting, setWaiting] = useState(true);
-  useEffect(() => {
-    // Demo: the tablet listens over ADB (getevent / dumpsys input) and pushes the verdict back
-    const t = setTimeout(() => setWaiting(false), 2200);
-    return () => clearTimeout(t);
-  }, []);
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={card}>
@@ -619,21 +726,13 @@ function ButtonsGuide({ onVerdict }: { onVerdict: (r: TResult) => void }) {
         </p>
       </div>
       <div style={{ ...card, marginTop: 'auto', textAlign: 'center' }}>
-        {waiting ? (
-          <>
-            <div style={{ width: 28, height: 28, margin: '0 auto 10px', border: `3px solid ${GOLD}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'dc-spin 0.9s linear infinite' }} />
-            <p style={{ fontSize: 14, color: '#5c6863' }}>Waiting for the tablet’s ADB verdict…</p>
-          </>
-        ) : (
-          <>
-            <p style={{ fontSize: 15, fontWeight: 700, color: GREEN }}>Tablet ADB verdict: all keys OK</p>
-            <button data-testid="dc-buttons-ok" style={{ ...btn('primary'), width: '100%', marginTop: 12 }} onClick={() => onVerdict('pass')}>
-              Continue
-            </button>
-          </>
-        )}
+        <p style={{ fontSize: 14, color: '#5c6863', lineHeight: 1.5 }}>
+          Browsers cannot verify power or volume key events. Complete the physical check externally; this item will not be reported as passed by H5 alone.
+        </p>
+        <button data-testid="dc-buttons-ok" style={{ ...btn('ghost'), width: '100%', marginTop: 12 }} onClick={() => onVerdict('external')}>
+          Continue · external verification required
+        </button>
       </div>
-      <style>{`@keyframes dc-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
@@ -641,14 +740,21 @@ function ButtonsGuide({ onVerdict }: { onVerdict: (r: TResult) => void }) {
 /* ---------- Summary ---------- */
 
 function Summary({ token, results }: { token: string; results: Record<TStepKey, TResult> }) {
-  const label: Record<TResult, string> = { pass: 'OK', fail: 'Issue found', unauthorized: 'Unauthorized', unknown: '—' };
-  const color: Record<TResult, string> = { pass: GREEN, fail: DANGER, unauthorized: '#92610a', unknown: '#8a9590' };
+  const label: Record<TResult, string> = {
+    pass: 'OK', fail: 'Issue found', unauthorized: 'Permission denied', unsupported: 'Unsupported', external: 'External check', unknown: '—',
+  };
+  const color: Record<TResult, string> = {
+    pass: GREEN, fail: DANGER, unauthorized: '#92610a', unsupported: '#92610a', external: '#1e5f8a', unknown: '#8a9590',
+  };
+  const values = Object.values(results);
+  const hasFailure = values.includes('fail');
+  const needsAttention = values.some((r) => r !== 'pass');
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: 24, gap: 16 }}>
       <div style={{ textAlign: 'center', marginTop: 24 }}>
-        <div style={{ width: 64, height: 64, margin: '0 auto 12px', borderRadius: '50%', background: GREEN, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30 }}>✓</div>
+        <div style={{ width: 64, height: 64, margin: '0 auto 12px', borderRadius: '50%', background: hasFailure ? DANGER : needsAttention ? GOLD : GREEN, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30 }}>{hasFailure ? '!' : needsAttention ? 'i' : '✓'}</div>
         <h1 style={{ fontSize: 22, fontWeight: 800 }}>Check complete</h1>
-        <p style={{ fontSize: 14, color: '#5c6863', marginTop: 6 }}>Results sent to the tablet · token {token} consumed</p>
+        <p style={{ fontSize: 14, color: '#5c6863', marginTop: 6 }}>Local result · inspection {token}</p>
       </div>
       <div style={{ ...card, padding: 8 }}>
         {STEPS.map((s) => (
@@ -659,7 +765,7 @@ function Summary({ token, results }: { token: string; results: Record<TStepKey, 
         ))}
       </div>
       <p style={{ fontSize: 13, color: '#8a9590', textAlign: 'center', lineHeight: 1.6 }}>
-        Please hand the phone back to the clerk to finish the inspection.
+        {needsAttention ? 'Review unsupported, denied, external or failed items before completing the inspection.' : 'All browser-verifiable checks passed.'}
       </p>
     </div>
   );
