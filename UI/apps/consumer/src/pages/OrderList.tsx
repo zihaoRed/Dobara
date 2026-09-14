@@ -95,8 +95,8 @@ const SELL_FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'appointment_pending', label: 'Scheduled' },
   { key: 'inspecting', label: 'Inspecting' },
-  { key: 'pending_confirm', label: 'Pending confirm' },
-  { key: 'awaiting_redeem', label: 'Awaiting confirm' },
+  { key: 'pending_confirm', label: 'Quote Ready' },
+  { key: 'awaiting_redeem', label: 'Confirm trade-in' },
   { key: 'completed', label: 'Completed' },
   { key: 'rejected', label: 'Rejected' },
 ];
@@ -129,8 +129,8 @@ function sellBadge(status: TRecycleStatus): 'pending' | 'in_progress' | 'complet
 function sellStatusLabel(status: TRecycleStatus): string {
   switch (status) {
     case 'appointment_pending': return 'Scheduled';
-    case 'awaiting_redeem': return 'Awaiting confirm';
-    case 'pending_confirm': return 'Pending confirm';
+    case 'awaiting_redeem': return 'Confirm trade-in';
+    case 'pending_confirm': return 'Quote Ready';
     default:
       return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }

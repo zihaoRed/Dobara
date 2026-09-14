@@ -141,7 +141,7 @@ const TradeInEntry: React.FC = () => {
             >
               <p className="text-body font-semibold">Waiting for user confirmation on C-app</p>
               <p className="text-caption">
-                Ask the customer to open the Dobara consumer app and tap Confirm verification. You do not confirm here.
+                Ask the customer to open the Dobara consumer app and tap Confirm trade-in. You do not confirm here.
               </p>
             </div>
           ) : (

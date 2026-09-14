@@ -94,12 +94,12 @@ export function RedeemConfirm() {
       }
       setDone(true);
       navigate('/account/orders', {
-        state: { toast: 'Verification confirmed. Trade-in completed.' },
+        state: { toast: 'Trade-in confirmed.' },
       });
     } catch {
       if (sessionId === 'sess-003') {
         navigate('/account/orders', {
-          state: { toast: 'Verification confirmed. Trade-in completed.' },
+          state: { toast: 'Trade-in confirmed.' },
         });
       } else {
         setError('Confirmation failed. Please try again.');
@@ -112,7 +112,7 @@ export function RedeemConfirm() {
     return (
       <div className="max-w-lg mx-auto py-8 text-center" data-testid="redeem-loading">
         <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-500 border-t-transparent mx-auto mb-3" />
-        <p className="text-body text-text-secondary">Loading verification...</p>
+        <p className="text-body text-text-secondary">Loading trade-in details...</p>
       </div>
     );
   }
@@ -140,7 +140,7 @@ export function RedeemConfirm() {
       <Button variant="ghost" size="sm" onClick={() => navigate('/account/orders')} data-testid="redeem-back">
         ← Back
       </Button>
-      <h1 className="text-h3 font-heading">Confirm verification</h1>
+      <h1 className="text-h3 font-heading">Confirm trade-in</h1>
       <p className="text-caption text-text-muted -mt-2">
         Review the new-device price entered by the store owner, then confirm in the app.
       </p>
@@ -200,7 +200,7 @@ export function RedeemConfirm() {
         data-testid="redeem-confirm-btn"
         icon={<CheckCircle size={18} />}
       >
-        Confirm verification
+        Confirm trade-in
       </Button>
     </div>
   );
