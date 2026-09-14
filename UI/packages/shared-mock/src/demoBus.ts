@@ -22,6 +22,10 @@ export interface IDemoTradeIn {
   newPrice?: number;
   actualPayment?: number;
   newDeviceHint?: string;
+  /** Scanned by store owner (OWN-P0-01) — drives user-side IMEI last-4 check */
+  newDeviceImei?: string;
+  /** Auto-linked from IMEI lookup; owner may correct manually */
+  newDeviceModel?: string;
   brand?: string;
   model?: string;
   imei?: string;

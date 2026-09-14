@@ -478,15 +478,24 @@ export const handlers = [
       newPrice?: number;
       actualPayment?: number;
       newDeviceHint?: string;
+      newDeviceImei?: string;
+      newDeviceModel?: string;
       brand?: string;
       model?: string;
       imei?: string;
     };
+    /** Demo TAC catalog — first 8 IMEI digits → device model (mocks GSMA device DB) */
+    const IMEI_TAC_CATALOG: Record<string, { brand: string; model: string; storage: string }> = {
+      '35012345': { brand: 'OnePlus', model: 'OnePlus 12R', storage: '256GB' },
+      '35678912': { brand: 'Apple', model: 'iPhone 15', storage: '128GB' },
+      '35099988': { brand: 'Samsung', model: 'Galaxy S24', storage: '128GB' },
+      '35890123': { brand: 'Xiaomi', model: 'Xiaomi 14', storage: '256GB' },
+    };
     const tradeIns: TTrade[] = [
       { sessionId: 'sess-001', storeId: 'ST-MH-0001', customerName: 'Rahul Sharma', customerPhone: '9876501001', device: 'iPhone 13 128GB', deduction: 38000, status: 'pending', date: '2026-08-10', newDeviceHint: 'iPhone 15' },
       { sessionId: 'sess-002', storeId: 'ST-MH-0001', customerName: 'Priya Patel', customerPhone: '9876501002', device: 'Galaxy S22 256GB', deduction: 31000, status: 'pending', date: '2026-08-09', newDeviceHint: 'Galaxy S24' },
-      { sessionId: 'sess-003', storeId: 'ST-MH-0001', customerName: 'Amit Singh', customerPhone: '9876501003', device: 'OnePlus Nord 2 128GB', deduction: 14000, status: 'awaiting_user_confirm', date: '2026-08-08', newPrice: 28000, actualPayment: 14000, newDeviceHint: 'OnePlus 12R', brand: 'OnePlus', model: 'Nord 2' },
-      { sessionId: 'sess-004', storeId: 'ST-MH-0001', customerName: 'Sneha Reddy', customerPhone: '9876501004', device: 'Xiaomi 11 Lite', deduction: 12000, status: 'confirmed', date: '2026-08-05', newPrice: 32000, actualPayment: 20000, newDeviceHint: 'Xiaomi 14' },
+      { sessionId: 'sess-003', storeId: 'ST-MH-0001', customerName: 'Amit Singh', customerPhone: '9876501003', device: 'OnePlus Nord 2 128GB', deduction: 14000, status: 'awaiting_user_confirm', date: '2026-08-08', newPrice: 28000, actualPayment: 14000, newDeviceHint: 'OnePlus 12R', newDeviceImei: '350123456789012', newDeviceModel: 'OnePlus 12R', brand: 'OnePlus', model: 'Nord 2' },
+      { sessionId: 'sess-004', storeId: 'ST-MH-0001', customerName: 'Sneha Reddy', customerPhone: '9876501004', device: 'Xiaomi 11 Lite', deduction: 12000, status: 'confirmed', date: '2026-08-05', newPrice: 32000, actualPayment: 20000, newDeviceHint: 'Xiaomi 14', newDeviceImei: '358901239876543', newDeviceModel: 'Xiaomi 14' },
       { sessionId: 'sess-101', storeId: 'ST-KA-0002', customerName: 'Arjun Nair', customerPhone: '9876502001', device: 'iPhone 12 64GB', deduction: 22000, status: 'pending', date: '2026-08-10' },
     ];
     for (const t of tradeIns) upsertTradeIn(t);
@@ -512,11 +521,30 @@ export const handlers = [
         if (!t) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
         return HttpResponse.json(t);
       }),
+      // New-device model lookup by IMEI (TAC) — powers owner-side auto-fill after scan
+      http.get('/api/devices/lookup', async ({ request }) => {
+        await simulateDelay();
+        const imei = new URL(request.url).searchParams.get('imei') || '';
+        if (!/^\d{15}$/.test(imei)) {
+          return HttpResponse.json({ error: 'Invalid IMEI — 15 digits required' }, { status: 400 });
+        }
+        const hit = IMEI_TAC_CATALOG[imei.slice(0, 8)];
+        return HttpResponse.json(hit ? { found: true, ...hit } : { found: false });
+      }),
       http.post('/api/trade-in/:sessionId/price', async ({ params, request }) => {
         await simulateDelay();
-        const body = await request.json() as { newPrice: number; actualPayment: number; deduction: number };
+        const body = await request.json() as {
+          newPrice: number;
+          actualPayment: number;
+          deduction: number;
+          newDeviceImei?: string;
+          newDeviceModel?: string;
+        };
         if (body.newPrice - body.deduction !== body.actualPayment) {
           return HttpResponse.json({ error: 'Formula mismatch' }, { status: 400 });
+        }
+        if (body.newDeviceImei && !/^\d{15}$/.test(body.newDeviceImei)) {
+          return HttpResponse.json({ error: 'Invalid new-device IMEI — 15 digits required' }, { status: 400 });
         }
         const sid = String(params.sessionId);
         let t = tradeIns.find((x) => x.sessionId === sid);
@@ -530,6 +558,8 @@ export const handlers = [
         if (!t) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
         t.newPrice = body.newPrice;
         t.actualPayment = body.actualPayment;
+        if (body.newDeviceImei) t.newDeviceImei = body.newDeviceImei;
+        if (body.newDeviceModel) t.newDeviceModel = body.newDeviceModel;
         t.status = 'awaiting_user_confirm';
         upsertTradeIn(t);
         const rcy = recycleOrderStore.find((o) => o.sessionId === sid);

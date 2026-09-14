@@ -22,6 +22,8 @@ export interface ITradeInSession {
   newPrice?: number;
   actualPayment?: number;
   newDeviceHint?: string;
+  newDeviceImei?: string;
+  newDeviceModel?: string;
   brand?: string;
   model?: string;
   imei?: string;
@@ -64,6 +66,8 @@ const SEED: ITradeInSession[] = [
     newPrice: 28000,
     actualPayment: 14000,
     newDeviceHint: 'OnePlus 12R',
+    newDeviceImei: '350123456789012',
+    newDeviceModel: 'OnePlus 12R',
   },
   {
     sessionId: 'sess-004',
@@ -77,6 +81,8 @@ const SEED: ITradeInSession[] = [
     newPrice: 32000,
     actualPayment: 20000,
     newDeviceHint: 'Xiaomi 14',
+    newDeviceImei: '358901239876543',
+    newDeviceModel: 'Xiaomi 14',
   },
   {
     sessionId: 'sess-101',
@@ -141,6 +147,7 @@ export function submitTradeInPrice(
   sessionId: string,
   newPrice: number,
   actualPayment: number,
+  newDevice?: { imei: string; model: string },
 ): { ok: true; session: ITradeInSession } | { ok: false; error: string } {
   const list = load();
   const idx = list.findIndex((t) => t.sessionId === sessionId);
@@ -152,10 +159,17 @@ export function submitTradeInPrice(
   if (newPrice - t.deduction !== actualPayment) {
     return { ok: false, error: 'Formula mismatch' };
   }
+  if (newDevice && !/^\d{15}$/.test(newDevice.imei)) {
+    return { ok: false, error: 'Invalid new-device IMEI — 15 digits required' };
+  }
+  if (newDevice && !newDevice.model.trim()) {
+    return { ok: false, error: 'New-device model required' };
+  }
   const next: ITradeInSession = {
     ...t,
     newPrice,
     actualPayment,
+    ...(newDevice ? { newDeviceImei: newDevice.imei, newDeviceModel: newDevice.model.trim() } : {}),
     status: 'awaiting_user_confirm',
   };
   list[idx] = next;

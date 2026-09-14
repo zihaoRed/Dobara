@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Button, Input, PriceDisplay, Badge } from '@dobara/ui';
-import { ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, AlertCircle, ScanLine } from 'lucide-react';
 import {
   confirmTradeInLocal,
   getTradeIn,
@@ -10,17 +10,25 @@ import {
   type ITradeInSession,
 } from '../../lib/tradeInStore';
 
+/** Demo barcodes the "Scan" button cycles through — each maps in the mock TAC catalog */
+const DEMO_SCAN_IMEIS = ['350123456789012', '356789124590123', '350999881234567', '358901239876543'];
+
 const TradeInEntry: React.FC = () => {
   const { sessionId = '' } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const [session, setSession] = useState<ITradeInSession | null>(null);
   const [newPrice, setNewPrice] = useState('');
   const [actualPayment, setActualPayment] = useState('');
+  const [newImei, setNewImei] = useState('');
+  const [newModel, setNewModel] = useState('');
+  const [modelTouched, setModelTouched] = useState(false);
+  const [scanNote, setScanNote] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const scanIdx = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,6 +41,8 @@ const TradeInEntry: React.FC = () => {
             setSession(data);
             if (data.newPrice != null) setNewPrice(String(data.newPrice));
             if (data.actualPayment != null) setActualPayment(String(data.actualPayment));
+            if (data.newDeviceImei) setNewImei(data.newDeviceImei);
+            if (data.newDeviceModel) setNewModel(data.newDeviceModel);
             if (data.status === 'awaiting_user_confirm' || data.status === 'confirmed') {
               setSubmitted(true);
             }
@@ -41,10 +51,48 @@ const TradeInEntry: React.FC = () => {
         }
       } catch { /* fall through to local */ }
       const local = getTradeIn(sessionId);
-      if (!cancelled) setSession(local || null);
+      if (!cancelled) {
+        setSession(local || null);
+        if (local?.newDeviceImei) setNewImei(local.newDeviceImei);
+        if (local?.newDeviceModel) setNewModel(local.newDeviceModel);
+      }
     })();
     return () => { cancelled = true; };
   }, [sessionId]);
+
+  // Auto-link model from IMEI (TAC lookup) unless the owner has corrected it by hand
+  useEffect(() => {
+    if (!/^\d{15}$/.test(newImei) || modelTouched) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/devices/lookup?imei=${newImei}`);
+        if (!res.ok) {
+          if (!cancelled) setScanNote('Lookup unavailable — type the model manually.');
+          return;
+        }
+        const d = (await res.json()) as { found: boolean; brand?: string; model?: string };
+        if (cancelled || modelTouched) return;
+        if (d.found && d.model) {
+          setNewModel(d.model);
+          setScanNote(`Auto-filled from IMEI (${d.brand}) — edit below if incorrect.`);
+        } else {
+          setScanNote('No model match for this IMEI — type the model manually.');
+        }
+      } catch {
+        if (!cancelled) setScanNote('Lookup unavailable — type the model manually.');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [newImei, modelTouched]);
+
+  const handleScan = () => {
+    const imei = DEMO_SCAN_IMEIS[scanIdx.current % DEMO_SCAN_IMEIS.length];
+    scanIdx.current += 1;
+    setModelTouched(false);
+    setNewImei(imei);
+    setScanNote('Barcode scanned — looking up model…');
+  };
 
   if (!session) {
     return (
@@ -62,15 +110,25 @@ const TradeInEntry: React.FC = () => {
   const diff = actualPaymentNum - expected;
   const isFormulaValid = newPrice !== '' && actualPayment !== '' && newPriceNum - deduction === actualPaymentNum;
   const hasInput = newPrice !== '' && actualPayment !== '';
+  const imeiValid = /^\d{15}$/.test(newImei);
+  const modelValid = newModel.trim().length > 0;
+  const canSubmit = isFormulaValid && hasInput && imeiValid && modelValid;
   const handleSubmit = async () => {
-    if (!isFormulaValid) {
-      setError(`Formula mismatch. Difference: ₹${diff.toLocaleString('en-IN')}`);
+    if (!canSubmit) {
+      setError(
+        !isFormulaValid
+          ? `Formula mismatch. Difference: ₹${diff.toLocaleString('en-IN')}`
+          : !imeiValid || !modelValid
+            ? 'Scan or enter the new-device IMEI and model first'
+            : 'Submission failed',
+      );
       return;
     }
     setError('');
     setLoading(true);
+    const newDevice = { imei: newImei, model: newModel.trim() };
     const applyLocal = () => {
-      const local = submitTradeInPrice(sessionId, newPriceNum, actualPaymentNum);
+      const local = submitTradeInPrice(sessionId, newPriceNum, actualPaymentNum, newDevice);
       if (local.ok) {
         setSubmitted(true);
         setSession(local.session);
@@ -83,7 +141,13 @@ const TradeInEntry: React.FC = () => {
       const res = await fetch(`/api/trade-in/${sessionId}/price`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newPrice: newPriceNum, actualPayment: actualPaymentNum, deduction }),
+        body: JSON.stringify({
+          newPrice: newPriceNum,
+          actualPayment: actualPaymentNum,
+          deduction,
+          newDeviceImei: newImei,
+          newDeviceModel: newModel.trim(),
+        }),
       });
       if (res.ok) {
         applyLocal();
@@ -128,6 +192,12 @@ const TradeInEntry: React.FC = () => {
           <p className="text-body text-text-secondary">
             {session.customerName} · {session.device}
           </p>
+          {(session.newDeviceModel || session.newDeviceHint) && (
+            <p className="text-caption text-text-secondary" data-testid="tradein-submitted-new-device">
+              New device: {session.newDeviceModel || session.newDeviceHint}
+              {session.newDeviceImei ? ` · IMEI ···${session.newDeviceImei.slice(-4)}` : ''}
+            </p>
+          )}
           <p className="text-body text-text-secondary">
             New ₹{(session.newPrice ?? newPriceNum).toLocaleString('en-IN')} − Deduction ₹{deduction.toLocaleString('en-IN')}
           </p>
@@ -196,6 +266,43 @@ const TradeInEntry: React.FC = () => {
           <h3 className="text-h4 font-heading">New device sale</h3>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-3" data-testid="tradein-new-device-block">
+            <div className="flex items-center justify-between">
+              <p className="text-body font-medium">New device</p>
+              <Button variant="secondary" size="sm" onClick={handleScan} data-testid="tradein-scan-imei">
+                <ScanLine size={16} className="mr-1" /> Scan IMEI (demo)
+              </Button>
+            </div>
+            <Input
+              data-testid="tradein-new-imei"
+              label="New device IMEI (scan or 15 digits)"
+              value={newImei}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                setNewImei(e.target.value.replace(/\D/g, ''));
+                setModelTouched(false);
+                setScanNote('');
+              }}
+              placeholder="Scan the barcode or type 15 digits"
+              error={newImei.length > 0 && !imeiValid ? 'IMEI must be exactly 15 digits' : undefined}
+            />
+            <Input
+              data-testid="tradein-new-model"
+              label="Model (auto-filled from IMEI — edit if incorrect)"
+              value={newModel}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                setNewModel(e.target.value);
+                setModelTouched(true);
+                setScanNote('');
+              }}
+              placeholder="e.g. OnePlus 12R"
+            />
+            {scanNote && (
+              <p className="text-caption text-text-muted" data-testid="tradein-scan-note">
+                {scanNote}
+              </p>
+            )}
+          </div>
+
           <Input
             data-testid="tradein-new-price"
             label="New device selling price (₹)"
@@ -255,7 +362,7 @@ const TradeInEntry: React.FC = () => {
             className="w-full"
             data-testid="tradein-submit"
             loading={loading}
-            disabled={!isFormulaValid || !hasInput}
+            disabled={!canSubmit}
             onClick={handleSubmit}
           >
             Submit (await user confirm)

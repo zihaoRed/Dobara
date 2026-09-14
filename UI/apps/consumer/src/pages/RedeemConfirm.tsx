@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, Button, PriceDisplay, Badge } from '@dobara/ui';
-import { CheckCircle, AlertTriangle, Smartphone } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Smartphone, PackageCheck } from 'lucide-react';
+import { imeiLast4 } from '@dobara/utils';
 
 type TradeInView = {
   sessionId: string;
@@ -12,6 +13,8 @@ type TradeInView = {
   newPrice: number;
   actualPayment: number;
   status?: string;
+  newDeviceImei?: string;
+  newDeviceModel?: string;
 };
 
 const SESS_003_FALLBACK: TradeInView = {
@@ -23,6 +26,8 @@ const SESS_003_FALLBACK: TradeInView = {
   newPrice: 28000,
   actualPayment: 14000,
   status: 'awaiting_user_confirm',
+  newDeviceImei: '350123456789012',
+  newDeviceModel: 'OnePlus 12R',
 };
 
 export function RedeemConfirm() {
@@ -46,6 +51,8 @@ export function RedeemConfirm() {
             newPrice?: number;
             actualPayment?: number;
             deduction?: number;
+            newDeviceImei?: string;
+            newDeviceModel?: string;
           };
           if (!cancelled) {
             setData({
@@ -57,6 +64,8 @@ export function RedeemConfirm() {
               newPrice: t.newPrice ?? 0,
               actualPayment: t.actualPayment ?? 0,
               status: t.status,
+              newDeviceImei: t.newDeviceImei,
+              newDeviceModel: t.newDeviceModel,
             });
           }
           return;
@@ -161,6 +170,32 @@ export function RedeemConfirm() {
           </div>
         </div>
       </Card>
+
+      {(data.newDeviceModel || data.newDeviceImei) && (
+        <Card data-testid="redeem-new-device">
+          <div className="flex items-start gap-3">
+            <div className="w-12 h-12 rounded-lg bg-surface-high flex items-center justify-center shrink-0">
+              <PackageCheck size={22} className="text-primary-500" />
+            </div>
+            <div className="flex-1">
+              <p className="text-body font-semibold mb-1">New device</p>
+              <div className="flex justify-between py-0.5">
+                <span className="text-caption text-text-muted">Model</span>
+                <span className="text-caption text-text-secondary">{data.newDeviceModel || '—'}</span>
+              </div>
+              {data.newDeviceImei && (
+                <div className="flex justify-between py-0.5">
+                  <span className="text-caption text-text-muted">IMEI</span>
+                  <span className="text-caption text-text-secondary font-mono">···{imeiLast4(data.newDeviceImei)}</span>
+                </div>
+              )}
+              <p className="text-caption text-text-muted mt-2">
+                Match the last 4 IMEI digits with the label on the phone you received before confirming.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card data-testid="redeem-amounts">
         <h2 className="text-h4 font-heading mb-3">Payment summary</h2>

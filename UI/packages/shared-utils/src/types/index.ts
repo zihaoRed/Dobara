@@ -216,5 +216,9 @@ export interface ITradeIn {
   oldDevicePrice: number;
   newDevicePrice: number;
   actualPayment: number;
+  /** New-device IMEI captured by store-owner scan (OWN-P0-01) */
+  newDeviceImei?: string;
+  /** New-device model auto-linked from IMEI, manually correctable by owner */
+  newDeviceModel?: string;
   status: 'pending' | 'awaiting_user_confirm' | 'submitted' | 'confirmed';
 }
