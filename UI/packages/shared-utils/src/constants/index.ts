@@ -41,13 +41,15 @@ export const ACCESSORY_OPTIONS = [
   { key: 'box', label: 'Missing original box' },
 ] as const;
 
-/** Functional defects (CO-FNC-01~08) — multi-select. */
+/** Functional defects (CO-FNC-01~09 + HW-BIO-01) — multi-select. */
 export const FUNCTIONAL_DEFECT_OPTIONS = [
   { key: 'flash', label: 'Flash not working' },
   { key: 'charging_port', label: 'Charging port issue' },
+  { key: 'port_corrosion', label: 'Charging / data port corrosion' },
   { key: 'buttons', label: 'Buttons not working' },
   { key: 'mic', label: 'Microphone issue' },
   { key: 'speaker', label: 'Speaker issue' },
+  { key: 'biometric', label: 'Face ID / fingerprint not working' },
   { key: 'camera_focus', label: 'Camera focus fail' },
   { key: 'vibration', label: 'Vibration motor not working' },
   { key: 'wireless', label: 'GPS / WiFi / Bluetooth issue' },

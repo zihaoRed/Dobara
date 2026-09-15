@@ -25,6 +25,8 @@ export const DEDUCTION_CATALOG: IDeductionCode[] = [
   { code: 'CO-BDY-02', kind: 'appearance', label: 'Dent / visible impact', amount: 1000 },
   { code: 'CO-BDY-03', kind: 'appearance', label: 'Frame deformation', amount: 2500, fuseDrop: true },
   { code: 'CO-BDY-04', kind: 'appearance', label: 'Back cover cracked', amount: 3000, fuseDrop: true },
+  // Battery swell is a safety issue: the distinct tier lands on admission ADM-08 (rejected)
+  { code: 'CO-BDY-05', kind: 'appearance', label: 'Battery swell / bulge', amount: 1500, fuseDrop: true },
 
   // —— Hardware: battery (HW-BH) ——
   { code: 'HW-BH-02', kind: 'hardware', label: 'Battery 85–90%', amount: 500 },
@@ -47,6 +49,7 @@ export const DEDUCTION_CATALOG: IDeductionCode[] = [
   { code: 'CO-FNC-06', kind: 'functional', label: 'Camera focus fail', amount: 1500 },
   { code: 'CO-FNC-07', kind: 'functional', label: 'Vibration motor not working', amount: 500 },
   { code: 'CO-FNC-08', kind: 'functional', label: 'GPS / WiFi / Bluetooth issue', amount: 2000 },
+  { code: 'CO-FNC-09', kind: 'functional', label: 'Charging / data port corrosion', amount: 2000 },
 
   // —— Repair history (CO-RPR) ——
   { code: 'CO-RPR-01', kind: 'repair', label: 'Screen replaced', amount: 1500, fuseDrop: true },

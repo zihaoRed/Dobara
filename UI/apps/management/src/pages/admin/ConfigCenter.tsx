@@ -37,6 +37,7 @@ const CONFIG_ITEMS: ConfigItem[] = [
   { key: 'admission.lost_stolen.enabled', label: 'Lost / stolen (CEIR) check', type: 'switch', default: true, group: 'A' },
   { key: 'admission.emi_check.enabled', label: 'EMI / NBFC check', type: 'switch', default: false, group: 'A' },
   { key: 'admission.carrier_lock.enabled', label: 'Carrier lock check', type: 'switch', default: true, group: 'A' },
+  { key: 'admission.battery_swell.enabled', label: 'Battery swell / bulge check (safety reject)', type: 'switch', default: true, group: 'A' },
   { key: 'admission.third_party_timeout_ms', label: 'Third-party API timeout (ms)', type: 'number', default: 5000, group: 'A' },
   { key: 'pricing.battery.bh_90_100_deduction', label: 'Battery ≥90% deduction (INR)', type: 'number', default: 0, group: 'A' },
   { key: 'pricing.battery.bh_85_90_deduction', label: 'Battery 85–90% deduction (INR)', type: 'number', default: 500, group: 'A' },
@@ -61,6 +62,7 @@ const CONFIG_ITEMS: ConfigItem[] = [
   { key: 'pricing.cosmetic.body_visible_dent', label: 'Dent / visible impact (INR)', type: 'number', default: 1000, group: 'A' },
   { key: 'pricing.cosmetic.body_deformed', label: 'Frame deformation (INR)', type: 'number', default: 2500, group: 'A' },
   { key: 'pricing.cosmetic.body_back_cracked', label: 'Back cover cracked (INR)', type: 'number', default: 3000, group: 'A' },
+  { key: 'pricing.cosmetic.body_battery_swell', label: 'Battery swell / bulge (INR) — distinct tier hits admission ADM-08', type: 'number', default: 1500, group: 'A' },
   // Functional defects (A6)
   { key: 'pricing.functional.flash_abnormal', label: 'Flash not working (INR)', type: 'number', default: 500, group: 'A' },
   { key: 'pricing.functional.charging_port_abnormal', label: 'Charging port issue (INR)', type: 'number', default: 1000, group: 'A' },
@@ -70,6 +72,7 @@ const CONFIG_ITEMS: ConfigItem[] = [
   { key: 'pricing.functional.camera_focus_fail', label: 'Camera focus fail (INR)', type: 'number', default: 1500, group: 'A' },
   { key: 'pricing.functional.vibration_abnormal', label: 'Vibration motor not working (INR)', type: 'number', default: 500, group: 'A' },
   { key: 'pricing.functional.wireless_abnormal', label: 'GPS / WiFi / Bluetooth issue (INR)', type: 'number', default: 2000, group: 'A' },
+  { key: 'pricing.functional.port_corrosion', label: 'Charging / data port corrosion (INR)', type: 'number', default: 2000, group: 'A' },
   // Repair history (A7)
   { key: 'pricing.repair.screen_replaced', label: 'Screen replaced (INR)', type: 'number', default: 1500, group: 'A' },
   { key: 'pricing.repair.battery_replaced', label: 'Battery replaced (INR)', type: 'number', default: 800, group: 'A' },

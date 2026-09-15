@@ -178,9 +178,10 @@ def run():
             page.get_by_role("button", name="Yes").click()
             page.get_by_role("button", name="Already signed out").click()
             page.get_by_role("button", name="90%+").click()
-            page.get_by_role("button", name="Like New").click()
-            page.get_by_role("button", name="No scratches").click()
-            page.get_by_role("button", name="Perfect").click()
+            # Labels follow APP-P1-01 wording (body vs screen "like new" differ, so match exactly)
+            page.get_by_role("button", name="Like new, no scratches", exact=True).click()
+            page.get_by_role("button", name="Like new", exact=True).click()
+            page.get_by_role("button", name="Normal, no discolouration", exact=True).click()
             page.get_by_role("button", name="Get Estimate").click()
             expect(page.get_by_test_id("appointment-step3")).to_be_visible(timeout=10000)
             # Store list shares the app-wide current city (APP-P1-01 ↔ APP-P1-03); pick

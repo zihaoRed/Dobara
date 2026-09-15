@@ -7,11 +7,61 @@ import type { IBrand, IModel, IStore } from '@dobara/utils';
 import { getUserCity, nearestServedCities } from '../lib/userCity';
 import { CityPicker } from '../components/CityPicker';
 
-const CONDITIONS = [
-  { key: 'bodyCondition', label: 'Body Condition', options: ['Like New', 'Minor Scratches', 'Visible Scratches', 'Dents & Scratches'] },
-  { key: 'screenCondition', label: 'Screen Condition', options: ['No scratches', 'Minor scratches', 'Visible scratches', 'Cracked'] },
-  { key: 'screenDisplay', label: 'Display', options: ['Perfect', 'Minor spots/bleed', 'Visible spots', 'Dead pixels'] },
+/**
+ * 外观采集项（PRD 02 APP-P1-01）——选项文案与 PRD 对齐，每档绑定 §3.1.2.1 的扣款编码。
+ * 预估价一律由编码金额推导（预估 = 编码金额 × 预估系数），不再使用"档位序号 × 倍数"。
+ */
+interface IConditionOption {
+  label: string;
+  /** §3.1.2.1 映射编码；空数组 = 不扣款。粗档可映射多个编码，取保守档（上限）。 */
+  codes: string[];
+}
+
+/** §3.3.2.1.4 各编码默认金额（运营在配置中心可调，此处为演示默认值） */
+const CODE_AMOUNT: Record<string, number> = {
+  'CO-SCR-01': 300, 'CO-SCR-02': 1000, 'CO-SCR-03': 3500,
+  'CO-SCR-04': 1500, 'CO-SCR-05': 2000, 'CO-SCR-06': 4000,
+  'CO-BDY-01': 200, 'CO-BDY-02': 1000, 'CO-BDY-03': 2500, 'CO-BDY-04': 3000,
+};
+
+/** 粗档映射多编码时取保守档（上限），与 §3.1.2.1 维护规则一致 */
+const estimateForCodes = (codes: string[]) =>
+  codes.reduce((max, c) => Math.max(max, CODE_AMOUNT[c] ?? 0), 0);
+
+const CONDITIONS: { key: string; label: string; options: IConditionOption[] }[] = [
+  {
+    key: 'bodyCondition',
+    label: 'Body Condition',
+    options: [
+      { label: 'Like new, no scratches', codes: [] },
+      { label: 'Minor scratches', codes: ['CO-BDY-01'] },
+      { label: 'Visible dents & scratches', codes: ['CO-BDY-02'] },
+      // 粗档：边框变形 或 后盖碎裂 → 取保守档
+      { label: 'Frame bent or back cover cracked', codes: ['CO-BDY-03', 'CO-BDY-04'] },
+    ],
+  },
+  {
+    key: 'screenCondition',
+    label: 'Screen Condition',
+    options: [
+      { label: 'Like new', codes: [] },
+      { label: 'Minor scratches (film covers)', codes: ['CO-SCR-01'] },
+      { label: 'Visible deep scratches', codes: ['CO-SCR-02'] },
+      { label: 'Cracked screen', codes: ['CO-SCR-03'] },
+    ],
+  },
+  {
+    key: 'screenDisplay',
+    label: 'Display',
+    options: [
+      { label: 'Normal, no discolouration', codes: [] },
+      { label: 'Slight burn-in or bright spots', codes: ['CO-SCR-04'] },
+      { label: 'Dead pixels or lines', codes: ['CO-SCR-05'] },
+      { label: 'Not displaying', codes: ['CO-SCR-06'] },
+    ],
+  },
 ];
+
 
 // Options align with PRD 02 APP-P1-01 采集项:
 // 电池档位与定价引擎 HW-BH 分档一致（服务端 PRD §3.3.2.1）: 90+/85-90/80-85/70-80/70以下
@@ -24,7 +74,7 @@ const REPAIR_OPTIONS = ['Never repaired', 'Screen replaced', 'Battery replaced',
 const FUNCTIONAL_OPTIONS = [
   'All working', 'Flash issue', 'Charging port issue', 'Buttons not working',
   'Microphone issue', 'Speaker issue', 'Face ID / fingerprint not working',
-  'Camera focus issue', 'WiFi / Bluetooth / GPS issue',
+  'Camera focus issue', 'Vibration motor not working', 'WiFi / Bluetooth / GPS issue',
 ];
 
 // 预估扣款映射（CLOUD-P1-01 §3.1.2.1 预约自报选项 ↔ 定价引擎扣款编码）
@@ -50,6 +100,7 @@ const FUNCTIONAL_ESTIMATE: Record<string, { code: string; amount: number }> = {
   'Speaker issue': { code: 'CO-FNC-05', amount: 800 },
   'Face ID / fingerprint not working': { code: 'HW-BIO-01', amount: 2000 },
   'Camera focus issue': { code: 'CO-FNC-06', amount: 1500 },
+  'Vibration motor not working': { code: 'CO-FNC-07', amount: 500 },
   'WiFi / Bluetooth / GPS issue': { code: 'CO-FNC-08', amount: 2000 },
 };
 const MULTI_REPAIR_PENALTY = { code: 'CO-RPR-05', amount: 2000 };
@@ -187,6 +238,9 @@ export function Appointment() {
     const bodyOpts = CONDITIONS[0].options;
     const screenOpts = CONDITIONS[1].options;
     const displayOpts = CONDITIONS[2].options;
+    /** 档位 → 编码 → 金额（预估 = 正式编码金额 × 预估系数，见 §3.1.2.1） */
+    const appearanceAmount = (opts: IConditionOption[], selected: string) =>
+      estimateForCodes(opts.find((o) => o.label === selected)?.codes ?? []);
 
     const nextDeductions: IEstimateDeduction[] = [];
     const push = (label: string, detail: string | undefined, amount: number) => {
@@ -195,9 +249,9 @@ export function Appointment() {
       price -= amount;
     };
 
-    push('Body condition', selBodyCondition, Math.max(0, bodyOpts.indexOf(selBodyCondition)) * 2500);
-    push('Screen condition', selScreenCondition, Math.max(0, screenOpts.indexOf(selScreenCondition)) * 2000);
-    push('Display', selDisplay, Math.max(0, displayOpts.indexOf(selDisplay)) * 3000);
+    push('Body condition', selBodyCondition, appearanceAmount(bodyOpts, selBodyCondition));
+    push('Screen condition', selScreenCondition, appearanceAmount(screenOpts, selScreenCondition));
+    push('Display', selDisplay, appearanceAmount(displayOpts, selDisplay));
     // 保修/使用情况不计入定价引擎（CLOUD-P0-01 无对应扣款编码），仅随预约单同步门店参考
     // 电池档位与 HW-BH 一一对应（90+/85-90/80-85/70-80/70以下），1:1 映射编码
     const batteryHit = BATTERY_ESTIMATE[selBattery];
@@ -486,21 +540,21 @@ export function Appointment() {
                 <div className="flex flex-wrap gap-2">
                   {cond.options.map((o) => (
                     <button
-                      key={o}
+                      key={o.label}
                       onClick={() => {
-                        if (cond.key === 'bodyCondition') setSelBodyCondition(o);
-                        else if (cond.key === 'screenCondition') setSelScreenCondition(o);
-                        else if (cond.key === 'screenDisplay') setSelDisplay(o);
+                        if (cond.key === 'bodyCondition') setSelBodyCondition(o.label);
+                        else if (cond.key === 'screenCondition') setSelScreenCondition(o.label);
+                        else if (cond.key === 'screenDisplay') setSelDisplay(o.label);
                       }}
                       className={`px-3 py-1.5 rounded-md text-caption font-medium border transition-colors ${
-                        (cond.key === 'bodyCondition' && selBodyCondition === o) ||
-                        (cond.key === 'screenCondition' && selScreenCondition === o) ||
-                        (cond.key === 'screenDisplay' && selDisplay === o)
+                        (cond.key === 'bodyCondition' && selBodyCondition === o.label) ||
+                        (cond.key === 'screenCondition' && selScreenCondition === o.label) ||
+                        (cond.key === 'screenDisplay' && selDisplay === o.label)
                           ? 'border-primary-500 bg-primary-50 text-primary-700'
                           : 'border-border text-text-secondary hover:bg-surface-high'
                       }`}
                     >
-                      {o}
+                      {o.label}
                     </button>
                   ))}
                 </div>
