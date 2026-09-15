@@ -19,7 +19,7 @@ import {
   type IAddress,
 } from '../data';
 import type { IOrder, IRecycleOrder } from '@dobara/utils';
-import { calcOrderTotal, LOCK_DURATION_SECONDS, QUOTE_DURATION_SECONDS } from '@dobara/utils';
+import { calcOrderTotal, CITY_LIST, LOCK_DURATION_SECONDS, QUOTE_DURATION_SECONDS } from '@dobara/utils';
 import {
   confirmTradeInRedeem,
   consumeCheckSession,
@@ -511,6 +511,12 @@ export const handlers = [
     setCheckCommand(session.token, { type: 'finish', issuedAt: new Date().toISOString() });
     patchCheckSession(session.token, { status: 'done' });
     return HttpResponse.json({ success: true });
+  }),
+
+  // Cities with an active warehouse (APP-P1-03) — the app reads this instead of hard-coding
+  http.get('/api/cities', async () => {
+    await simulateDelay();
+    return HttpResponse.json({ cities: CITY_LIST });
   }),
 
   // OTP

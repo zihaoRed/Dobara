@@ -113,6 +113,24 @@ def run():
             page.wait_for_timeout(600)
             expect(box).to_have_value("iPhone 14")
             print("PASS mall search history / trending / spelling correction")
+
+            # --- APP-P1-03 city picker: default nationwide → pick → banner clears ---
+            page.goto(f"{BASE}/buy", wait_until="domcontentloaded")
+            expect(page.get_by_test_id("mall-home")).to_be_visible(timeout=15000)
+            expect(page.get_by_test_id("city-selector")).to_be_visible()
+            # No city chosen yet → nationwide banner with a picker entry
+            expect(page.get_by_test_id("city-banner")).to_be_visible(timeout=8000)
+            page.get_by_test_id("city-selector").click()
+            expect(page.get_by_test_id("city-picker")).to_be_visible()
+            expect(page.get_by_test_id("city-row-national")).to_be_visible()
+            expect(page.get_by_test_id("city-use-location")).to_be_visible()
+            page.get_by_test_id("city-row-Mumbai").click()
+            page.wait_for_timeout(600)
+            expect(page.get_by_test_id("city-picker")).to_have_count(0)
+            expect(page.get_by_test_id("city-selector")).to_contain_text("Mumbai")
+            # A chosen city means same-city stock applies → banner is gone
+            expect(page.get_by_test_id("city-banner")).to_have_count(0)
+            print("PASS city picker / banner")
         except Exception as e:
             failures.append(f"mall: {e}")
             print(f"FAIL mall: {e}")
@@ -165,6 +183,14 @@ def run():
             page.get_by_role("button", name="Perfect").click()
             page.get_by_role("button", name="Get Estimate").click()
             expect(page.get_by_test_id("appointment-step3")).to_be_visible(timeout=10000)
+            # Store list shares the app-wide current city (APP-P1-01 ↔ APP-P1-03); pick
+            # Mumbai here so the store assertion does not depend on leftover state.
+            expect(page.get_by_test_id("appointment-city-selector")).to_be_visible()
+            page.get_by_test_id("appointment-city-selector").click()
+            expect(page.get_by_test_id("city-picker")).to_be_visible()
+            page.get_by_test_id("city-row-Mumbai").click()
+            page.wait_for_timeout(600)
+            expect(page.get_by_test_id("appointment-city-selector")).to_contain_text("Mumbai")
             page.get_by_test_id("store-st-mum-1").click()
             page.locator("[data-testid^=slot-]").first.click()
             expect(page.get_by_test_id("book-appointment")).to_be_enabled()

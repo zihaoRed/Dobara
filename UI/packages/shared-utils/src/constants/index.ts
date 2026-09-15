@@ -122,7 +122,31 @@ export const PHOTO_ANGLES = [
   'Bottom Right Corner',
 ];
 
-export const CITIES = ['Mumbai', 'Delhi', 'Bangalore'] as const;
+/**
+ * APP-P1-03 — cities with an active warehouse/service.
+ * In production this list is served by the backend (config centre, CLOUD-P0-13) and must not
+ * be hard-coded; this is the demo fallback / offline seed. Single source of truth for the app.
+ */
+export interface ICityInfo {
+  name: string;
+  /** Available (sellable) devices in this city's warehouse — drives picker ordering */
+  devices: number;
+}
+
+export const CITY_LIST: ICityInfo[] = [
+  { name: 'Mumbai', devices: 128 },
+  { name: 'Delhi', devices: 96 },
+  { name: 'Bangalore', devices: 84 },
+  { name: 'Hyderabad', devices: 52 },
+  { name: 'Chennai', devices: 41 },
+  { name: 'Pune', devices: 33 },
+];
+
+/** City names only */
+export const CITIES: string[] = CITY_LIST.map((c) => c.name);
+
+/** APP-P1-03 — the "no city" option: browsing nationwide, no same-city logic */
+export const NATIONAL_CITY = 'All India';
 
 export const ROLES = [
   { key: 'ops', label: 'Operations' },

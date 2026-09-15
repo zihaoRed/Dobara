@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DeviceCard, SearchBar, SkeletonCard, EmptyState, Button, Card, Badge } from '@dobara/ui';
-import { Filter, X, LayoutGrid, List, ArrowUpDown, Clock, Flame } from 'lucide-react';
+import { Filter, X, LayoutGrid, List, ArrowUpDown, Clock, Flame, MapPin, ChevronDown } from 'lucide-react';
 import type { IDevice, IBrand, IModel } from '@dobara/utils';
-import { getUserCity } from '../lib/userCity';
+import { getUserCity, isNational, isUnserved, getLocatedCity } from '../lib/userCity';
+import { CityPicker } from '../components/CityPicker';
 
 const GRADES = ['A', 'B', 'C', 'D'] as const;
 const SORTS = [
@@ -96,6 +97,26 @@ export function MallHome() {
   const [history, setHistory] = useState<string[]>([]);
   const [hot, setHot] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
+  const [city, setCity] = useState(getUserCity);
+  const [cityPickerOpen, setCityPickerOpen] = useState(false);
+
+  // City changes broadcast on `dobara-user-city` — mall, store list and badges stay in sync
+  useEffect(() => {
+    const sync = () => setCity(getUserCity());
+    window.addEventListener('dobara-user-city', sync);
+    return () => window.removeEventListener('dobara-user-city', sync);
+  }, []);
+
+  /** APP-P1-03 — status banner for the current city state (blank when same-city stock is fine) */
+  const cityBanner = useMemo(() => {
+    if (isUnserved(city)) {
+      return { text: `${city} isn't served yet — showing nationwide stock.`, show: true };
+    }
+    if (isNational(city) && !getLocatedCity()) {
+      return { text: 'Location off — showing nationwide stock.', show: true };
+    }
+    return { text: '', show: false };
+  }, [city]);
 
   // Placeholder rotation stops once the user engages with the search box（APP-P0-10 验收）
   useEffect(() => {
@@ -271,6 +292,17 @@ export function MallHome() {
     <div className="max-w-lg md:max-w-7xl mx-auto py-4" data-testid="mall-home">
       <div className="mb-4 flex items-end justify-between gap-2">
         <div>
+          {/* APP-P1-03 — city selector; opens the picker sheet */}
+          <button
+            type="button"
+            data-testid="city-selector"
+            onClick={() => setCityPickerOpen(true)}
+            className="inline-flex items-center gap-1 text-caption text-primary-600 hover:underline mb-1"
+          >
+            <MapPin size={12} />
+            <span className="max-w-[12rem] truncate">{city}</span>
+            <ChevronDown size={12} />
+          </button>
           <h1 className="text-h3 font-bold text-text-primary">Buy Phones</h1>
           <p className="text-caption text-text-muted">{total} devices found</p>
         </div>
@@ -279,6 +311,18 @@ export function MallHome() {
           <Button variant={!grid ? 'primary' : 'secondary'} size="sm" className="!px-2" onClick={() => setGrid(false)} data-testid="view-list"><List size={16} /></Button>
         </div>
       </div>
+
+      {cityBanner.show && (
+        <div
+          className="mb-3 rounded-lg bg-dobara-warning-light text-[#78350f] px-3 py-2 text-caption flex items-center gap-2"
+          data-testid="city-banner"
+        >
+          <span className="flex-1">{cityBanner.text}</span>
+          <button type="button" className="underline shrink-0" onClick={() => setCityPickerOpen(true)}>
+            Select city
+          </button>
+        </div>
+      )}
 
       <div className="mb-3 relative">
         <div className="flex gap-2">
@@ -491,7 +535,7 @@ export function MallHome() {
                 originalPrice={device.originalPrice > device.price ? device.originalPrice : Math.round(device.price * 1.25)}
                 storage={device.storage}
                 city={device.city}
-                sameCity={device.city === getUserCity()}
+                sameCity={!isNational(city) && device.city === city}
                 onClick={() => navigate(`/buy/product/${device.imei}`)}
               />
             ))}
@@ -512,7 +556,7 @@ export function MallHome() {
                     originalPrice={device.originalPrice > device.price ? device.originalPrice : Math.round(device.price * 1.25)}
                     storage={device.storage}
                     city={device.city}
-                    sameCity={device.city === getUserCity()}
+                    sameCity={!isNational(city) && device.city === city}
                     onClick={() => navigate(`/buy/product/${device.imei}`)}
                   />
                 ))}
@@ -521,6 +565,8 @@ export function MallHome() {
           )}
         </>
       )}
+
+      <CityPicker open={cityPickerOpen} onClose={() => setCityPickerOpen(false)} />
     </div>
   );
 }

@@ -4,6 +4,8 @@ import { Card, Button, EstimateThinkingPanel } from '@dobara/ui';
 import type { IEstimateDeduction } from '@dobara/ui';
 import { ArrowRight, Smartphone, Info, MapPin, Clock } from 'lucide-react';
 import type { IBrand, IModel, IStore } from '@dobara/utils';
+import { getUserCity, nearestServedCities } from '../lib/userCity';
+import { CityPicker } from '../components/CityPicker';
 
 const CONDITIONS = [
   { key: 'bodyCondition', label: 'Body Condition', options: ['Like New', 'Minor Scratches', 'Visible Scratches', 'Dents & Scratches'] },
@@ -122,7 +124,10 @@ export function Appointment() {
   const [deductions, setDeductions] = useState<IEstimateDeduction[]>([]);
   const [appearance, setAppearance] = useState<string[]>([]);
   const [searching, setSearching] = useState(false);
-  const [city, setCity] = useState('Mumbai');
+  // APP-P1-01 — shares the app-wide current city with the mall (APP-P1-03), so the two
+  // never disagree; switching here changes the global city too.
+  const [city, setCity] = useState(getUserCity);
+  const [cityPickerOpen, setCityPickerOpen] = useState(false);
   const [selStore, setSelStore] = useState('');
   const [selDate, setSelDate] = useState('');
   const [selSlot, setSelSlot] = useState('');
@@ -148,6 +153,13 @@ export function Appointment() {
   }, []);
 
   const cityStores = stores.filter((s) => s.city === city);
+  const nearBy = nearestServedCities(3);
+
+  useEffect(() => {
+    const sync = () => setCity(getUserCity());
+    window.addEventListener('dobara-user-city', sync);
+    return () => window.removeEventListener('dobara-user-city', sync);
+  }, []);
 
   useEffect(() => {
     if (!selBrand) {
@@ -577,19 +589,16 @@ export function Appointment() {
 
           <Card>
             <h3 className="text-h4 font-heading mb-3 flex items-center gap-2"><MapPin size={18} /> Store</h3>
+            {/* Same current city as the mall — one selector, no divergent state */}
             <div className="flex flex-wrap gap-2 mb-3">
-              {['Mumbai', 'Delhi', 'Bangalore'].map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => { setCity(c); setSelStore(''); }}
-                  className={`px-3 py-1 rounded-full text-caption font-medium border ${
-                    city === c ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-border'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
+              <button
+                type="button"
+                data-testid="appointment-city-selector"
+                onClick={() => setCityPickerOpen(true)}
+                className="px-3 py-1 rounded-full text-caption font-medium border border-primary-500 bg-primary-50 text-primary-700 inline-flex items-center gap-1"
+              >
+                <MapPin size={12} /> {city}
+              </button>
             </div>
             <div className="space-y-2">
               {cityStores.map((s, idx) => (
@@ -607,7 +616,27 @@ export function Appointment() {
                   <p className="text-eyebrow text-primary-600 mt-1">{(idx + 1) * 1.2 + 0.8} km away</p>
                 </button>
               ))}
-              {cityStores.length === 0 && <p className="text-caption text-text-muted">No stores in this city.</p>}
+              {cityStores.length === 0 && (
+                <div className="rounded-lg bg-surface-low p-3 space-y-2" data-testid="store-empty">
+                  <p className="text-caption text-text-secondary">
+                    {city} doesn&apos;t have a trade-in store yet.
+                  </p>
+                  <p className="text-eyebrow text-text-muted uppercase">Nearby cities with stores</p>
+                  <div className="flex flex-wrap gap-2">
+                    {nearBy.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        data-testid={`nearby-city-${c}`}
+                        onClick={() => { setCity(c); setSelStore(''); }}
+                        className="px-3 py-1 rounded-full text-caption font-medium border border-border hover:bg-surface-container"
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -667,6 +696,8 @@ export function Appointment() {
           </div>
         </div>
       )}
+
+      <CityPicker open={cityPickerOpen} onClose={() => setCityPickerOpen(false)} />
     </div>
   );
 }

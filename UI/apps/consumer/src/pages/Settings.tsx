@@ -7,7 +7,8 @@ import {
   ShieldCheck, ShieldAlert, LogOut, ChevronRight, Check,
 } from 'lucide-react';
 import { clearUser } from '../App';
-import { getUserCity, setUserCity, CITIES } from '../lib/userCity';
+import { getUserCity } from '../lib/userCity';
+import { CityPicker } from '../components/CityPicker';
 
 /** APP-P1-07 — App Settings: language, notifications, city, cache, about, legal, sign out. */
 
@@ -88,11 +89,6 @@ export function Settings() {
     localStorage.setItem(NOTIF_KEY, JSON.stringify(next));
   };
 
-  const chooseCity = (c: string) => {
-    setUserCity(c);
-    setCity(c);
-    setShowCityModal(false);
-  };
 
   const clearCache = () => {
     const before = getCacheSizeKB();
@@ -287,33 +283,8 @@ export function Settings() {
         </div>
       </Modal>
 
-      {/* City modal */}
-      <Modal
-        open={showCityModal}
-        onClose={() => setShowCityModal(false)}
-        title="Choose Your City"
-      >
-        <div className="space-y-2">
-          <p className="text-caption text-text-muted mb-2">
-            Used for same-city first recommendations. In production this defaults to your GPS location.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {CITIES.map((c) => (
-              <button
-                key={c}
-                onClick={() => chooseCity(c)}
-                data-testid={`city-${c}`}
-                className={`flex items-center justify-between px-3 py-2.5 rounded-lg border text-left transition-colors ${
-                  city === c ? 'border-primary-500 bg-primary-50' : 'border-border hover:bg-surface-low'
-                }`}
-              >
-                <span className={`text-caption font-semibold ${city === c ? 'text-primary-700' : 'text-text-primary'}`}>{c}</span>
-                {city === c && <Check size={16} className="text-primary-500" />}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Modal>
+      {/* APP-P1-03 — the same city picker sheet used by the mall and the store list */}
+      <CityPicker open={showCityModal} onClose={() => setShowCityModal(false)} />
     </div>
   );
 }
