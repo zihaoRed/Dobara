@@ -19,9 +19,15 @@ interface IConditionOption {
 
 /** §3.3.2.1.4 各编码默认金额（运营在配置中心可调，此处为演示默认值） */
 const CODE_AMOUNT: Record<string, number> = {
-  'CO-SCR-01': 300, 'CO-SCR-02': 1000, 'CO-SCR-03': 3500,
-  'CO-SCR-04': 1500, 'CO-SCR-05': 2000, 'CO-SCR-06': 4000,
-  'CO-BDY-01': 200, 'CO-BDY-02': 1000, 'CO-BDY-03': 2500, 'CO-BDY-04': 3000,
+  // 屏幕玻璃（用户自报的"屏幕划痕/碎裂"落在玻璃维度）
+  'CO-GLS-01': 200, 'CO-GLS-02': 800, 'CO-GLS-03': 2000,
+  'CO-GLS-04': 300, 'CO-GLS-06': 1800,
+  'CO-GLS-07': 1500, 'CO-GLS-08': 3000,
+  // 屏幕显示
+  'CO-DSP-01': 500, 'CO-DSP-03': 300, 'CO-DSP-04': 1200,
+  // 机身边框 / 后盖
+  'CO-BDY-01': 300, 'CO-BDY-04': 1200, 'CO-BDY-06': 2000,
+  'CO-BCK-04': 3000,
 };
 
 /** 粗档映射多编码时取保守档（上限），与 §3.1.2.1 维护规则一致 */
@@ -35,9 +41,9 @@ const CONDITIONS: { key: string; label: string; options: IConditionOption[] }[] 
     options: [
       { label: 'Like new, no scratches', codes: [] },
       { label: 'Minor scratches', codes: ['CO-BDY-01'] },
-      { label: 'Visible dents & scratches', codes: ['CO-BDY-02'] },
-      // 粗档：边框变形 或 后盖碎裂 → 取保守档
-      { label: 'Frame bent or back cover cracked', codes: ['CO-BDY-03', 'CO-BDY-04'] },
+      { label: 'Visible dents & scratches', codes: ['CO-BDY-04'] },
+      // 粗档：边框变形 或 后盖碎裂 → 取保守档（上限）
+      { label: 'Frame bent or back cover cracked', codes: ['CO-BDY-06', 'CO-BCK-04'] },
     ],
   },
   {
@@ -45,9 +51,9 @@ const CONDITIONS: { key: string; label: string; options: IConditionOption[] }[] 
     label: 'Screen Condition',
     options: [
       { label: 'Like new', codes: [] },
-      { label: 'Minor scratches (film covers)', codes: ['CO-SCR-01'] },
-      { label: 'Visible deep scratches', codes: ['CO-SCR-02'] },
-      { label: 'Cracked screen', codes: ['CO-SCR-03'] },
+      { label: 'Minor scratches (film covers)', codes: ['CO-GLS-01'] },
+      { label: 'Visible deep scratches', codes: ['CO-GLS-03'] },
+      { label: 'Cracked screen', codes: ['CO-GLS-08'] },
     ],
   },
   {
@@ -55,9 +61,9 @@ const CONDITIONS: { key: string; label: string; options: IConditionOption[] }[] 
     label: 'Display',
     options: [
       { label: 'Normal, no discolouration', codes: [] },
-      { label: 'Slight burn-in or bright spots', codes: ['CO-SCR-04'] },
-      { label: 'Dead pixels or lines', codes: ['CO-SCR-05'] },
-      { label: 'Not displaying', codes: ['CO-SCR-06'] },
+      { label: 'Slight burn-in or bright spots', codes: ['CO-DSP-01'] },
+      { label: 'Dead pixels or lines', codes: ['CO-DSP-04'] },
+      { label: 'Not displaying', codes: ['CO-DSP-08', 'CO-DSP-10'] },
     ],
   },
 ];

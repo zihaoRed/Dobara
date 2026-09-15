@@ -376,7 +376,7 @@ const ReviewDetail: React.FC = () => {
                 className="mt-1 w-full min-h-[80px] p-2 rounded-md border border-border bg-surface text-body"
                 value={adjustReason}
                 onChange={(e) => { setDirtyAdjust(true); setAdjustReason(e.target.value); }}
-                placeholder="e.g. Screen scratch clearly visible in video; clerk missed CO-SCR-02"
+                placeholder="e.g. Screen scratch clearly visible in video; clerk missed CO-GLS-03"
               />
             </label>
 
