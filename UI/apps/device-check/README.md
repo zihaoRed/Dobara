@@ -1,6 +1,7 @@
 # Device Check H5
 
-Local, guided hardware checks for a phone browser. Backend session binding and result upload are intentionally out of scope for now.
+Guided hardware checks for a phone browser. The page exchanges the one-time detect token through
+`POST /api/h5-detect/v1/open` and polls `GET /api/h5-detect/v1/state` every two seconds.
 
 ## Run
 
@@ -9,6 +10,13 @@ pnpm --filter @dobara/device-check dev
 ```
 
 Open `/device-check/`. Use `?token=INSPECTION_ID` to provide a local inspection ID. The sensor simulation control is available only with `?demo=1`.
+
+When a token is present in the URL, the page opens the backend session automatically. During local
+development, Vite proxies `/api` to `http://test.dobaraindia.com`. Set `VITE_DOBARA_API_BASE_URL`
+for deployments where the API is not available on the same origin.
+
+The dev server listens on the LAN. From a phone on the same Wi-Fi, open
+`http://<computer-lan-ip>:3004/device-check/?token=LOCAL-TEST&demo=1`.
 
 Camera, microphone and motion APIs require HTTPS on physical devices (`localhost` is exempt during development).
 
