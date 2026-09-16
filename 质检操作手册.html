@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>质检操作流程手册（店员版）</title>
+<style>
+  :root {
+    --brand: #2563eb;
+    --brand-dark: #1d4ed8;
+    --brand-light: #eff6ff;
+    --ink: #1f2937;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --bg: #f8fafc;
+    --ok: #16a34a;
+    --warn: #d97706;
+    --err: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.7;
+    font-size: 15px;
+  }
+  .container { max-width: 920px; margin: 0 auto; padding: 24px 20px 80px; }
+  header.hero {
+    background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+    color: #fff;
+    padding: 40px 24px;
+    margin-bottom: 28px;
+  }
+  header.hero .inner { max-width: 920px; margin: 0 auto; }
+  header.hero h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: .5px; }
+  header.hero .meta { font-size: 13px; opacity: .9; }
+  header.hero .meta span { margin-right: 18px; white-space: nowrap; }
+  .badge {
+    display: inline-block; background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.4);
+    padding: 2px 10px; border-radius: 999px; font-size: 12px; margin-left: 8px;
+  }
+  .toc {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    padding: 20px 24px; margin-bottom: 28px;
+  }
+  .toc h2 { margin: 0 0 12px; font-size: 16px; }
+  .toc ol { margin: 0; padding-left: 20px; columns: 2; column-gap: 32px; }
+  .toc li { margin: 4px 0; break-inside: avoid; }
+  .toc a { color: var(--brand); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  section.card {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    padding: 24px 28px; margin-bottom: 24px;
+  }
+  h2 { font-size: 21px; margin: 0 0 16px; color: var(--ink); border-left: 4px solid var(--brand); padding-left: 12px; }
+  h3 { font-size: 17px; margin: 24px 0 10px; color: var(--brand-dark); }
+  h4 { font-size: 15px; margin: 18px 0 8px; }
+  p { margin: 8px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--brand-light); color: var(--brand-dark); font-weight: 600; white-space: nowrap; }
+  tr:nth-child(even) td { background: #fbfcfe; }
+  code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; font-size: 13px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+  pre {
+    background: #0f172a; color: #e2e8f0; padding: 16px 18px; border-radius: 10px;
+    overflow-x: auto; font-size: 13px; line-height: 1.6; font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+  blockquote {
+    margin: 12px 0; padding: 10px 16px; background: #fffbeb; border-left: 4px solid var(--warn);
+    border-radius: 6px; color: #78350f; font-size: 14px;
+  }
+  blockquote.info { background: var(--brand-light); border-left-color: var(--brand); color: #1e3a8a; }
+  .note { background: #fef2f2; border-left: 4px solid var(--err); padding: 10px 14px; border-radius: 6px; margin: 12px 0; }
+  .note b { color: var(--err); }
+  .step-title { display: flex; align-items: center; gap: 10px; }
+  .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 30px; height: 30px; padding: 0 8px; border-radius: 8px;
+    background: var(--brand); color: #fff; font-weight: 700; font-size: 14px;
+  }
+  .tag { font-size: 12px; color: var(--muted); background: #f1f5f9; padding: 2px 8px; border-radius: 6px; }
+  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 12px; }
+  @media print {
+    body { background: #fff; font-size: 12px; }
+    .container { max-width: 100%; padding: 0; }
+    header.hero { background: #fff; color: #000; border-bottom: 2px solid #000; padding: 16px 0; }
+    header.hero h1 { color: #000; }
+    .badge { border-color: #000; color: #000; }
+    section.card { border: 1px solid #ccc; page-break-inside: avoid; }
+    .toc { page-break-after: always; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="inner">
+    <h1>质检操作流程手册<span class="badge">店员版</span></h1>
+    <div class="meta">
+      <span>文档版本：v1.0</span>
+      <span>更新日期：2026-09-15</span>
+      <span>适用角色：门店店员（ROLE-CLK）</span>
+      <span>依据：TAB PRD v1.15</span>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="toc">
+    <h2>目录</h2>
+    <ol>
+      <li><a href="#s1">手册说明与岗位要求</a></li>
+      <li><a href="#s2">质检全流程总览</a></li>
+      <li><a href="#s3">步骤 1：到店用户 OTP 验证</a></li>
+      <li><a href="#s4">步骤 2：加载预约信息</a></li>
+      <li><a href="#s5">步骤 3：外观拒收判断（拍照前）</a></li>
+      <li><a href="#s6">步骤 4：外观影像采集</a></li>
+      <li><a href="#s7">步骤 5：外观 AI 检测 / 手动点检</a></li>
+      <li><a href="#s8">步骤 6：硬件自动审计</a></li>
+      <li><a href="#s9">步骤 7：发票信息采集（可选）</a></li>
+      <li><a href="#s10">步骤 8：综合数据上传</a></li>
+      <li><a href="#s11">步骤 9：质检报告展示与报价确认</a></li>
+      <li><a href="#s12">步骤 10：核销状态同步</a></li>
+      <li><a href="#s13">异常与容错处理</a></li>
+      <li><a href="#s14">附录 A：手动点检标准（26 项）</a></li>
+      <li><a href="#s15">附录 B：拒收原因预设列表</a></li>
+      <li><a href="#s16">附录 C：常见问题（FAQ）</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <section class="card" id="s1">
+    <h2>1. 手册说明与岗位要求</h2>
+    <h3>1.1 质检工具是什么</h3>
+    <p>质检工具是门店回收作业的核心设备（Android 定制一体机，不限定平板形态）。店员用它完成旧机回收的标准质检：<b>从用户身份验证开始，依次完成外观影像采集、硬件自动审计、发票信息采集，再将数据综合上传至云端；云端定价后，展示质检报告和抵扣报价供店员与用户当面确认。</b></p>
+    <h3>1.2 岗位基本要求</h3>
+    <table>
+      <tr><th>要求</th><th>说明</th></tr>
+      <tr><td>账号</td><td>需有门店管理员预置的店员账号（ROLE-CLK），登录方式为手机号 + OTP / 密码</td></tr>
+      <tr><td>门店上下文</td><td>质检工具不与门店绑定，门店信息自动从登录店员的所属门店解析</td></tr>
+      <tr><td>用户在场</td><td>全程需用户在场知情配合；涉及"按 # 键""确认核销"等操作由店员引导完成</td></tr>
+      <tr><td>流程纪律</td><td><b>流程不可跳步</b>，每步完成后才能进入下一步；数据本地优先，上传成功后才清理</td></tr>
+      <tr><td>一人一单</td><td>每名店员同一时间只允许一个进行中的质检会话</td></tr>
+    </table>
+    <h3>1.3 关键术语</h3>
+    <table>
+      <tr><th>术语</th><th>含义</th></tr>
+      <tr><td>OTP</td><td>一次性 6 位数字验证码，通过 SMS 发送到用户手机，有效期 3 分钟</td></tr>
+      <tr><td>session_id</td><td>云端为本次到店质检会话分配的唯一标识</td></tr>
+      <tr><td>IMEI</td><td>设备国际移动设备识别码（15 位数字），是回收设备的唯一标识</td></tr>
+      <tr><td>H5 检测页</td><td>云端部署的轻量 Web 检测页（check.dobara.in），在被检手机浏览器中执行交互类检测</td></tr>
+      <tr><td>ADB</td><td>质检工具通过 USB 与被检 Android 手机通信的调试通道</td></tr>
+      <tr><td>扣款代码</td><td>定价引擎按缺陷档位扣除回收金额的编码（如 CO-GLS-03 表示屏幕玻璃浅划痕）</td></tr>
+      <tr><td>成色等级</td><td>A / B / C / D 四级，外观评级越高（A 级）回收价越高</td></tr>
+    </table>
+  </section>
+
+  <!-- 2 -->
+  <section class="card" id="s2">
+    <h2>2. 质检全流程总览</h2>
+    <pre>店员登录质检工具
+  → 用户 OTP 验证（步骤 1）
+    → 加载预约信息（步骤 2，如有）
+      → 外观拒收判断（步骤 3，拍照前）
+          ├── 外观明显不可回收 → 拒收流程（见步骤 3）
+          └── 外观可回收 → 外观影像采集（步骤 4：10 张照片 + 1 段视频）
+                            → 外观 AI 检测 / 手动点检（步骤 5）
+                              → 硬件自动审计（步骤 6：USB + H5）
+                                → 发票信息采集（步骤 7，可选）
+                                  → 综合数据上传（步骤 8）
+                                    → 质检报告展示（步骤 9，云端回传）
+                                      → 用户接受 / 拒绝报价
+                                          └── 接受 → 核销状态同步（步骤 10）</pre>
+    <h3>核心设计原则（务必牢记）</h3>
+    <ol>
+      <li><b>流程不可跳步</b>——每个步骤必须完成后才能进入下一步。</li>
+      <li><b>数据本地优先</b>——采集数据先存本地，上传成功后清理。</li>
+      <li><b>断点续检</b>——任意环节中断后，可从上次完成点恢复。</li>
+      <li><b>离线可用</b>——网络中断时核心质检流程不中断。</li>
+      <li><b>状态可追溯</b>——每次操作的店员、时间、设备信息全程记录。</li>
+    </ol>
+  </section>
+
+  <!-- 3 -->
+  <section class="card" id="s3">
+    <div class="step-title"><span class="step-num">1</span><h2 style="border:none;padding:0;margin:0;">到店用户 OTP 验证</h2></div>
+    <p class="tag">对应 PRD：TAB-P0-07</p>
+    <h3>操作目的</h3>
+    <p>所有到店用户（无论是否预约）统一通过「手机号 + OTP」验证身份，建立本次到店会话。</p>
+    <h3>操作步骤</h3>
+    <ol>
+      <li>质检工具启动后，进入店员登录页，输入本人手机号登录。</li>
+      <li>在质检工具工作台输入<b>用户</b>手机号。</li>
+      <li>系统校验手机号格式（10 位印度手机号，以 6/7/8/9 开头）。</li>
+      <li>系统向用户发送 SMS：包含 6 位 OTP + H5 跟踪短链。</li>
+      <li>用户告知店员 OTP（或出示手机屏幕），店员在质检工具输入 6 位 OTP。</li>
+      <li>系统验证 OTP：验证通过 → 进入步骤 2；验证失败 → 提示"OTP 错误，剩余重试 X 次"。</li>
+    </ol>
+    <h3>店员登录说明（TAB-P0-12）</h3>
+    <table>
+      <tr><th>项目</th><th>说明</th></tr>
+      <tr><td>登录方式</td><td>手机号 + OTP（默认），支持设置密码后用密码登录</td></tr>
+      <tr><td>权限校验</td><td>非店员账号（如店老板 / 库管账号）登录时提示"无权限，请联系管理员添加"</td></tr>
+      <tr><td>登录安全</td><td>连续 5 次登录失败锁定 15 分钟</td></tr>
+      <tr><td>Token 有效期</td><td>8 小时（一个班次），过期需重新登录</td></tr>
+      <tr><td>多店员共用</td><td>同一质检工具支持多名店员共用，各自会话相互隔离</td></tr>
+    </table>
+    <h3>关键规则</h3>
+    <table>
+      <tr><th>规则项</th><th>说明</th></tr>
+      <tr><td>统一入口</td><td>所有用户到店统一走手机号 + OTP，不再区分预约 / 到店</td></tr>
+      <tr><td>OTP 长度</td><td>6 位数字</td></tr>
+      <tr><td>OTP 有效期</td><td>3 分钟，过期需重新发送；界面展示剩余有效秒数倒计时</td></tr>
+      <tr><td>发送渠道</td><td>MSG91 SMS（优先），WhatsApp Business API（备选，SMS 失败时自动切换）</td></tr>
+      <tr><td>重试次数</td><td>最多 3 次错误输入；超过后 60 秒冷却，冷却期间输入框禁用</td></tr>
+      <tr><td>每日上限</td><td>同一手机号每天最多发送 5 次 OTP</td></tr>
+      <tr><td>频率限制</td><td>同一手机号两次发送间隔 ≥ 30 秒</td></tr>
+      <tr><td>会话生命周期</td><td>自创建起 2 小时内有效；超时未完成质检会自动过期，需重新 OTP 验证</td></tr>
+    </table>
+  </section>
+
+  <!-- 4 -->
+  <section class="card" id="s4">
+    <div class="step-title"><span class="step-num">2</span><h2 style="border:none;padding:0;margin:0;">加载预约信息</h2></div>
+    <p class="tag">对应 PRD：TAB-P1-02</p>
+    <p>OTP 验证通过后，系统自动以手机号查询预约信息。有预约时自动加载，作为质检辅助参考；无预约时直接进入空白新会话。</p>
+    <h3>展示内容（如有预约）</h3>
+    <table>
+      <tr><th>信息类别</th><th>展示内容</th></tr>
+      <tr><td>用户信息</td><td>姓名、手机号（脱敏中间 4 位）、预约时间</td></tr>
+      <tr><td>旧机自填</td><td>品牌、型号、颜色、内存 / 存储、是否在保、使用时长、电池健康（自估）、外观磨损、维修记录、功能性问题</td></tr>
+      <tr><td>初步估价</td><td>价格区间（如"₹8,000 - ₹12,000"），标注"初步估价仅供参考"</td></tr>
+      <tr><td>预约备注</td><td>用户填写的额外说明（如有）</td></tr>
+    </table>
+    <h3>关键规则</h3>
+    <table>
+      <tr><th>规则项</th><th>说明</th></tr>
+      <tr><td>触发时机</td><td>OTP 验证通过时自动查询，无需额外操作</td></tr>
+      <tr><td>有预约</td><td>自动加载并展示预约信息卡片</td></tr>
+      <tr><td>无预约</td><td>展示"新用户，无预约记录" + 空白会话，直接开始质检</td></tr>
+      <tr><td>多预约</td><td>同一手机号当天多条预约时，展示最近一条 + "查看其他预约(N)"入口</td></tr>
+      <tr><td>用途定位</td><td>预约信息<b>仅供参考，不替代实际质检</b>；旧机自填可与实际检测结果并排对比</td></tr>
+      <tr><td>匹配失败</td><td>预约匹配失败（网络异常）不阻塞流程，自动降级为无预约模式</td></tr>
+    </table>
+  </section>
+
+  <!-- 5 -->
+  <section class="card" id="s5">
+    <div class="step-title"><span class="step-num">3</span><h2 style="border:none;padding:0;margin:0;">外观拒收判断（拍照前）</h2></div>
+    <p class="tag">对应 PRD：TAB-P0-08</p>
+    <p>会话创建后、拍照<b>开始前</b>，店员先上手目视检查设备，判断是否可回收。<b>不可回收设备不再浪费 10 张照片 + 视频的采集工时。</b></p>
+    <h3>操作步骤</h3>
+    <ol>
+      <li>上手目视检查设备（正面、背面、侧面、接口、机身）。</li>
+      <li>做出判断：<b>外观可回收</b> → 点击"继续拍照"（绿色主按钮）；<b>外观明显不可回收</b> → 点击"拒收该设备"。</li>
+      <li>拒收流程：拍摄损坏细节照片（<b>最少 3 张，最多 10 张</b>：含 1 张正面全景、1 张背面全景、至少 1 张损坏细节特写）→ 从预设列表单选拒收原因（见附录 B）→ 如选"其他"填写说明（≥ 10 字）→ 点击"确认拒收" → 二次确认弹窗 → 确认后上传，会话标记 <code>[已完成-拒收]</code>。</li>
+      <li>店员告知用户拒收原因，当面归还设备。</li>
+    </ol>
+    <h3>关键规则</h3>
+    <table>
+      <tr><th>规则项</th><th>说明</th></tr>
+      <tr><td>操作时机</td><td>会话创建后第一步（拍照前）</td></tr>
+      <tr><td>照片要求</td><td>最少 3 张，最多 10 张；必须含正面全景 + 背面全景 + 至少 1 张损坏细节特写</td></tr>
+      <tr><td>拒收原因</td><td>单选预设项，不可自由输入（"其他"需文字说明）</td></tr>
+      <tr><td>不可撤销</td><td>确认拒收后不可撤回，设备无法重新进入质检</td></tr>
+      <tr><td>不计库存</td><td>拒收设备不创建 IMEI 库存记录</td></tr>
+      <tr><td>时间限制</td><td>拒收判断在拍照前；准入检查检出进水 / 腐蚀仍可拒收；<b>一旦开始硬件功能检测，不可再拒收</b></td></tr>
+    </table>
+  </section>
+
+  <!-- 6 -->
+  <section class="card" id="s6">
+    <div class="step-title"><span class="step-num">4</span><h2 style="border:none;padding:0;margin:0;">外观影像采集</h2></div>
+    <p class="tag">对应 PRD：TAB-P0-01</p>
+    <p>用质检工具内置相机，对旧机做标准化外观影像采集：<b>固定 10 张照片（10 个角度）+ 1 段 360° 旋转视频</b>。</p>
+    <h3>拍照顺序（必须严格按序）</h3>
+    <table>
+      <tr><th>序号</th><th>角度</th><th>序号</th><th>角度</th></tr>
+      <tr><td>1</td><td>正面屏幕</td><td>6</td><td>右</td></tr>
+      <tr><td>2</td><td>背面后盖</td><td>7</td><td>左上角</td></tr>
+      <tr><td>3</td><td>前</td><td>8</td><td>右上角</td></tr>
+      <tr><td>4</td><td>后</td><td>9</td><td>左下角</td></tr>
+      <tr><td>5</td><td>左</td><td>10</td><td>右下角</td></tr>
+    </table>
+    <blockquote class="info">每个角度拍摄完成后自动切换到下一个角度引导；每张照片可单独重拍，不限次数。</blockquote>
+    <h3>视频要求</h3>
+    <table>
+      <tr><th>项目</th><th>要求</th></tr>
+      <tr><td>时长</td><td>最短 10 秒，最长 30 秒</td></tr>
+      <tr><td>内容</td><td>完整覆盖设备 360 度旋转</td></tr>
+      <tr><td>不足处理</td><td>不足 10 秒提示"录制时间不足，请重新录制"；超 30 秒自动停止</td></tr>
+    </table>
+    <h3>拍摄质量标准</h3>
+    <table>
+      <tr><th>项目</th><th>要求</th></tr>
+      <tr><td>照片分辨率</td><td>不低于 1080P（1920×1080）</td></tr>
+      <tr><td>视频规格</td><td>不低于 720P / 30fps</td></tr>
+      <tr><td>照片格式</td><td>JPEG（质量 ≥ 85%）</td></tr>
+      <tr><td>视频格式</td><td>MP4（H.264 编码）</td></tr>
+    </table>
+    <h3>拍摄质量实时检测（TAB-P1-03）</h3>
+    <table>
+      <tr><th>检测项</th><th>不达标反馈</th><th>达标反馈</th></tr>
+      <tr><td>模糊度</td><td>取景框红色 + "画面模糊，请保持稳定"</td><td>绿色 + "清晰"</td></tr>
+      <tr><td>光线亮度</td><td>取景框黄色 + "光线不足，请补光" + 闪光灯建议</td><td>绿色</td></tr>
+      <tr><td>角度偏差</td><td>叠加层边缘红 + 方向箭头归位 + "请对齐参考线"</td><td>绿色 + "角度正确"</td></tr>
+      <tr><td>遮挡检测</td><td>遮挡区域高亮红 + "请勿遮挡设备"</td><td>无提示</td></tr>
+    </table>
+    <blockquote>质量不达标时<b>不强制阻止拍照</b>，但会红色提示；可在确认弹窗选"仍要拍摄"。建议尽量等取景框变绿再拍。</blockquote>
+  </section>
+
+  <!-- 7 -->
+  <section class="card" id="s7">
+    <div class="step-title"><span class="step-num">5</span><h2 style="border:none;padding:0;margin:0;">外观 AI 检测 / 手动点检</h2></div>
+    <p class="tag">对应 PRD：TAB-P0-13</p>
+    <p>对采集的外观影像做缺陷识别，输出 5 大维度 26 项缺陷的成色等级判定，供定价引擎扣款。</p>
+    <h3>两种模式</h3>
+    <table>
+      <tr><th>模式</th><th>适用场景</th><th>说明</th></tr>
+      <tr><td>AI 自动检测 + 人工审核</td><td>AI 服务可用（目标态）</td><td>AI 从影像自动识别缺陷并返回结果，店员审核确认 / 修正</td></tr>
+      <tr><td>手动点检</td><td>AI 未就绪 / 网络中断</td><td>店员对照判定标准逐项手动勾选（见附录 A）</td></tr>
+    </table>
+    <blockquote class="info">AI 服务不可用时会自动降级为手动点检模式，降级对店员透明（仅提示"AI 暂不可用"）。</blockquote>
+    <h3>店员审核流程（AI 模式）</h3>
+    <ol>
+      <li><b>快速浏览</b>：查看 AI 检测结果汇总（5 个维度的通过 / 待确认概览）。</li>
+      <li><b>聚焦待确认项</b>：点击"查看全部待确认项"，逐项审核低置信或疑似缺陷项（可确认 AI 结果 / 修正等级 / 标记"AI 误判"）。</li>
+      <li><b>抽查高置信项</b>：可展开任何已通过维度抽查标注照片。</li>
+      <li><b>手动模式切换</b>：AI 结果不可信时（罕见）可"切换到手动"逐项点检。</li>
+      <li><b>确认提交</b>：所有待确认项处理完毕 → "确认全部" → 结果上传。</li>
+    </ol>
+    <h3>AI 置信度分级</h3>
+    <table>
+      <tr><th>置信度</th><th>含义</th><th>店员处理方式</th></tr>
+      <tr><td>≥ 90%</td><td>高置信，AI 确定</td><td>自动填充，无需逐项确认（仅汇总展示）</td></tr>
+      <tr><td>70-90%</td><td>中置信，AI 判断</td><td>自动填充，黄色高亮，需扫一眼确认</td></tr>
+      <tr><td>&lt; 70%</td><td>低置信 / AI 不确定</td><td>红色高亮，标记"待人工判定"，<b>必须手动选择</b></td></tr>
+      <tr><td>N/A</td><td>AI 无法判断</td><td>强制人工判定</td></tr>
+    </table>
+    <h3>关键规则</h3>
+    <table>
+      <tr><th>规则项</th><th>说明</th></tr>
+      <tr><td>AI 优先，人工兜底</td><td>服务端 AI 可用时默认走 AI 模式；AI 不可用自动降级手动模式</td></tr>
+      <tr><td>高置信自动通过</td><td>置信度 ≥ 90% 且非拒收等级 → 自动填充</td></tr>
+      <tr><td>拒收不豁免</td><td>即使 AI 高置信判为"粉碎性碎裂"，仍需店员二次确认后才能触发拒收</td></tr>
+      <tr><td>修正留痕</td><td>店员对 AI 结果的任何修改均记录：原 AI 判断、人工修正值、操作时间、店员 ID</td></tr>
+      <tr><td>手动模式必选</td><td>26 项按 5 维度分组，每项必须选择后方可提交</td></tr>
+      <tr><td>返回重拍确认</td><td>返回重拍需二次确认（会清除点检进度）</td></tr>
+    </table>
+  </section>
+
+  <!-- 8 -->
+  <section class="card" id="s8">
+    <div class="step-title"><span class="step-num">6</span><h2 style="border:none;padding:0;margin:0;">硬件自动审计</h2></div>
+    <p class="tag">对应 PRD：TAB-P0-02 + TAB-P0-14</p>
+    <p>通过 USB OTG 连接被检手机，自动运行硬件检测，覆盖 <b>10 项核心硬件项</b>。</p>
+    <h3>连接方式</h3>
+    <table>
+      <tr><th>平台</th><th>连接方式</th><th>网络保障</th></tr>
+      <tr><td>Android</td><td>USB OTG 数据线直连，走 ADB</td><td>质检工具自动开启 USB 网络共享（零配置即插即用）</td></tr>
+      <tr><td>iOS</td><td>USB 连接，走 libimobiledevice</td><td>质检工具开启 WiFi 热点，引导用户连热点后扫码</td></tr>
+    </table>
+    <blockquote class="info">USB 连接后 <b>5 秒内自动开始检测</b>，无需手动触发。</blockquote>
+    <h3>检测项目详情（10 项）</h3>
+    <table>
+      <tr><th>检测项</th><th>检测通道</th><th>输出值</th><th>失败处理</th></tr>
+      <tr><td>IMEI / 序列号</td><td>USB + 半自动暗码</td><td>1-2 个 IMEI（单 / 双卡）</td><td>自动重试 2 次 → 手动录入</td></tr>
+      <tr><td>品牌 &amp; 型号</td><td>USB</td><td>品牌名 + 型号代码</td><td>自动重试 2 次 → 手动录入</td></tr>
+      <tr><td>设备颜色</td><td>店员确认</td><td>颜色（单选）</td><td>有预约带入预选；到店必须点选</td></tr>
+      <tr><td>电池健康度</td><td>USB</td><td>百分比（0-100%）</td><td>标记"无法检测"</td></tr>
+      <tr><td>屏幕显示</td><td>H5</td><td>正常 / 缺陷等级</td><td>店员标记缺陷项</td></tr>
+      <tr><td>屏幕触控</td><td>H5</td><td>正常 / 异常区域坐标</td><td>标记"触控异常" + 坐标</td></tr>
+      <tr><td>传感器</td><td>H5</td><td>各传感器正常 / 异常</td><td>逐传感器标记</td></tr>
+      <tr><td>存储容量</td><td>USB</td><td>总容量 GB + 可用 GB</td><td>标记"无法检测"</td></tr>
+      <tr><td>摄像头</td><td>H5</td><td>正常 / 异常</td><td>标记"摄像头异常（前 / 后置）"</td></tr>
+      <tr><td>扬声器 &amp; 麦克风</td><td>H5</td><td>正常 / 异常</td><td>标记异常</td></tr>
+      <tr><td>按键</td><td>H5 引导 + ADB 判定</td><td>正常 / 异常</td><td>标记"按键异常（音量+/音量-/电源）"</td></tr>
+    </table>
+    <h3>H5 检测页操作要点</h3>
+    <table>
+      <tr><th>检测项</th><th>H5 承担</th><th>判定来源</th></tr>
+      <tr><td>屏幕显示</td><td>全屏循环纯色画面（白 / 红 / 绿 / 蓝 / 黑 / 灰）</td><td>店员目视 + H5 确认按钮</td></tr>
+      <tr><td>屏幕触控</td><td>全屏滑涂 Canvas</td><td>H5 自动判定（覆盖率 / 断线）</td></tr>
+      <tr><td>扬声器</td><td>播放测试音（左右声道分开）</td><td>店员听感确认</td></tr>
+      <tr><td>麦克风</td><td>录音回放</td><td>店员听感确认</td></tr>
+      <tr><td>摄像头</td><td>前后摄预览 + 拍照</td><td>H5 基础检测 + 人工确认</td></tr>
+      <tr><td>传感器</td><td>三轴引导动画（α 平转 / β 俯仰 / γ 横滚）</td><td>H5 自动判定（逐轴累计角度达标）</td></tr>
+      <tr><td>物理按键</td><td>显示"请按音量+ ×3 / 电源键 ×1"引导</td><td>质检工具 ADB 监听按键事件判定</td></tr>
+    </table>
+    <h3>关键规则</h3>
+    <table>
+      <tr><th>规则项</th><th>说明</th></tr>
+      <tr><td>检测顺序</td><td>先读静态信息（IMEI / 型号 / 存储），再执行交互式测试（触控 / 按键 / 音视频）</td></tr>
+      <tr><td>超时处理</td><td>单项超 30 秒无响应 → 标记"检测超时" → 自动重试 1 次 → 仍超时则跳过继续</td></tr>
+      <tr><td>失败重试</td><td>单项失败自动重试最多 2 次（含首次共 3 次尝试）</td></tr>
+      <tr><td>不可跳过</td><td>所有检测项必须执行；超时 / 失败项自动标记后继续</td></tr>
+      <tr><td>复测</td><td>支持单项复测，复测结果覆盖原结果</td></tr>
+      <tr><td>颜色确认</td><td>有预约自动带入；到店用户必须点选颜色后才能继续</td></tr>
+      <tr><td>权限拒绝</td><td>摄像头 / 麦克风 / 传感器授权被拒时记录"未授权"，不判为硬件损坏</td></tr>
+      <tr><td>反作弊</td><td>H5 上报机型与 ADB 读取交叉比对，不一致时黄色警告要求复核</td></tr>
+    </table>
+    <h3>IMEI 半自动暗码采集（Android）</h3>
+    <ol>
+      <li>质检工具打开拨号盘并逐键代输 <code>*#06</code>。</li>
+      <li>界面显示"请按 # 键"大字引导，<b>质检员拿用户手机按下 <code>#</code></b> 触发弹窗。</li>
+      <li>质检工具 ADB 截屏 + 端侧 OCR 识别 IMEI。</li>
+      <li>Luhn / 格式校验通过后回填，脱敏展示；失败自动重试 1 次，仍失败转人工读屏录入。</li>
+    </ol>
+    <div class="note"><b>关键原则：</b>暗码最后一位 <code>#</code> 统一由店员操作，保证"店员操作、用户在场知情"口径一致。</div>
+  </section>
+
+  <!-- 9 -->
+  <section class="card" id="s9">
+    <div class="step-title"><span class="step-num">7</span><h2 style="border:none;padding:0;margin:0;">发票信息采集（可选）</h2></div>
+    <p class="tag">对应 PRD：TAB-P0-09</p>
+    <p>询问用户是否携带设备购买发票。发票信息用于定价引擎计算基准价 <code>min(发票价格, 市场基准价)</code>。</p>
+    <h3>操作步骤</h3>
+    <ol>
+      <li>硬件审计完成后，质检工具提示"用户是否提供购买发票？"。</li>
+      <li><b>提供</b> → 拍摄发票照片 → 录入金额 + 购买日期 → 预览确认 → 进入上传；<b>跳过</b> → 直接进入综合上传。</li>
+    </ol>
+    <h3>录入字段</h3>
+    <table>
+      <tr><th>字段</th><th>录入方式</th><th>必填</th><th>校验规则</th></tr>
+      <tr><td>发票照片</td><td>拍照</td><td>必填（如录入）</td><td>需清晰可辨金额和日期；分辨率 ≥ 1080P</td></tr>
+      <tr><td>发票金额</td><td>手动输入</td><td>必填（如录入）</td><td>INR 正整数，范围 1-999,999；以发票最终成交价为准</td></tr>
+      <tr><td>购买日期</td><td>日期选择器</td><td>必填（如录入）</td><td>不可晚于今天，不可早于设备出厂日期</td></tr>
+    </table>
+    <h3>关键规则</h3>
+    <table>
+      <tr><th>规则项</th><th>说明</th></tr>
+      <tr><td>可选操作</td><td>不提供发票不影响质检流程</td></tr>
+      <tr><td>不可后补</td><td>综合上传完成后不可再补录发票</td></tr>
+      <tr><td>不做真伪校验</td><td>MVP 阶段仅采集，不接入 GST 发票验证</td></tr>
+      <tr><td>定价影响</td><td><code>min(发票价格, 市场基准价)</code></td></tr>
+      <tr><td>上传前确认</td><td>录入完成后展示预览，确认后不可返回修改</td></tr>
+    </table>
+  </section>
+
+  <!-- 10 -->
+  <section class="card" id="s10">
+    <div class="step-title"><span class="step-num">8</span><h2 style="border:none;padding:0;margin:0;">综合数据上传</h2></div>
+    <p class="tag">对应 PRD：TAB-P0-03（UI 步骤名：Submit 提交质检包）</p>
+    <p>将外观影像 + 硬件检测结果 + 发票信息（可选）打包统一上传云端，触发绑定会话。</p>
+    <h3>上传数据包内容</h3>
+    <table>
+      <tr><th>数据分类</th><th>内容</th><th>格式</th></tr>
+      <tr><td>外观影像</td><td>10 张照片 + 1 段旋转视频</td><td>JPEG + MP4</td></tr>
+      <tr><td>硬件检测</td><td>10 项检测结果 + 详细数据</td><td>JSON</td></tr>
+      <tr><td>发票信息</td><td>发票照片 + 金额 + 购买日期（可选）</td><td>JPEG + JSON</td></tr>
+      <tr><td>上下文信息</td><td>门店 ID + 操作店员 ID + 时间戳</td><td>JSON</td></tr>
+      <tr><td>会话信息</td><td>OTP 验证后的 session 关联标识</td><td>JSON</td></tr>
+      <tr><td>完整性校验</td><td>数据包 hash（SHA-256）</td><td>string</td></tr>
+    </table>
+    <h3>关键规则</h3>
+    <table>
+      <tr><th>规则项</th><th>说明</th></tr>
+      <tr><td>上传顺序</td><td>先传影像文件（大文件分片），后传硬件 JSON</td></tr>
+      <tr><td>断点续传</td><td>中断恢复后从断点继续，不重传已完成分片</td></tr>
+      <tr><td>分片大小</td><td>每分片 2MB；单文件最大 100MB</td></tr>
+      <tr><td>自动绑定</td><td>云端收到完整数据后自动创建会话，生成 <code>session_id</code> 回传</td></tr>
+      <tr><td>上传超时</td><td>总时长超 5 分钟提示"网络不稳定，可稍后重试"，保留本地数据</td></tr>
+      <tr><td>重复上传防护</td><td>同一批数据重复提交，云端返回 409，提示"该数据已上传"</td></tr>
+      <tr><td>上传失败</td><td>本地数据完整保留，支持手动重试</td></tr>
+    </table>
+  </section>
+
+  <!-- 11 -->
+  <section class="card" id="s11">
+    <div class="step-title"><span class="step-num">9</span><h2 style="border:none;padding:0;margin:0;">质检报告展示与报价确认</h2></div>
+    <p class="tag">对应 PRD：TAB-P0-04</p>
+    <p>云端定价完成后，质检工具展示质检报告与抵扣报价，店员与用户当面确认。</p>
+    <h3>报告展示内容</h3>
+    <table>
+      <tr><th>区域</th><th>内容</th></tr>
+      <tr><td>设备概要</td><td>品牌、型号、IMEI（后四位脱敏）、存储容量、颜色</td></tr>
+      <tr><td>硬件检测摘要</td><td>电池健康度（进度条 + 百分比）、屏幕状态、各传感器状态</td></tr>
+      <tr><td>外观评级</td><td>基于影像自动预评级（A/B/C/D）+ 店员可修正入口（上下各一档）</td></tr>
+      <tr><td>抵扣报价</td><td>最终抵扣金额（INR），醒目大字号 + 品牌色展示</td></tr>
+      <tr><td>报价有效期</td><td>报价生成时间 + 截止时间（默认 30 分钟），倒计时展示</td></tr>
+      <tr><td>操作区</td><td>"确认无误"按钮 + "联系管理员复核"入口</td></tr>
+    </table>
+    <h3>外观评级修正</h3>
+    <table>
+      <tr><th>规则项</th><th>说明</th></tr>
+      <tr><td>修正范围</td><td>仅允许上调或下调一档（如 B→A 或 B→C），不可跨档修正</td></tr>
+      <tr><td>实时重算</td><td>修正后触发实时重算，3 秒内报价刷新</td></tr>
+    </table>
+    <h3>报价有效期</h3>
+    <table>
+      <tr><th>规则项</th><th>说明</th></tr>
+      <tr><td>有效期</td><td>生成后 30 分钟内有效</td></tr>
+      <tr><td>倒计时展示</td><td>MM:SS；最后 5 分钟变橙色，最后 1 分钟变红色并闪烁</td></tr>
+      <tr><td>超时处理</td><td>页面变灰，按钮置灰，显示"报价已失效，请联系店员重新质检"</td></tr>
+      <tr><td>超时影响</td><td>需重新质检（重新走硬件检测 + 上传流程）</td></tr>
+    </table>
+    <blockquote class="info">用户接受报价后的核销操作<b>不在质检工具上完成</b>（转至店老板 App 和用户 App），质检工具仅同步展示核销状态（见步骤 10）。</blockquote>
+  </section>
+
+  <!-- 12 -->
+  <section class="card" id="s12">
+    <div class="step-title"><span class="step-num">10</span><h2 style="border:none;padding:0;margin:0;">核销状态同步</h2></div>
+    <p class="tag">对应 PRD：TAB-P0-05</p>
+    <p>用户接受报价后，质检工具展示核销流程的实时状态，供店员了解进度，明确何时将旧机交付 DB（配送员）。</p>
+    <h3>状态流转与店员指引</h3>
+    <table>
+      <tr><th>状态</th><th>触发条件</th><th>质检工具展示内容</th><th>店员操作指引</th></tr>
+      <tr><td>待核销</td><td>用户已接受报价</td><td>抵扣金额 + "核销流程已推送至店老板 App"</td><td>告知用户等待，无需操作</td></tr>
+      <tr><td>核销中</td><td>店老板已录入售价</td><td>"等待用户在 App 确认核销" + 新机信息摘要</td><td>可协助用户查看新机信息</td></tr>
+      <tr><td>已核销</td><td>用户在 App 确认</td><td>"核销成功"（绿色对勾）+ "请将旧机交给 DB"</td><td>店员将旧机当面交给 DB</td></tr>
+      <tr><td>核销失败</td><td>用户拒绝或超时</td><td>"核销未完成" + 失败原因 + "联系店老板处理"</td><td>引导用户联系店老板</td></tr>
+      <tr><td>报价已过期</td><td>报价 30 分钟内未决策</td><td>"报价已失效" + "需重新质检生成新报价"</td><td>引导用户重新质检</td></tr>
+    </table>
+    <h3>关键规则</h3>
+    <table>
+      <tr><th>规则项</th><th>说明</th></tr>
+      <tr><td>同步方式</td><td>WebSocket 长连接实时推送，心跳 30 秒</td></tr>
+      <tr><td>同步延迟</td><td>目标 ≤ 3 秒</td></tr>
+      <tr><td>操作权限</td><td>质检工具仅查看，<b>不可执行核销操作</b>（录入金额 / 确认在店老板 App 和用户 App 完成）</td></tr>
+      <tr><td>状态历史</td><td>展示核销状态流转时间线（每状态 + 时间戳）</td></tr>
+      <tr><td>超时</td><td>核销 30 分钟未完成，展示"核销超时，请联系店老板"</td></tr>
+    </table>
+  </section>
+
+  <!-- 13 -->
+  <section class="card" id="s13">
+    <h2>异常与容错处理</h2>
+    <h3>质检中断恢复（TAB-P0-11）</h3>
+    <table>
+      <tr><th>中断场景</th><th>恢复策略</th></tr>
+      <tr><td>App 崩溃（闪退）</td><td>重启后自动检测未完成会话，恢复至崩溃前检查点</td></tr>
+      <tr><td>质检工具意外断电</td><td>重新开机后 App 启动，检测未完成会话并恢复</td></tr>
+      <tr><td>USB 断开（硬件检测中）</td><td>保存已完成项结果；提示"设备已断开"；重连后继续</td></tr>
+      <tr><td>网络中断（上传中）</td><td>已上传分片不丢失；恢复后从断点续传</td></tr>
+      <tr><td>用户主动退出 App</td><td>保存当前进度；下次打开恢复</td></tr>
+    </table>
+    <div class="note"><b>注意：</b>未完成会话超过 <b>24 小时</b>自动标记"已过期"并清理本地数据，此时不可恢复。</div>
+    <h3>离线质检（TAB-P1-01）</h3>
+    <table>
+      <tr><th>规则项</th><th>说明</th></tr>
+      <tr><td>离线可用范围</td><td>外观采集 + 硬件审计 + 发票采集可离线完成</td></tr>
+      <tr><td>不可离线项</td><td>OTP 验证（需 SMS）、综合上传（需网络）</td></tr>
+      <tr><td>离线提示</td><td>顶部持续展示黄色"离线模式"横幅</td></tr>
+      <tr><td>恢复上传</td><td>网络恢复后 5 秒内自动按时间顺序（FIFO）补传</td></tr>
+      <tr><td>队列上限</td><td>最多缓存 20 条完整质检数据，超出禁止新质检</td></tr>
+      <tr><td>数据加密</td><td>AES-256 加密存储</td></tr>
+      <tr><td>过期清理</td><td>离线数据超 7 天自动清理</td></tr>
+    </table>
+    <h3>审核调整通知（TAB-P0-06）</h3>
+    <p>库管审核时若调整了成色等级或扣款项，系统会向门店质检工具推送通知。店员可查看：调整项、价格差异、调整原因、操作库管、时间。</p>
+    <blockquote class="info">此通知供店员<b>复盘质检质量</b>参考，不要求做任何操作（设备已上架）。机况一致直接上架的设备不推送。</blockquote>
+    <h3>质检数据列表（TAB-P1-06）</h3>
+    <table>
+      <tr><th>状态</th><th>可执行操作</th></tr>
+      <tr><td>已完成</td><td>查看详情（跳转报告页）</td></tr>
+      <tr><td>已完成-拒收</td><td>查看拒收详情（原因 + 照片）</td></tr>
+      <tr><td>已核销</td><td>查看详情 + 核销记录</td></tr>
+      <tr><td>未完成</td><td>点击"继续质检" → 恢复至中断步骤</td></tr>
+      <tr><td>上传失败</td><td>查看详情 + "重新上传"按钮</td></tr>
+    </table>
+  </section>
+
+  <!-- 14 -->
+  <section class="card" id="s14">
+    <h2>附录 A：手动点检标准（26 项）</h2>
+    <blockquote>当 AI 服务不可用时，店员需按以下标准逐项手动点检。AI 检测的判定规则亦以此为准。</blockquote>
+
+    <h3>维度一：屏幕显示缺陷（D1-D6）</h3>
+    <p style="color:var(--muted);font-size:13px;">检测方法：H5 检测页全屏循环纯色画面（白 / 红 / 绿 / 蓝 / 黑 / 灰），店员现场目视判定（D6 触摸由 H5 触控测试覆盖）；断网降级时用正面上电图目视。</p>
+    <table>
+      <tr><th>编号</th><th>点检项</th><th>等级</th><th>判定标准</th><th>扣款代码</th></tr>
+      <tr><td>D1</td><td>显示老化 / 烧屏</td><td>无 → 轻微 → 明显</td><td>轻微：仅纯色背景可见残影；明显：大面积黄斑 / 图标烙印</td><td>CO-DSP-01 / CO-DSP-02</td></tr>
+      <tr><td>D2</td><td>亮点 / 坏点</td><td>无 → 1-2 个 → ≥3 个</td><td>1-2 个（直径&lt;0.5mm）；≥3 个或有彩线</td><td>CO-DSP-03 / CO-DSP-04</td></tr>
+      <tr><td>D3</td><td>屏幕变色 / 偏色</td><td>无 → 轻微 → 明显</td><td>轻微局部偏色；大面积明显偏色</td><td>CO-DSP-05 / CO-DSP-06</td></tr>
+      <tr><td>D4</td><td>显示闪烁</td><td>无 → 偶尔 → 频繁 / 持续</td><td>偶尔闪烁；频繁或持续闪烁</td><td>CO-DSP-07 / CO-DSP-08</td></tr>
+      <tr><td>D5</td><td>液晶漏液 / 漏光</td><td>无 → 边缘漏光 → 漏液</td><td>边缘漏光；漏液（黑色 / 紫色斑块）</td><td>CO-DSP-09 / CO-DSP-10</td></tr>
+      <tr><td>D6</td><td>触摸功能</td><td>正常 → 局部不灵敏 → 大面积失灵</td><td>局部不灵敏；大面积失灵（&gt;30%）触发拒收</td><td>CO-DSP-11 / CO-DSP-12（拒收）</td></tr>
+    </table>
+
+    <h3>维度二：屏幕玻璃缺陷（G1-G4）</h3>
+    <p style="color:var(--muted);font-size:13px;">检测方法：熄屏，45° 角，30cm 距离观察。</p>
+    <table>
+      <tr><th>编号</th><th>点检项</th><th>等级</th><th>判定标准</th><th>扣款代码</th></tr>
+      <tr><td>G1</td><td>划痕深度</td><td>无 → 发丝纹 → 浅 → 深</td><td>发丝纹：仅反光角可见，指甲无阻纳；浅：肉眼可见，指甲有阻纳；深：明显卡顿，伤及玻璃层</td><td>CO-GLS-01 / 02 / 03</td></tr>
+      <tr><td>G2</td><td>划痕数量</td><td>无 → 少量 → 较多 → 密集</td><td>少量 1-5 条；较多 6-15 条；密集 16+ 条大面积磨花</td><td>CO-GLS-04 / 05 / 06</td></tr>
+      <tr><td>G3</td><td>玻璃碎裂</td><td>无 → 边缘 → 显示区 → 粉碎性</td><td>边缘碎裂；显示区碎裂；粉碎性（触发拒收）</td><td>CO-GLS-07 / 08 / 09（拒收）</td></tr>
+      <tr><td>G4</td><td>玻璃脱胶 / 翘起</td><td>无 → 轻微 → 明显</td><td>轻微（缝隙&lt;0.5mm）；明显（可插入纸片，触发拒收）</td><td>CO-GLS-10 / 11（拒收）</td></tr>
+    </table>
+
+    <h3>维度三：机身边框缺陷（B1-B6）</h3>
+    <p style="color:var(--muted);font-size:13px;">检测方法：正常光线下旋转观察。</p>
+    <table>
+      <tr><th>编号</th><th>点检项</th><th>等级</th><th>判定标准</th><th>扣款代码</th></tr>
+      <tr><td>B1</td><td>掉漆 / 氧化</td><td>无 → 轻微 → 明显</td><td>轻微（≤3 处，单处&lt;2mm²）；明显（&gt;3 处或单处&gt;5mm²）</td><td>CO-BDY-01 / 02</td></tr>
+      <tr><td>B2</td><td>磕碰凹陷</td><td>无 → 轻微 → 明显</td><td>轻微（1-2 处，深&lt;0.5mm）；明显（≥3 处或深≥0.5mm）</td><td>CO-BDY-03 / 04</td></tr>
+      <tr><td>B3</td><td>边框变形</td><td>无 → 轻微 → 明显</td><td>轻微（翘起&lt;2mm）；明显（目视弯曲，翘起≥2mm）</td><td>CO-BDY-05 / 06</td></tr>
+      <tr><td>B4</td><td>按键松动</td><td>正常 → 松动 → 卡死 / 损坏</td><td>—</td><td>CO-BDY-07 / 08</td></tr>
+      <tr><td>B5</td><td>天线注塑条</td><td>完好 → 轻微磨损 → 断裂 / 缺失</td><td>—</td><td>CO-BDY-09 / 10</td></tr>
+      <tr><td>B6</td><td>拆修痕迹</td><td>完好 → 螺丝有拧痕 → 螺丝缺失</td><td>螺丝有拧痕 / 易碎贴破损；螺丝缺失</td><td>CO-BDY-11 / 12</td></tr>
+    </table>
+
+    <h3>维度四：后盖与机身（RC1-RC5）</h3>
+    <p style="color:var(--muted);font-size:13px;">检测方法：按玻璃 / 塑料 / 金属材质区分。</p>
+    <table>
+      <tr><th>编号</th><th>点检项</th><th>等级</th><th>判定标准</th><th>扣款代码</th></tr>
+      <tr><td>RC1</td><td>后盖划痕（玻璃）</td><td>无 → 轻微 → 明显</td><td>轻微（反光角可见）；明显（指甲有阻纳）</td><td>CO-BCK-01 / 02</td></tr>
+      <tr><td>RC2</td><td>后盖碎裂（玻璃）</td><td>无 → 局部 → 大面积</td><td>局部；大面积（&gt;30% 或有脱落风险）</td><td>CO-BCK-03 / 04</td></tr>
+      <tr><td>RC3</td><td>后盖磨损（塑料 / 金属）</td><td>无 → 轻微 → 严重</td><td>轻微（正常痕迹）；严重（涂层剥落 / 氧化）</td><td>CO-BCK-05 / 06</td></tr>
+      <tr><td>RC4</td><td>后盖鼓包</td><td>无 → 轻微 → 明显</td><td>轻微（平放晃动）；明显（屏幕被顶起，触发拒收）</td><td>CO-BCK-07 / 08（拒收）</td></tr>
+      <tr><td>RC5</td><td>摄像头镜片</td><td>无 → 轻微 → 明显</td><td>轻微（不影响成像）；明显（影响成像）</td><td>CO-BCK-09 / 10</td></tr>
+    </table>
+
+    <h3>维度五：接口与按键（P1-P5）</h3>
+    <p style="color:var(--muted);font-size:13px;">检测方法：目视 + 功能测试。</p>
+    <table>
+      <tr><th>编号</th><th>点检项</th><th>等级</th><th>判定标准</th><th>扣款代码</th></tr>
+      <tr><td>P1</td><td>充电口</td><td>正常 → 松动 → 损坏</td><td>松动；损坏 / 接触不良（pin 针弯曲）</td><td>CO-PRT-01 / 02</td></tr>
+      <tr><td>P2</td><td>数据口腐蚀</td><td>无 → 轻微氧化 → 明显腐蚀</td><td>轻微氧化（变暗）；明显腐蚀（绿 / 白异物，触发进水评估）</td><td>CO-PRT-03 / 04</td></tr>
+      <tr><td>P3</td><td>音量键</td><td>正常 → 松软 → 失灵 / 卡死</td><td>—</td><td>CO-PRT-05 / 06</td></tr>
+      <tr><td>P4</td><td>电源键</td><td>正常 → 松软 → 失灵 / 卡死</td><td>—</td><td>CO-PRT-07 / 08</td></tr>
+      <tr><td>P5</td><td>耳机 / 扬声器孔</td><td>正常 → 积灰 → 网罩破损</td><td>积灰；网罩破损 / 异物堵塞</td><td>CO-PRT-09 / 10</td></tr>
+    </table>
+  </section>
+
+  <!-- 15 -->
+  <section class="card" id="s15">
+    <h2>附录 B：拒收原因预设列表</h2>
+    <table>
+      <tr><th>拒收原因</th><th>说明</th><th>引导拍摄要点</th></tr>
+      <tr><td>屏幕严重碎裂</td><td>屏幕玻璃粉碎，显示层暴露或漏液</td><td>特写碎裂区域，反光角度拍摄</td></tr>
+      <tr><td>机身严重弯曲变形</td><td>机身明显弯曲，无法平放或外壳分离</td><td>侧拍弯曲角度，平放桌面俯拍间隙</td></tr>
+      <tr><td>进水腐蚀严重</td><td>主板或内部有明显水渍、腐蚀痕迹</td><td>特写腐蚀区域和防水标（如有）</td></tr>
+      <tr><td>主板损坏 / 缺失</td><td>主板裸露、烧毁或已被拆除</td><td>拍摄主板全貌</td></tr>
+      <tr><td>配件缺失过多</td><td>缺少屏幕、电池等核心组件</td><td>拍摄缺失组件部位</td></tr>
+      <tr><td>用户主动放弃回收</td><td>用户在质检过程中改变主意</td><td>无需特写，拍摄设备当前状态即可</td></tr>
+      <tr><td>其他异常情况</td><td>需补充说明文字</td><td>拍摄异常部位特写</td></tr>
+    </table>
+  </section>
+
+  <!-- 16 -->
+  <section class="card" id="s16">
+    <h2>附录 C：常见问题（FAQ）</h2>
+    <table>
+      <tr><th>问题</th><th>答案 / 处理</th></tr>
+      <tr><td>用户收不到 OTP 短信怎么办？</td><td>确认手机号是否 10 位印度手机号；可请求重发（间隔 ≥ 30 秒）；短信失败会自动切换 WhatsApp 发送</td></tr>
+      <tr><td>OTP 输错多次被锁了怎么办？</td><td>3 次错误后 60 秒冷却，期间等待倒计时结束即可重试</td></tr>
+      <tr><td>用户没有预约能质检吗？</td><td>可以，OTP 验证后直接进入空白新会话，不影响质检</td></tr>
+      <tr><td>拍照光线不足但必须拍怎么办？</td><td>质量不达标不强制阻止，可在确认弹窗选"仍要拍摄"，但建议尽量补光后再拍</td></tr>
+      <tr><td>USB 连接后没反应？</td><td>检查 USB OTG 线是否插紧；断开后界面会提示"设备已断开，请重新连接"，重连后自动继续</td></tr>
+      <tr><td>检测到一半网络断了？</td><td>核心质检流程不中断，数据暂存本地，恢复后自动补传；交互项标记"待网络恢复"</td></tr>
+      <tr><td>报价超过 30 分钟还没让用户决定？</td><td>报价失效，需重新质检生成新报价</td></tr>
+      <tr><td>用户拒绝报价后还能再质检吗？</td><td>报价拒绝后该订单状态独立，需按流程重新质检生成新报价</td></tr>
+      <tr><td>可以补录发票吗？</td><td>不可以，综合上传完成后不可再补录发票</td></tr>
+      <tr><td>拒收后反悔了能撤销吗？</td><td>不能，拒收不可撤销</td></tr>
+      <tr><td>为什么要店员按 # 键而不是用户自己按？</td><td>保证"店员操作、用户在场知情"口径一致，避免用户误操作</td></tr>
+      <tr><td>质检中断了怎么继续？</td><td>重新打开 App，检测到未完成会话会弹恢复提示，选"继续"即可（24 小时内有效）</td></tr>
+    </table>
+  </section>
+
+  <footer>
+    本手册依据《质检工具产品需求文档》（TAB PRD v1.15）编制 · Dobara · 质检操作流程手册 v1.0
+  </footer>
+
+</div>
+</body>
+</html>
