@@ -1,5 +1,5 @@
 # 05 — 内部业务应用 PRD（管理员 + 店老板 + 库管 + DB 四合一） | Internal Business App PRD
-**文档版本：** v3.10 | **更新日期：** 2026-09-17
+**文档版本：** v3.11 | **更新日期：** 2026-09-17
 **模块编号：** UA | **平台：** 跨端（App + Web，一套代码）
 **使用角色：** 管理员 / 店老板 / 库管 / DB — 同一应用，按角色权限显示不同模块
 **文档说明：** 内部业务应用（管理员+店老板+库管+DB四角色）完整产品需求文档，跨端开发（一套代码编译 App + Web）。各角色子模块编号：SA（管理员）、OWN（店老板）、WH（库管）、DB（财务），统一登录等公共功能编号 UA。本 PRD 由原「05 门店综合App PRD」与「07 运营后台Web端 PRD」合并而来。
@@ -8,6 +8,7 @@
 
 | 日期 | 版本 | 更新内容 | 更新人 |
 |------|------|----------|--------|
+| 2026-09-17 | v3.11 | **配置组 B 新增 B8「准入自检选项」**（配套 02 C端PRD v2.20 / 06 服务端PRD v1.14）：C 端预约页新增「回收前置条件自检」区块，其 7 个问题与选项由本组维护——`power_on_options`（ADM-04）/ `account_signout_options`（ADM-02）/ `water_damage_options`（ADM-03）/ `battery_swell_options`（ADM-08）/ `emi_active_options`（ADM-06）/ `carrier_lock_options`（ADM-07）/ `lost_stolen_options`（ADM-05），外加 `blocking_enabled` 硬拦截总开关。每个键设「拒收 key」列固定命中项——文案可改、命中判定不可由运营改判（改判会破坏与 ADM 的对应关系）。选项含 `label_hi` 印地语，与相邻键对齐。①**废弃 `appointment.usage_condition_options`**——该键一个字段同时承载"能否开机"与"能否退账号"两件事（分别对应 ADM-04 与 ADM-02），无法映射到准入项，拆为上述两键，编号不复用；②**补 A1 缺失的 `admission.battery_swell.enabled`**（06 PRD v1.11 日志曾称已补，实际 A1 表未登记）；③A1 加说明：`admission.*.enabled` 同时控制到店判定与 C 端自检问题，关闭时对应自检问题一并下架 | 何子豪 |
 | 2026-09-17 | v3.10 | **SA-P0-05 配置中心：配置组 A 键表欠账补齐**。A4/A5/A6 仍为旧粗粒度键（`pricing.cosmetic.screen_*` 6 键、`pricing.cosmetic.body_*` 4 键、`pricing.functional.*` 8 键），与 06 PRD v1.12 的档位级编码及管理端 ConfigCenter 实现脱节（原 64 个编码级金额参数未在 PRD 登记）。本次重建为**编码级键**并增加"对应编码"列：A4 = DSP 12 键 + GLS 11 键，A5 = BDY 12 键 + BCK 10 键，A6 = PRT 12 键 + FNC 7 键。随本次 06 PRD v1.13 同故障重复扣款修复同步：删 `pricing.bdy.b4_loose`/`b4_stuck_broken`（B4 按键松动，编码废弃）、`pricing.functional.buttons_not_working`/`port_corrosion`（与 PRT-06/08、PRT-03/04 同义，编码废弃）；新增 `pricing.bdy.b7_slight`/`b7_obvious`（B7 边框划痕 300/900）、`pricing.prt.p6_soft`/`p6_failed`（P6 其他按键 300/800）；A4-A6 加通用说明（触发拒收档不计扣、同归并组取一码）。A1-A3、A7-A11 编号与内容不变 | 何子豪 |
 | 2026-09-14 | v3.9 | OWN-P0-01 换购价格录入扩展为"新机信息+金额"录入：新增新机 IMEI 扫码录入（扫码为主、手动输入兜底、15 位格式校验、提交时服务端查重），IMEI 录入后按 TAC 自动关联机型（品牌/型号）且店老板可手动纠正（留审计标记）；新增录入字段表；核销确认明确为用户在任意已登录设备的 C 端 App 完成（覆盖换购新机不作为主力机、不在新机登录 App 的场景，配套 06 PRD v1.9 CLOUD-P0-02 重写）；UI 同步：TradeInEntry 新增新机扫码录入块（Scan IMEI 演示按钮 + IMEI/机型输入 + 自动关联提示 + 可纠正），提交校验含新机字段 | 何子豪 |
 | 2026-09-07 | v3.8 | 移除管理端对 ENT（企业买家）的权限管控：ENT 定位明确为 C 端 App 角色（02 PRD APP-P1-04 门店账号切换企业采购模式），权限与 C 端普通用户一致，由 C 端 PRD 定义。管理端仅管控内部账号（SA/OWN/CLK/WH/DB）。§2.2 角色表/权限列表/权限矩阵（去 ENT 列）、§2.3 预置角色（6→5）/账号创建流程/激活流程/业务规则同步；UI 同步：AccountMgmt 可分配角色移除 Enterprise Buyer、roleDefs 预置角色 seed 排除 ENT（5 preset roles）、shared-utils PRESET_ROLE_META ENT 权限清空并标注归属 | 何子豪 |
@@ -726,7 +727,9 @@ Change your password after first login.
 | `admission.lost_stolen.enabled` | 被盗/报失检查（CEIR） | ON | 开关 |
 | `admission.emi_check.enabled` | 分期/EMI 检查（NBFC） | OFF（P2 开启） | 开关 |
 | `admission.carrier_lock.enabled` | 运营商锁检查 | ON | 开关 |
+| `admission.battery_swell.enabled` | 电池鼓包/膨胀检查（ADM-08 安全拒收） | ON | 开关 |
 | `admission.third_party_timeout_ms` | 第三方 API 超时(ms) | 5000 | 数字 |
+> 说明：`admission.*.enabled` 同时控制到店准入判定与 C 端预约页对应的自检问题（配置组 B8）——关闭某检查时，对应自检问题一并下架。
 **A2. 电池扣款分档：**
 | 配置项 Key | 说明 | 默认值 | 类型 |
 |------|------|------|------|
@@ -875,7 +878,7 @@ Change your password after first login.
 | 配置项 Key | 说明 | 默认选项列表 |
 |------|------|------|
 | `appointment.warranty_options` | 保修状态 | `[{"key":"in_warranty","label":"在保","label_hi":"वारंटी में"},{"key":"out_of_warranty","label":"已过保","label_hi":"वारंटी से बाहर"},{"key":"unknown","label":"不确定","label_hi":"अनिश्चित"}]` |
-| `appointment.usage_condition_options` | 使用状况 | `[{"key":"working","label":"可正常使用"},{"key":"locked","label":"已锁定/iCloud"},{"key":"wiped","label":"已抹掉数据"}]` |
+| ~~`appointment.usage_condition_options`~~ | ~~使用状况~~ | **v3.11 已废弃**——该键一个字段同时承载"能否开机"与"能否退账号"两件事，无法对应准入项。拆为 B8 的 `appointment.admission.power_on_options`（ADM-04）与 `appointment.admission.account_signout_options`（ADM-02），编号不复用 |
 **B3. 电池健康选项：**
 | 配置项 Key | 说明 | 默认选项列表 |
 |------|------|------|
@@ -900,6 +903,20 @@ Change your password after first login.
 | `appointment.estimate_price_range_percent` | 初步估价浮动比例 | 20% | 数字 |
 | `appointment.max_future_days` | 最早可预约天数 | 7 天 | 数字 |
 | `appointment.auto_cancel_no_show_hours` | 预约未到店自动取消 | 24 小时 | 数字 |
+**B8. 准入自检选项（v3.11 新增）：**
+> 作用：C 端换购预约页「回收前置条件自检」区块的 7 个问题与选项（02 PRD APP-P1-01）。选项文案可改，但**"哪个选项命中拒收"由系统按 `key` 固定**（见下"拒收 key"列），运营不得改判——改判会破坏与准入检查 ADM-02~08 的对应关系。
+> 开关联动：配置组 A1 的 `admission.*.enabled` 关闭某项准入检查时，对应自检问题一并从 C 端下架。
+| 配置项 Key | 说明 | 拒收 key | 默认选项列表 |
+|------|------|----------|------|
+| `appointment.admission.power_on_options` | 能否正常开机进入桌面（ADM-04） | `no` | `[{"key":"yes","label":"可以正常开机","label_hi":"सामान्य रूप से चालू होता है"},{"key":"no","label":"不能开机","label_hi":"चालू नहीं होता"}]` |
+| `appointment.admission.account_signout_options` | 能否退出登录账号（ADM-02） | `cannot_signout` | `[{"key":"yes","label":"可以退出账号","label_hi":"अकाउंट से लॉग आउट कर सकते हैं"},{"key":"already_signed_out","label":"已退出账号","label_hi":"पहले ही लॉग आउट कर दिया"},{"key":"cannot_signout","label":"无法退出/不知道账号密码","label_hi":"लॉग आउट नहीं कर सकते"}]` |
+| `appointment.admission.water_damage_options` | 是否进过水或受潮（ADM-03） | `yes` | `[{"key":"no","label":"没有进过水","label_hi":"पानी से नहीं भीगा"},{"key":"yes","label":"进过水/受潮","label_hi":"पानी से भीगा है"}]` |
+| `appointment.admission.battery_swell_options` | 后盖是否被顶起/平放晃动（ADM-08） | `yes` | `[{"key":"no","label":"后盖平整无鼓起","label_hi":"पीछे का हिस्सा सपाट है"},{"key":"yes","label":"后盖被顶起/平放晃动","label_hi":"पीछे का हिस्सा उभरा हुआ है"}]` |
+| `appointment.admission.emi_active_options` | 是否仍在分期/EMI 未结清（ADM-06） | `yes` | `[{"key":"no","label":"没有分期/已结清","label_hi":"कोई EMI नहीं"},{"key":"yes","label":"仍在分期中","label_hi":"अभी भी EMI चल रही है"}]` |
+| `appointment.admission.carrier_lock_options` | 是否被运营商锁网（ADM-07） | `yes` | `[{"key":"no","label":"没有被锁网","label_hi":"नेटवर्क लॉक नहीं है"},{"key":"yes","label":"被运营商锁网","label_hi":"नेटवर्क लॉक है"}]` |
+| `appointment.admission.lost_stolen_options` | 是否曾报失/被盗（ADM-05） | `yes` | `[{"key":"no","label":"没有报失/被盗","label_hi":"चोरी/गुम नहीं हुआ"},{"key":"yes","label":"曾报失/被盗","label_hi":"चोरी/गुम हुआ था"}]` |
+| `appointment.admission.blocking_enabled` | 准入自检命中时是否硬拦截预约提交 | ON | 开关 |
+> 说明：ADM-01（IMEI 黑名单）不在本组——预约页不采集 IMEI，该项仅能在到店判定（见 06 PRD §3.3.2.0）。`appointment.admission.blocking_enabled` 关闭时可临时放行（用于灰度或客服兜底），但命中项仍随预约单同步门店并在平板端高亮。
 
 ---
 

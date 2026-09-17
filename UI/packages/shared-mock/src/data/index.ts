@@ -391,6 +391,19 @@ export const users: IUser[] = [
   { id: 'u-8', phone: '+919876543208', name: 'Sunita Verma', role: 'finance' },
 ];
 
+/** C 端预约页「回收前置条件自检」的自报答案（02 PRD APP-P1-01） */
+export interface IAdmissionSelfcheck {
+  power_on?: string;
+  account_signout?: string;
+  water_damage?: string;
+  battery_swell?: string;
+  emi_active?: string;
+  carrier_lock?: string;
+  lost_stolen?: string;
+  blocked?: boolean;
+  blockedChecks?: string[];
+}
+
 export interface IAppointmentRecord {
   id: string;
   phone: string; // 10-digit, no country code
@@ -404,6 +417,7 @@ export interface IAppointmentRecord {
   estimateMin: number;
   estimateMax: number;
   notes?: string;
+  admissionSelfcheck?: IAdmissionSelfcheck;
 }
 
 /** Local YYYY-MM-DD so "today" matches the clerk's timezone, not UTC */
@@ -433,6 +447,18 @@ export const appointments: IAppointmentRecord[] = [
     estimateMin: 18000,
     estimateMax: 22000,
     notes: 'Screen flicker under low brightness',
+    // 带命中项：用于验证平板端「准入自检」命中高亮渲染
+    admissionSelfcheck: {
+      power_on: 'yes',
+      account_signout: 'yes',
+      water_damage: 'yes',
+      battery_swell: 'no',
+      emi_active: 'no',
+      carrier_lock: 'no',
+      lost_stolen: 'no',
+      blocked: false,
+      blockedChecks: [],
+    },
   },
   {
     id: 'ap-2',
@@ -461,6 +487,17 @@ export const appointments: IAppointmentRecord[] = [
     estimateMin: 28000,
     estimateMax: 32000,
     notes: 'Minor scratches claimed',
+    admissionSelfcheck: {
+      power_on: 'yes',
+      account_signout: 'already_signed_out',
+      water_damage: 'no',
+      battery_swell: 'no',
+      emi_active: 'no',
+      carrier_lock: 'no',
+      lost_stolen: 'no',
+      blocked: false,
+      blockedChecks: [],
+    },
   },
 ];
 

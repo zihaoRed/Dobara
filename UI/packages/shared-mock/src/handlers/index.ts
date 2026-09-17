@@ -17,6 +17,7 @@ import {
   afterSaleStore,
   UNSERVICEABLE_PINCODES,
   type IAddress,
+  type IAdmissionSelfcheck,
 } from '../data';
 import type { IOrder, IRecycleOrder } from '@dobara/utils';
 import { calcOrderTotal, CITY_LIST, LOCK_DURATION_SECONDS, QUOTE_DURATION_SECONDS } from '@dobara/utils';
@@ -562,6 +563,8 @@ export const handlers = [
       estimateMin?: number;
       estimateMax?: number;
       phone?: string;
+      /** 准入自检结果（02 PRD APP-P1-01 / 06 PRD §3.1.1 admission_selfcheck） */
+      admissionSelfcheck?: IAdmissionSelfcheck;
     };
     const sessionId = `sess-${Date.now()}`;
     const order: IRecycleOrder = {
@@ -580,6 +583,7 @@ export const handlers = [
       estimateMax: body.estimateMax,
       color: body.color,
       storage: body.storage,
+      admissionSelfcheck: body.admissionSelfcheck,
     };
     recycleOrderStore.unshift(order);
     upsertRecycleOrder(order);

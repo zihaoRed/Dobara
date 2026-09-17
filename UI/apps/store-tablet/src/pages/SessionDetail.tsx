@@ -14,6 +14,19 @@ const steps = [
   { key: 'report', label: 'Report' },
 ];
 
+/** C 端预约页「回收前置条件自检」的自报答案（02 PRD APP-P1-01） */
+interface AdmissionSelfcheck {
+  power_on?: string;
+  account_signout?: string;
+  water_damage?: string;
+  battery_swell?: string;
+  emi_active?: string;
+  carrier_lock?: string;
+  lost_stolen?: string;
+  blocked?: boolean;
+  blockedChecks?: string[];
+}
+
 /** TAB-P1-02 — appointment record returned by `/api/appointments` */
 interface Appointment {
   id: string;
@@ -28,7 +41,19 @@ interface Appointment {
   estimateMin: number;
   estimateMax: number;
   notes?: string;
+  admissionSelfcheck?: AdmissionSelfcheck;
 }
+
+/** 自检项展示顺序与命中拒收的答案值（06 PRD §3.3.2.0） */
+const SELFCHECK_ROWS: { key: keyof AdmissionSelfcheck; label: string; rejectValue: string }[] = [
+  { key: 'power_on', label: 'Powers on', rejectValue: 'no' },
+  { key: 'account_signout', label: 'Can sign out', rejectValue: 'cant_signout' },
+  { key: 'water_damage', label: 'Water contact', rejectValue: 'yes' },
+  { key: 'battery_swell', label: 'Battery swell', rejectValue: 'yes' },
+  { key: 'emi_active', label: 'Under EMI', rejectValue: 'yes' },
+  { key: 'carrier_lock', label: 'Carrier locked', rejectValue: 'yes' },
+  { key: 'lost_stolen', label: 'Reported lost', rejectValue: 'yes' },
+];
 
 export default function SessionDetail() {
   const { sessionId = '' } = useParams<{ sessionId: string }>();
@@ -172,6 +197,37 @@ export default function SessionDetail() {
               <span className="font-medium">{latest?.notes || 'Minor scratches claimed'}</span>
             </div>
           </div>
+
+          {latest?.admissionSelfcheck && (
+            <div className="mt-3 pt-3 border-t border-border" data-testid="admission-selfcheck">
+              <p className="text-eyebrow text-text-muted uppercase mb-1.5">
+                Recycling self-check (user-reported)
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {SELFCHECK_ROWS.map((row) => {
+                  const answer = latest.admissionSelfcheck?.[row.key];
+                  if (answer == null) return null;
+                  const hit = answer === row.rejectValue;
+                  return (
+                    <span
+                      key={row.key}
+                      data-testid={`selfcheck-${row.key}`}
+                      className={`px-2 py-0.5 rounded-md text-caption font-medium ${
+                        hit
+                          ? 'bg-dobara-error-light text-dobara-error'
+                          : 'bg-surface-high text-text-secondary'
+                      }`}
+                    >
+                      {row.label}: {hit ? 'not met' : 'ok'}
+                    </span>
+                  );
+                })}
+              </div>
+              <p className="text-caption text-text-muted mt-1.5">
+                Self-reported — does not replace the on-site admission check (ADM-01~08).
+              </p>
+            </div>
+          )}
 
           {otherAppointments.length > 0 && (
             <button

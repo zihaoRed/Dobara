@@ -8,7 +8,7 @@ export const REJECTION_REASONS = [
   { value: 'other', label: 'Other (description required)' },
 ];
 
-/** Admission gate (ADM-01~07) — pre-pricing, run after device connects. */
+/** Admission gate (ADM-01~08) — pre-pricing, run after device connects. */
 export const ADMISSION_CHECKS = [
   { key: 'blacklist', label: 'IMEI blacklist', source: 'Server lookup' },
   { key: 'icloud', label: 'iCloud / FRP lock', source: 'Device read' },
@@ -17,6 +17,80 @@ export const ADMISSION_CHECKS = [
   { key: 'lost_stolen', label: 'Reported lost / stolen (CEIR)', source: 'Server lookup' },
   { key: 'emi', label: 'Still under EMI / financing', source: 'NBFC API / self-declare' },
   { key: 'carrier_lock', label: 'Carrier / network lock', source: 'Server lookup' },
+  { key: 'battery_swell', label: 'Battery swell / bulge', source: 'Clerk visual + feel' },
+] as const;
+
+/**
+ * C-end pre-booking admission self-check (02 PRD APP-P1-01 · 06 PRD §3.3.2.0).
+ * The user answers these on the appointment form; a "reject" answer blocks booking —
+ * unlike the in-store ADM gate, this is self-reported and therefore reversible.
+ * ADM-01 (IMEI blacklist) is absent by design: the form collects no IMEI.
+ */
+export const ADMISSION_SELFCHECK = [
+  {
+    key: 'power_on',
+    check: 'no_power',
+    question: 'Does the phone power on and reach the home screen?',
+    options: [
+      { value: 'yes', label: 'Yes, it powers on' },
+      { value: 'no', label: 'No, it will not power on', reject: 'The device cannot be recycled if it does not power on. You can get it repaired and book again.' },
+    ],
+  },
+  {
+    key: 'account_signout',
+    check: 'icloud',
+    question: 'Can you sign out of the account on the device (Apple ID / Google)?',
+    options: [
+      { value: 'yes', label: 'Yes, I can sign out' },
+      { value: 'already_signed_out', label: 'Already signed out' },
+      { value: 'cant_signout', label: 'No / I do not know the password', reject: 'Please sign out of the account and turn off "Find My Device" in Settings before booking.' },
+    ],
+  },
+  {
+    key: 'water_damage',
+    check: 'water_damage',
+    question: 'Has the device ever been in contact with water or been damp?',
+    options: [
+      { value: 'no', label: 'No' },
+      { value: 'yes', label: 'Yes, it has been wet', reject: 'The device shows water contact, which we cannot accept for recycling.' },
+    ],
+  },
+  {
+    key: 'battery_swell',
+    check: 'battery_swell',
+    question: 'Is the back cover pushed up, or does the device rock when laid flat?',
+    options: [
+      { value: 'no', label: 'No, the back is flat' },
+      { value: 'yes', label: 'Yes, it is bulging or rocking', reject: 'A swollen battery is a safety risk, so we cannot accept this device for recycling.' },
+    ],
+  },
+  {
+    key: 'emi_active',
+    check: 'emi',
+    question: 'Is the device still under an EMI / instalment plan that is not paid off?',
+    options: [
+      { value: 'no', label: 'No EMI, or already paid off' },
+      { value: 'yes', label: 'Yes, still paying', reject: 'Please clear the loan before booking a trade-in.' },
+    ],
+  },
+  {
+    key: 'carrier_lock',
+    check: 'carrier_lock',
+    question: 'Is the device locked to a carrier (network locked)?',
+    options: [
+      { value: 'no', label: 'No, not network locked' },
+      { value: 'yes', label: 'Yes, network locked', reject: 'Please ask your carrier to unlock the device before booking.' },
+    ],
+  },
+  {
+    key: 'lost_stolen',
+    check: 'lost_stolen',
+    question: 'Has the device ever been reported lost or stolen?',
+    options: [
+      { value: 'no', label: 'No' },
+      { value: 'yes', label: 'Yes, it was reported', reject: 'A device reported as lost or stolen cannot be recycled.' },
+    ],
+  },
 ] as const;
 
 /** Motherboard visual checks (clerk). corrosion/LCI = reject (ADM-03); repair traces = deduction (HW-MB-01). */

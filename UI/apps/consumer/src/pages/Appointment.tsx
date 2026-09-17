@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, EstimateThinkingPanel } from '@dobara/ui';
 import type { IEstimateDeduction } from '@dobara/ui';
-import { ArrowRight, Smartphone, Info, MapPin, Clock } from 'lucide-react';
+import { ArrowRight, Smartphone, Info, MapPin, Clock, AlertTriangle } from 'lucide-react';
 import type { IBrand, IModel, IStore } from '@dobara/utils';
+import { ADMISSION_SELFCHECK } from '@dobara/utils';
 import { getUserCity, nearestServedCities } from '../lib/userCity';
 import { CityPicker } from '../components/CityPicker';
 
@@ -75,8 +76,7 @@ const CONDITIONS: { key: string; label: string; options: IConditionOption[] }[] 
 // 电池档位与定价引擎 HW-BH 分档一致（服务端 PRD §3.3.2.1）: 90+/85-90/80-85/70-80/70以下
 const BATTERY_OPTIONS = ['90%+', '85-90%', '80-85%', '70-80%', 'Below 70%'];
 const WARRANTY_OPTIONS = ['Yes', 'No', "Don't know"];
-// PRD 采集项为"使用情况"（账号退出状态），非使用年限；不参与估价计算，仅同步门店参考
-const ACCOUNT_STATUS_OPTIONS = ['Can access & sign out', 'Cannot access desktop', 'Already signed out'];
+// 原「使用情况」字段已由 ADMISSION_SELFCHECK（@dobara/utils）中的"能否开机"与"能否退出账号"两问取代
 // 对齐 PRD"机器维修情况"：其他维修含后盖更换/听筒/尾插等（映射 CO-RPR-04）
 const REPAIR_OPTIONS = ['Never repaired', 'Screen replaced', 'Battery replaced', 'Camera replaced', 'Other repair'];
 const FUNCTIONAL_OPTIONS = [
@@ -173,7 +173,8 @@ export function Appointment() {
   const [selColor, setSelColor] = useState('');
   const [selStorage, setSelStorage] = useState('');
   const [selWarranty, setSelWarranty] = useState('');
-  const [selAccountStatus, setSelAccountStatus] = useState('');
+  /** 准入自检答案（02 PRD APP-P1-01「回收前置条件自检」）—— key → 选中的 option value */
+  const [admission, setAdmission] = useState<Record<string, string>>({});
   const [selBattery, setSelBattery] = useState('');
   const [selBodyCondition, setSelBodyCondition] = useState('');
   const [selScreenCondition, setSelScreenCondition] = useState('');
@@ -192,6 +193,16 @@ export function Appointment() {
   const [selDate, setSelDate] = useState('');
   const [selSlot, setSelSlot] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  /** 准入自检：已作答的问题数 / 命中的拒收项（02 PRD APP-P1-01「准入自检规则」） */
+  const admissionAnswered = ADMISSION_SELFCHECK.filter((q) => admission[q.key] != null).length;
+  const admissionRejects = ADMISSION_SELFCHECK.flatMap((q) => {
+    const opt = q.options.find((o) => o.value === admission[q.key]);
+    return opt && 'reject' in opt && opt.reject
+      ? [{ question: q.question, reason: String(opt.reject) }]
+      : [];
+  });
+  const admissionBlocked = admissionRejects.length > 0;
 
   const nextDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -299,6 +310,15 @@ export function Appointment() {
       appointmentSlot: selSlot,
       estimateMin: estimateVal,
       estimateMax: estimateVal,
+      // 准入自检结果随预约单同步门店（06 PRD §3.1.1 admission_selfcheck；01 PRD TAB-P1-02 展示）
+      admissionSelfcheck: {
+        ...admission,
+        blocked: admissionBlocked,
+        blockedChecks: ADMISSION_SELFCHECK.filter((q) => {
+          const opt = q.options.find((o) => o.value === admission[q.key]);
+          return opt && 'reject' in opt && opt.reject;
+        }).map((q) => q.check),
+      },
     };
     const successState = {
       storeName: store?.name,
@@ -486,6 +506,86 @@ export function Appointment() {
         <Card>
           <h2 className="text-h4 font-heading mb-4">Device Condition</h2>
           <div className="space-y-4">
+            {/* 回收前置条件自检 — 准入检查前移（02 PRD APP-P1-01「准入自检规则」）。先筛后填。 */}
+            <div
+              className="rounded-lg border border-border p-3 space-y-3"
+              data-testid="admission-selfcheck"
+            >
+              <div>
+                <p className="text-caption font-semibold text-text-primary">
+                  Recycling requirements
+                </p>
+                <p className="text-caption text-text-muted mt-0.5">
+                  Answer these first — {admissionAnswered}/{ADMISSION_SELFCHECK.length} answered. If any
+                  requirement is not met, the device cannot be recycled and the booking cannot be submitted.
+                </p>
+              </div>
+
+              {admissionBlocked && (
+                <div
+                  className="flex items-start gap-2 rounded-md bg-dobara-error-light p-3"
+                  data-testid="admission-blocked-banner"
+                >
+                  <AlertTriangle size={18} className="text-dobara-error shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-caption font-semibold text-dobara-error">
+                      This device does not currently qualify for recycling
+                    </p>
+                    <p className="text-caption text-dobara-error mt-0.5">
+                      Resolve the issue below and book again. Not sure?{' '}
+                      <button
+                        type="button"
+                        className="underline font-semibold"
+                        onClick={() => navigate('/account/help')}
+                        data-testid="admission-contact-support"
+                      >
+                        Contact support
+                      </button>
+                      .
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {ADMISSION_SELFCHECK.map((q) => {
+                const selected = admission[q.key];
+                const hit = q.options.find((o) => o.value === selected);
+                const rejectMsg = hit && 'reject' in hit && hit.reject ? String(hit.reject) : null;
+                return (
+                  <div key={q.key}>
+                    <label className="text-caption text-text-muted block mb-1 font-semibold">
+                      {q.question}
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {q.options.map((o) => (
+                        <button
+                          key={o.value}
+                          type="button"
+                          data-testid={`admission-${q.key}-${o.value}`}
+                          onClick={() => setAdmission((prev) => ({ ...prev, [q.key]: o.value }))}
+                          className={`px-3 py-1.5 rounded-md text-caption font-medium border transition-colors ${
+                            selected === o.value
+                              ? 'border-primary-500 bg-primary-50 text-primary-700'
+                              : 'border-border text-text-secondary hover:bg-surface-high'
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                    {rejectMsg && (
+                      <p
+                        className="text-caption text-dobara-error mt-1"
+                        data-testid={`admission-reject-${q.key}`}
+                      >
+                        {rejectMsg}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
             <div>
               <label className="text-caption text-text-muted block mb-1 font-semibold">Under Warranty?</label>
               <div className="flex gap-2">
@@ -505,24 +605,6 @@ export function Appointment() {
               </div>
             </div>
 
-            <div>
-              <label className="text-caption text-text-muted block mb-1 font-semibold">Account Status</label>
-              <div className="flex flex-wrap gap-2">
-                {ACCOUNT_STATUS_OPTIONS.map((o) => (
-                  <button
-                    key={o}
-                    onClick={() => setSelAccountStatus(o)}
-                    className={`px-3 py-1.5 rounded-md text-caption font-medium border transition-colors ${
-                      selAccountStatus === o
-                        ? 'border-primary-500 bg-primary-50 text-primary-700'
-                        : 'border-border text-text-secondary hover:bg-surface-high'
-                    }`}
-                  >
-                    {o}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             <div>
               <label className="text-caption text-text-muted block mb-1 font-semibold">Battery Health</label>
@@ -616,7 +698,11 @@ export function Appointment() {
                 variant="primary"
                 onClick={calculateEstimate}
                 className="flex-1"
-                disabled={!selWarranty || !selAccountStatus || !selBattery || !selBodyCondition || !selScreenCondition || !selDisplay}
+                data-testid="get-estimate"
+                disabled={
+                  !selWarranty || !selBattery || !selBodyCondition || !selScreenCondition || !selDisplay ||
+                  admissionAnswered < ADMISSION_SELFCHECK.length || admissionBlocked
+                }
               >
                 Get Estimate
               </Button>

@@ -174,9 +174,20 @@ def run():
             color_btns.first.click()
             page.locator("button").filter(has_text="GB").first.click()
             page.get_by_role("button", name="Next").click()
-            # Step 2 fill required
-            page.get_by_role("button", name="Yes").click()
-            page.get_by_role("button", name="Already signed out").click()
+            # Step 2 — admission self-check first (APP-P1-01 回收前置条件自检, hard gate:
+            # "Get Estimate" stays disabled until all 7 are answered)
+            for tid in (
+                "admission-power_on-yes",
+                "admission-account_signout-already_signed_out",
+                "admission-water_damage-no",
+                "admission-battery_swell-no",
+                "admission-emi_active-no",
+                "admission-carrier_lock-no",
+                "admission-lost_stolen-no",
+            ):
+                page.get_by_test_id(tid).click()
+            # Remaining required fields
+            page.get_by_role("button", name="Yes", exact=True).click()
             page.get_by_role("button", name="90%+").click()
             # Labels follow APP-P1-01 wording (body vs screen "like new" differ, so match exactly)
             page.get_by_role("button", name="Like new, no scratches", exact=True).click()
@@ -202,6 +213,48 @@ def run():
             failures.append(f"appointment: {e}")
             print(f"FAIL appointment: {e}")
             page.screenshot(path="e2e-fail-appointment.png", full_page=True)
+
+        # Admission self-check — negative path: a reject answer must hard-block the booking
+        try:
+            page.goto(f"{BASE}/sell/appointment", wait_until="domcontentloaded")
+            page.locator("select").nth(0).select_option(label="Apple")
+            page.wait_for_timeout(600)
+            page.locator("select").nth(1).select_option(index=1)
+            page.wait_for_timeout(400)
+            color_btns = page.locator("button").filter(has_text="Titanium").or_(page.locator("button").filter(has_text="Black")).or_(page.locator("button").filter(has_text="Midnight"))
+            color_btns.first.click()
+            page.locator("button").filter(has_text="GB").first.click()
+            page.get_by_role("button", name="Next").click()
+            # Cannot sign out of the account → ADM-02 reject
+            page.get_by_test_id("admission-account_signout-cant_signout").click()
+            expect(page.get_by_test_id("admission-reject-account_signout")).to_be_visible()
+            expect(page.get_by_test_id("admission-blocked-banner")).to_be_visible()
+            expect(page.get_by_test_id("admission-contact-support")).to_be_visible()
+            # Fill the remaining required fields — the gate must still hold
+            for tid in (
+                "admission-power_on-yes",
+                "admission-water_damage-no",
+                "admission-battery_swell-no",
+                "admission-emi_active-no",
+                "admission-carrier_lock-no",
+                "admission-lost_stolen-no",
+            ):
+                page.get_by_test_id(tid).click()
+            page.get_by_role("button", name="Yes", exact=True).click()
+            page.get_by_role("button", name="90%+").click()
+            page.get_by_role("button", name="Like new, no scratches", exact=True).click()
+            page.get_by_role("button", name="Like new", exact=True).click()
+            page.get_by_role("button", name="Normal, no discolouration", exact=True).click()
+            expect(page.get_by_test_id("get-estimate")).to_be_disabled()
+            # Correcting the answer releases the gate
+            page.get_by_test_id("admission-account_signout-yes").click()
+            expect(page.get_by_test_id("admission-blocked-banner")).to_have_count(0)
+            expect(page.get_by_test_id("get-estimate")).to_be_enabled()
+            print("PASS admission self-check gate")
+        except Exception as e:
+            failures.append(f"admission gate: {e}")
+            print(f"FAIL admission gate: {e}")
+            page.screenshot(path="e2e-fail-admission.png", full_page=True)
 
         browser.close()
 

@@ -210,6 +210,18 @@ export interface IRecycleOrder {
   estimateMax?: number;
   color?: string;
   storage?: string;
+  /** 预约时用户自报的准入自检结果（02 PRD APP-P1-01；门店侧见 01 PRD TAB-P1-02） */
+  admissionSelfcheck?: {
+    power_on?: string;
+    account_signout?: string;
+    water_damage?: string;
+    battery_swell?: string;
+    emi_active?: string;
+    carrier_lock?: string;
+    lost_stolen?: string;
+    blocked?: boolean;
+    blockedChecks?: string[];
+  };
 }
 
 export interface ITradeIn {
