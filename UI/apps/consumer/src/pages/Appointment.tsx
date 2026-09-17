@@ -26,8 +26,10 @@ const CODE_AMOUNT: Record<string, number> = {
   // 屏幕显示
   'CO-DSP-01': 500, 'CO-DSP-03': 300, 'CO-DSP-04': 1200,
   // 机身边框 / 后盖
-  'CO-BDY-01': 300, 'CO-BDY-04': 1200, 'CO-BDY-06': 2000,
+  'CO-BDY-04': 1200, 'CO-BDY-06': 2000, 'CO-BDY-13': 300, 'CO-BDY-14': 900,
   'CO-BCK-04': 3000,
+  // 接口按键（"按键失灵"映射到 P3/P4，取保守档）
+  'CO-PRT-06': 800, 'CO-PRT-08': 800,
 };
 
 /** 粗档映射多编码时取保守档（上限），与 §3.1.2.1 维护规则一致 */
@@ -40,8 +42,8 @@ const CONDITIONS: { key: string; label: string; options: IConditionOption[] }[] 
     label: 'Body Condition',
     options: [
       { label: 'Like new, no scratches', codes: [] },
-      { label: 'Minor scratches', codes: ['CO-BDY-01'] },
-      { label: 'Visible dents & scratches', codes: ['CO-BDY-04'] },
+      { label: 'Minor scratches', codes: ['CO-BDY-13'] },
+      { label: 'Visible dents & scratches', codes: ['CO-BDY-04', 'CO-BDY-14'] },
       // 粗档：边框变形 或 后盖碎裂 → 取保守档（上限）
       { label: 'Frame bent or back cover cracked', codes: ['CO-BDY-06', 'CO-BCK-04'] },
     ],
@@ -98,16 +100,17 @@ const REPAIR_ESTIMATE: Record<string, { code: string; amount: number }> = {
   'Camera replaced': { code: 'CO-RPR-03', amount: 500 },
   'Other repair': { code: 'CO-RPR-04', amount: 1000 },
 };
-const FUNCTIONAL_ESTIMATE: Record<string, { code: string; amount: number }> = {
-  'Flash issue': { code: 'CO-FNC-01', amount: 500 },
-  'Charging port issue': { code: 'CO-FNC-02', amount: 1000 },
-  'Buttons not working': { code: 'CO-FNC-03', amount: 800 },
-  'Microphone issue': { code: 'CO-FNC-04', amount: 1200 },
-  'Speaker issue': { code: 'CO-FNC-05', amount: 800 },
-  'Face ID / fingerprint not working': { code: 'HW-BIO-01', amount: 2000 },
-  'Camera focus issue': { code: 'CO-FNC-06', amount: 1500 },
-  'Vibration motor not working': { code: 'CO-FNC-07', amount: 500 },
-  'WiFi / Bluetooth / GPS issue': { code: 'CO-FNC-08', amount: 2000 },
+const FUNCTIONAL_ESTIMATE: Record<string, { codes: string[]; amount: number }> = {
+  'Flash issue': { codes: ['CO-FNC-01'], amount: 500 },
+  'Charging port issue': { codes: ['CO-FNC-02'], amount: 1000 },
+  // Button failures moved to the P-dimension codes (CO-FNC-03 was a duplicate of P3/P4).
+  'Buttons not working': { codes: ['CO-PRT-06', 'CO-PRT-08'], amount: 800 },
+  'Microphone issue': { codes: ['CO-FNC-04'], amount: 1200 },
+  'Speaker issue': { codes: ['CO-FNC-05'], amount: 800 },
+  'Face ID / fingerprint not working': { codes: ['HW-BIO-01'], amount: 2000 },
+  'Camera focus issue': { codes: ['CO-FNC-06'], amount: 1500 },
+  'Vibration motor not working': { codes: ['CO-FNC-07'], amount: 500 },
+  'WiFi / Bluetooth / GPS issue': { codes: ['CO-FNC-08'], amount: 2000 },
 };
 const MULTI_REPAIR_PENALTY = { code: 'CO-RPR-05', amount: 2000 };
 
@@ -270,7 +273,7 @@ export function Appointment() {
     if (repairHits.length >= 3) push(`Multi-repair penalty (${MULTI_REPAIR_PENALTY.code})`, undefined, MULTI_REPAIR_PENALTY.amount);
     selIssues.filter((i) => i !== 'All working').forEach((i) => {
       const hit = FUNCTIONAL_ESTIMATE[i];
-      if (hit) push(`Issue (${hit.code})`, i, hit.amount);
+      if (hit) push(`Issue (${hit.codes.join(' / ')})`, i, hit.amount);
     });
 
     setDeductions(nextDeductions);

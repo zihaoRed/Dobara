@@ -41,12 +41,12 @@ export const ACCESSORY_OPTIONS = [
   { key: 'box', label: 'Missing original box' },
 ] as const;
 
-/** Functional defects (CO-FNC-01~09 + HW-BIO-01) — multi-select. */
+/** Functional defects (CO-FNC-01/02/04~08 + HW-BIO-01) — multi-select.
+ *  Button failures are carried by the P-dimension point-checks (CO-PRT-05~08/11/12),
+ *  port corrosion by P2 (CO-PRT-03/04) — see 06 PRD §3.3.2.1.5 same-fault dedupe. */
 export const FUNCTIONAL_DEFECT_OPTIONS = [
   { key: 'flash', label: 'Flash not working' },
   { key: 'charging_port', label: 'Charging port issue' },
-  { key: 'port_corrosion', label: 'Charging / data port corrosion' },
-  { key: 'buttons', label: 'Buttons not working' },
   { key: 'mic', label: 'Microphone issue' },
   { key: 'speaker', label: 'Speaker issue' },
   { key: 'biometric', label: 'Face ID / fingerprint not working' },
@@ -82,7 +82,7 @@ export const GRADE_INFO: Record<'A' | 'B' | 'C' | 'D', IGradeInfo> = {
     label: 'Excellent',
     name: '95 New',
     description:
-      'Light scratches (covered by a screen protector) and minor edge paint wear. All-original parts, no repairs. Battery ≥85%, all functions working.',
+      'Light scratches (covered by a screen protector) and minor edge paint wear or minor frame scratches. All-original parts, no repairs. Battery ≥85%, all functions working.',
   },
   C: {
     label: 'Good',

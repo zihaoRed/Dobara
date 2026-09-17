@@ -19,6 +19,12 @@ export default function AppearanceInspect() {
   const [helpCode, setHelpCode] = useState<string | null>(null);
   const [photoIdx, setPhotoIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  /**
+   * TAB-P0-14 / 06 PRD §3.3.2.1.5 — the H5 slide test owns touch detection. When it
+   * flags an anomaly (HW-TCH-01), D6 is locked to "system detected" so the same fault
+   * is not deducted twice (once automatically, once by the clerk).
+   */
+  const [touchLocked, setTouchLocked] = useState(false);
 
   const dimension = APPEARANCE_DIMENSIONS.find((d) => d.key === dim) || APPEARANCE_DIMENSIONS[0];
   const helpItem = ALL_APPEARANCE_ITEMS.find((i) => i.code === helpCode);
@@ -58,6 +64,23 @@ export default function AppearanceInspect() {
     };
   }, [sessionId]);
 
+  // Read the hardware audit result (persisted on the Hardware step) to decide the lock.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(`dobara_hardware_${sessionId}`);
+      if (!raw) return;
+      const hw = JSON.parse(raw) as { results?: Record<string, { status?: string }> };
+      setTouchLocked(hw.results?.screen_touch?.status === 'abnormal');
+    } catch { /* ignore */ }
+  }, [sessionId]);
+
+  // Force D6 to "Partial" once the audit has flagged touch anomalies; re-runs after
+  // the AI pre-fill resolves so the lock always wins over the AI suggestion.
+  useEffect(() => {
+    if (!touchLocked || thinking) return;
+    setAnswers((prev) => (prev.D6 === 1 ? prev : { ...prev, D6: 1 }));
+  }, [touchLocked, thinking]);
+
   const proceedToHardware = async () => {
     setSubmitting(true);
     // Unselected items → system auto-inspect (default to first / "None·Normal" grade)
@@ -68,7 +91,12 @@ export default function AppearanceInspect() {
     try {
       sessionStorage.setItem(
         `dobara_inspect_${sessionId}`,
-        JSON.stringify({ answers: resolved, aiAnswers, autoFilled: answeredCount < ALL_APPEARANCE_ITEMS.length }),
+        JSON.stringify({
+          answers: resolved,
+          aiAnswers,
+          autoFilled: answeredCount < ALL_APPEARANCE_ITEMS.length,
+          hardwareLocked: touchLocked ? ['D6'] : [],
+        }),
       );
     } catch { /* ignore */ }
     markStepComplete(sessionId, 'inspect');
@@ -183,7 +211,9 @@ export default function AppearanceInspect() {
             )}
 
             <div className="space-y-3 max-h-[min(420px,calc(100dvh-280px))] overflow-y-auto pr-1">
-              {dimension.items.map((item) => (
+              {dimension.items.map((item) => {
+                const locked = touchLocked && item.code === 'D6';
+                return (
                 <Card key={item.code} variant="flat" className="p-3">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <button
@@ -193,8 +223,17 @@ export default function AppearanceInspect() {
                     >
                       <p className="text-caption font-semibold text-text-primary">
                         {item.code} · {item.name}
-                        {aiAnswers[item.code] != null && (
-                          <span className="ml-2 text-eyebrow font-normal text-accent-600">AI-suggested</span>
+                        {locked ? (
+                          <span
+                            className="ml-2 text-eyebrow font-normal text-dobara-info"
+                            data-testid="inspect-D6-locked"
+                          >
+                            System detected · HW-TCH-01
+                          </span>
+                        ) : (
+                          aiAnswers[item.code] != null && (
+                            <span className="ml-2 text-eyebrow font-normal text-accent-600">AI-suggested</span>
+                          )
                         )}
                       </p>
                     </button>
@@ -212,8 +251,10 @@ export default function AppearanceInspect() {
                       <button
                         key={opt.label}
                         type="button"
+                        disabled={locked}
                         data-testid={`inspect-${item.code}-${oi}`}
                         onClick={() => {
+                          if (locked) return;
                           setAnswers((prev) => {
                             const next = { ...prev };
                             // Toggle off if same option clicked again
@@ -224,6 +265,8 @@ export default function AppearanceInspect() {
                           setPhotoIdx(item.photoIndex);
                         }}
                         className={`px-2.5 py-1.5 rounded-md text-caption border transition-colors ${
+                          locked ? 'cursor-not-allowed opacity-60' : ''
+                        } ${
                           answers[item.code] === oi
                             ? opt.reject
                               ? 'border-dobara-error bg-dobara-error-light text-dobara-error'
@@ -232,14 +275,15 @@ export default function AppearanceInspect() {
                         }`}
                       >
                         {opt.label}
-                        {aiAnswers[item.code] === oi && (
+                        {!locked && aiAnswers[item.code] === oi && (
                           <span className="ml-1 text-[9px] font-bold uppercase text-accent-600">AI</span>
                         )}
                       </button>
                     ))}
                   </div>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

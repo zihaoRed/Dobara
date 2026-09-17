@@ -390,6 +390,17 @@ export default function HardwareResults() {
         `dobara_device_color_${sessionId}`,
         JSON.stringify({ color: deviceColor, fromAppointment: colorFromAppointment }),
       );
+      // Persist audit results (keyed by the CLOUD-P0-16 item_key namespace) so the
+      // appearance checklist can lock D6 when the H5 slide test flagged touch issues
+      // — see 06 PRD §3.3.2.1.5 touch-group dedupe.
+      sessionStorage.setItem(
+        `dobara_hardware_${sessionId}`,
+        JSON.stringify({
+          results: Object.fromEntries(
+            items.map((i) => [ITEM_KEY_OF[i.name], { status: i.status, value: i.value }]),
+          ),
+        }),
+      );
     } catch { /* ignore */ }
     markStepComplete(sessionId, 'hardware');
     navigate(`/session/${sessionId}/condition`);

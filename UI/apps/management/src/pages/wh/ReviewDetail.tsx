@@ -5,6 +5,8 @@ import { ArrowLeft, CheckCircle, Edit3, Upload, AlertTriangle } from 'lucide-rea
 import type { IDevice, IModel, IBrand } from '@dobara/utils';
 import {
   DEDUCTION_CATALOG,
+  DEDUPE_GROUPS,
+  dedupeCodes,
   deductionTotal,
   mallPriceFromRecycle,
   recomputeGrade,
@@ -75,6 +77,21 @@ const ReviewDetail: React.FC = () => {
     const recycle = Math.max(0, device.originalPrice - extra);
     return { grade, recycle, mall: mallPriceFromRecycle(recycle, grade), extra };
   }, [device, selectedCodes]);
+
+  /** Groups where >1 code hit the same fault — only one is actually charged (06 PRD §3.3.2.1.5). */
+  const dedupeNotes = useMemo(
+    () =>
+      DEDUPE_GROUPS.map((g) => {
+        const hits = selectedCodes.filter((c) => g.codes.includes(c));
+        if (hits.length < 2) return null;
+        return { id: g.id, hits, kept: dedupeCodes(hits)[0], note: g.note };
+      }).filter((x): x is NonNullable<typeof x> => x !== null),
+    [selectedCodes],
+  );
+
+  const hasRejectSelected = selectedCodes.some(
+    (c) => DEDUCTION_CATALOG.find((d) => d.code === c)?.reject,
+  );
 
   const toggleCode = (code: string) => {
     setDirtyAdjust(true);
@@ -311,8 +328,8 @@ const ReviewDetail: React.FC = () => {
                 <div className="flex justify-between"><span className="text-text-muted">List price</span><span>₹ {device.price.toLocaleString()}</span></div>
               </div>
               <ul className="mt-3 text-caption text-text-secondary list-disc pl-4">
-                <li>CO-BODY-01 Body scuff (−₹800) — clerk</li>
-                <li>HW-BAT-80 Battery 80–85% (−₹1,200) — auto</li>
+                <li>CO-BDY-01 Paint / oxidation — slight (−₹300) — clerk</li>
+                <li>HW-BH-03 Battery 80–85% (−₹1,200) — auto</li>
               </ul>
             </CardContent>
           </Card>
@@ -342,7 +359,11 @@ const ReviewDetail: React.FC = () => {
                         />
                         <span>
                           <span className="font-mono text-caption">{d.code}</span> {d.label}
-                          <span className="text-text-muted"> (−₹{d.amount.toLocaleString()})</span>
+                          {d.reject ? (
+                            <span className="text-dobara-error"> — triggers reject</span>
+                          ) : (
+                            <span className="text-text-muted"> (−₹{d.amount.toLocaleString()})</span>
+                          )}
                         </span>
                       </label>
                     ))}
@@ -350,6 +371,27 @@ const ReviewDetail: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            {dedupeNotes.map((n) => (
+              <div
+                key={n.id}
+                data-testid={`dedupe-note-${n.id}`}
+                className="rounded-md bg-dobara-warning-light text-dobara-warning px-3 py-2 text-caption"
+              >
+                Same-fault dedupe: {n.note} — counting <b>{n.kept}</b> only ({n.hits.join(' + ')} selected).
+              </div>
+            ))}
+
+            {hasRejectSelected && (
+              <div
+                data-testid="reject-warning"
+                className="rounded-md bg-dobara-error-light text-dobara-error px-3 py-2 text-caption font-semibold flex items-center gap-2"
+              >
+                <AlertTriangle size={14} className="shrink-0" />
+                A selected deduction triggers rejection — this device must not be listed. Route it to the
+                reject flow instead of Adjust &amp; List.
+              </div>
+            )}
 
             <div className="p-3 bg-surface-low rounded-md space-y-1">
               <div className="flex justify-between items-center">

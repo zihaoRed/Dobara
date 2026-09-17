@@ -1,6 +1,11 @@
-/** TAB-P0-13 manual appearance checklist — 5 dimensions / 26 items.
+/** TAB-P0-13 manual appearance checklist — 5 dimensions / 27 items.
  *  Every tier carries the deduction code that owns its amount (PRD 06 §3.3.2.1.4),
  *  so the tablet, the estimate and the pricing engine all read the same figure.
+ *
+ *  v1.16: B4 "Button looseness" removed (same fault was charged 3× via BDY-07/08,
+ *  PRT-05~08 and FNC-03) — keys are carried by P3/P4/P6 instead. B7 "Frame scratches"
+ *  added (no dedicated code existed; estimates were borrowing the paint/oxidation code).
+ *  TAB-P0-14 touch abnormal locks D6 — see 06 PRD §3.3.2.1.5.
  */
 
 export interface IAppearanceOption {
@@ -55,9 +60,9 @@ export const APPEARANCE_DIMENSIONS: IAppearanceDimension[] = [
       { code: 'B1', name: "Paint / Oxidation", photoIndex: 4, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Slight", deductionCode: 'CO-BDY-01', deduction: 300 }, { label: "Obvious", deductionCode: 'CO-BDY-02', deduction: 900 }] },
       { code: 'B2', name: "Dents", photoIndex: 6, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Slight", deductionCode: 'CO-BDY-03', deduction: 400 }, { label: "Obvious", deductionCode: 'CO-BDY-04', deduction: 1200 }] },
       { code: 'B3', name: "Frame bend", photoIndex: 4, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Slight", deductionCode: 'CO-BDY-05', deduction: 800 }, { label: "Obvious", deductionCode: 'CO-BDY-06', deduction: 2000 }] },
-      { code: 'B4', name: "Button looseness", photoIndex: 5, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Loose", deductionCode: 'CO-BDY-07', deduction: 400 }, { label: "Stuck/Broken", deductionCode: 'CO-BDY-08', deduction: 1000 }] },
       { code: 'B5', name: "Antenna strip", photoIndex: 4, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Worn", deductionCode: 'CO-BDY-09', deduction: 300 }, { label: "Broken", deductionCode: 'CO-BDY-10', deduction: 800 }] },
       { code: 'B6', name: "Repair traces", photoIndex: 1, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Screw marks", deductionCode: 'CO-BDY-11', deduction: 500 }, { label: "Missing screws", deductionCode: 'CO-BDY-12', deduction: 1200 }] },
+      { code: 'B7', name: "Frame scratches", photoIndex: 4, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Slight", deductionCode: 'CO-BDY-13', deduction: 300 }, { label: "Obvious", deductionCode: 'CO-BDY-14', deduction: 900 }] },
     ],
   },
   {
@@ -80,6 +85,7 @@ export const APPEARANCE_DIMENSIONS: IAppearanceDimension[] = [
       { code: 'P3', name: "Volume keys", photoIndex: 4, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Soft", deductionCode: 'CO-PRT-05', deduction: 300 }, { label: "Failed", deductionCode: 'CO-PRT-06', deduction: 800 }] },
       { code: 'P4', name: "Power key", photoIndex: 5, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Soft", deductionCode: 'CO-PRT-07', deduction: 300 }, { label: "Failed", deductionCode: 'CO-PRT-08', deduction: 800 }] },
       { code: 'P5', name: "Speaker / Jack", photoIndex: 8, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Dusty", deductionCode: 'CO-PRT-09', deduction: 200 }, { label: "Damaged", deductionCode: 'CO-PRT-10', deduction: 600 }] },
+      { code: 'P6', name: "Other buttons (mute switch / Action key)", photoIndex: 5, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Soft", deductionCode: 'CO-PRT-11', deduction: 300 }, { label: "Failed/Stuck", deductionCode: 'CO-PRT-12', deduction: 800 }] },
     ],
   },
 ];

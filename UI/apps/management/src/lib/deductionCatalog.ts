@@ -9,6 +9,8 @@ export interface IDeductionCode {
   amount: number;
   /** If true, selecting this drops grade by one step in demo fuse logic */
   fuseDrop?: boolean;
+  /** If true, selecting this triggers rejection — device must not be listed (06 PRD 触发拒收) */
+  reject?: boolean;
 }
 
 /** Full depreciation-deduction matrix (aligned with CLOUD-P0-01 / PRD 06 §3.3.2.1). */
@@ -25,7 +27,7 @@ export const DEDUCTION_CATALOG: IDeductionCode[] = [
   { code: 'CO-DSP-09', kind: 'appearance', label: "D5 Bleed / Leak — Edge bleed", amount: 600 },
   { code: 'CO-DSP-10', kind: 'appearance', label: "D5 Bleed / Leak — Liquid leak", amount: 2500 },
   { code: 'CO-DSP-11', kind: 'appearance', label: "D6 Touch response — Partial", amount: 1000 },
-  { code: 'CO-DSP-12', kind: 'appearance', label: "D6 Touch response — Major fail", amount: 0, fuseDrop: true },
+  { code: 'CO-DSP-12', kind: 'appearance', label: "D6 Touch response — Major fail", amount: 0, reject: true },
   // —— Appearance: 屏幕玻璃 (GLS) ——
   { code: 'CO-GLS-01', kind: 'appearance', label: "G1 Scratch depth — Hairline", amount: 200 },
   { code: 'CO-GLS-02', kind: 'appearance', label: "G1 Scratch depth — Shallow", amount: 800 },
@@ -35,9 +37,9 @@ export const DEDUCTION_CATALOG: IDeductionCode[] = [
   { code: 'CO-GLS-06', kind: 'appearance', label: "G2 Scratch count — Dense", amount: 1800 },
   { code: 'CO-GLS-07', kind: 'appearance', label: "G3 Glass crack — Edge", amount: 1500 },
   { code: 'CO-GLS-08', kind: 'appearance', label: "G3 Glass crack — Display area", amount: 3000 },
-  { code: 'CO-GLS-09', kind: 'appearance', label: "G3 Glass crack — Shattered", amount: 0, fuseDrop: true },
+  { code: 'CO-GLS-09', kind: 'appearance', label: "G3 Glass crack — Shattered", amount: 0, reject: true },
   { code: 'CO-GLS-10', kind: 'appearance', label: "G4 Delamination — Slight", amount: 800 },
-  { code: 'CO-GLS-11', kind: 'appearance', label: "G4 Delamination — Obvious", amount: 0, fuseDrop: true },
+  { code: 'CO-GLS-11', kind: 'appearance', label: "G4 Delamination — Obvious", amount: 0, reject: true },
   // —— Appearance: 机身边框 (BDY) ——
   { code: 'CO-BDY-01', kind: 'appearance', label: "B1 Paint / Oxidation — Slight", amount: 300 },
   { code: 'CO-BDY-02', kind: 'appearance', label: "B1 Paint / Oxidation — Obvious", amount: 900 },
@@ -45,8 +47,8 @@ export const DEDUCTION_CATALOG: IDeductionCode[] = [
   { code: 'CO-BDY-04', kind: 'appearance', label: "B2 Dents — Obvious", amount: 1200 },
   { code: 'CO-BDY-05', kind: 'appearance', label: "B3 Frame bend — Slight", amount: 800 },
   { code: 'CO-BDY-06', kind: 'appearance', label: "B3 Frame bend — Obvious", amount: 2000 },
-  { code: 'CO-BDY-07', kind: 'appearance', label: "B4 Button looseness — Loose", amount: 400 },
-  { code: 'CO-BDY-08', kind: 'appearance', label: "B4 Button looseness — Stuck/Broken", amount: 1000 },
+  { code: 'CO-BDY-13', kind: 'appearance', label: "B7 Frame scratches — Slight", amount: 300 },
+  { code: 'CO-BDY-14', kind: 'appearance', label: "B7 Frame scratches — Obvious", amount: 900 },
   { code: 'CO-BDY-09', kind: 'appearance', label: "B5 Antenna strip — Worn", amount: 300 },
   { code: 'CO-BDY-10', kind: 'appearance', label: "B5 Antenna strip — Broken", amount: 800 },
   { code: 'CO-BDY-11', kind: 'appearance', label: "B6 Repair traces — Screw marks", amount: 500 },
@@ -59,7 +61,7 @@ export const DEDUCTION_CATALOG: IDeductionCode[] = [
   { code: 'CO-BCK-05', kind: 'appearance', label: "RC3 Back wear — Slight", amount: 200 },
   { code: 'CO-BCK-06', kind: 'appearance', label: "RC3 Back wear — Severe", amount: 800 },
   { code: 'CO-BCK-07', kind: 'appearance', label: "RC4 Battery swell — Slight", amount: 1500 },
-  { code: 'CO-BCK-08', kind: 'appearance', label: "RC4 Battery swell — Obvious", amount: 0, fuseDrop: true },
+  { code: 'CO-BCK-08', kind: 'appearance', label: "RC4 Battery swell — Obvious", amount: 0, reject: true },
   { code: 'CO-BCK-09', kind: 'appearance', label: "RC5 Camera lens — Slight", amount: 400 },
   { code: 'CO-BCK-10', kind: 'appearance', label: "RC5 Camera lens — Affects imaging", amount: 1500 },
   // —— Appearance: 接口与按键 (PRT) ——
@@ -73,7 +75,8 @@ export const DEDUCTION_CATALOG: IDeductionCode[] = [
   { code: 'CO-PRT-08', kind: 'appearance', label: "P4 Power key — Failed", amount: 800 },
   { code: 'CO-PRT-09', kind: 'appearance', label: "P5 Speaker / Jack — Dusty", amount: 200 },
   { code: 'CO-PRT-10', kind: 'appearance', label: "P5 Speaker / Jack — Damaged", amount: 600 },
-  { code: 'CO-FNC-09', kind: 'functional', label: 'Charging / data port corrosion', amount: 2000 },
+  { code: 'CO-PRT-11', kind: 'appearance', label: "P6 Other buttons (mute/Action) — Soft", amount: 300 },
+  { code: 'CO-PRT-12', kind: 'appearance', label: "P6 Other buttons (mute/Action) — Failed/Stuck", amount: 800 },
 
   // —— Hardware: battery (HW-BH) ——
   { code: 'HW-BH-02', kind: 'hardware', label: 'Battery 85–90%', amount: 500 },
@@ -90,7 +93,6 @@ export const DEDUCTION_CATALOG: IDeductionCode[] = [
   // —— Functional defects (CO-FNC) ——
   { code: 'CO-FNC-01', kind: 'functional', label: 'Flash not working', amount: 500 },
   { code: 'CO-FNC-02', kind: 'functional', label: 'Charging port issue', amount: 1000 },
-  { code: 'CO-FNC-03', kind: 'functional', label: 'Buttons not working', amount: 800 },
   { code: 'CO-FNC-04', kind: 'functional', label: 'Microphone issue', amount: 1200 },
   { code: 'CO-FNC-05', kind: 'functional', label: 'Speaker issue', amount: 800 },
   { code: 'CO-FNC-06', kind: 'functional', label: 'Camera focus fail', amount: 1500 },
@@ -110,6 +112,59 @@ export const DEDUCTION_CATALOG: IDeductionCode[] = [
   { code: 'CO-ACC-03', kind: 'accessory', label: 'Missing original box', amount: 0 },
 ];
 
+export interface IDedupeGroup {
+  id: string;
+  /** Codes that describe the same physical fault. */
+  codes: string[];
+  /** 'auto-hardware' → keep the instrument-detected code; 'max' → keep the highest amount. */
+  strategy: 'auto-hardware' | 'max';
+  /** For 'auto-hardware': the code the instrument owns. */
+  preferred?: string;
+  note: string;
+}
+
+/** Same-fault dedupe groups (06 PRD §3.3.2.1.5) — applied before summation. */
+export const DEDUPE_GROUPS: IDedupeGroup[] = [
+  {
+    id: 'touch',
+    codes: ['HW-TCH-01', 'CO-DSP-11'],
+    strategy: 'auto-hardware',
+    preferred: 'HW-TCH-01',
+    note: 'H5 slide test owns touch detection — D6 is locked to "system detected"',
+  },
+  {
+    id: 'charging-port',
+    codes: ['CO-PRT-01', 'CO-PRT-02', 'CO-FNC-02'],
+    strategy: 'max',
+    note: 'P1 physical damage vs charging failure — count the higher one only',
+  },
+  {
+    id: 'speaker',
+    codes: ['CO-PRT-09', 'CO-PRT-10', 'CO-FNC-05'],
+    strategy: 'max',
+    note: 'P5 physical blockage vs speaker failure — count the higher one only',
+  },
+];
+
+const amountOf = (code: string) => DEDUCTION_CATALOG.find((d) => d.code === code)?.amount ?? 0;
+
+/** Resolve each dedupe group down to the single code that actually counts. */
+export function dedupeCodes(selectedCodes: string[]): string[] {
+  const set = new Set(selectedCodes);
+  for (const g of DEDUPE_GROUPS) {
+    const hits = g.codes.filter((c) => set.has(c));
+    if (hits.length <= 1) continue;
+    const keep =
+      g.strategy === 'auto-hardware'
+        ? g.preferred && hits.includes(g.preferred)
+          ? g.preferred
+          : hits[0]
+        : hits.reduce((a, b) => (amountOf(b) > amountOf(a) ? b : a));
+    for (const c of hits) if (c !== keep) set.delete(c);
+  }
+  return [...set];
+}
+
 const GRADE_ORDER: TGrade[] = ['A', 'B', 'C', 'D'];
 
 export function recomputeGrade(base: TGrade, selectedCodes: string[]): TGrade {
@@ -119,10 +174,7 @@ export function recomputeGrade(base: TGrade, selectedCodes: string[]): TGrade {
 }
 
 export function deductionTotal(selectedCodes: string[]): number {
-  return selectedCodes.reduce((sum, code) => {
-    const item = DEDUCTION_CATALOG.find((d) => d.code === code);
-    return sum + (item?.amount ?? 0);
-  }, 0);
+  return dedupeCodes(selectedCodes).reduce((sum, code) => sum + amountOf(code), 0);
 }
 
 /** Mall list price ≈ recycle × (1 + markup). A 35% … D 15%. */

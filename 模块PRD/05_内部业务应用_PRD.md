@@ -1,5 +1,5 @@
 # 05 — 内部业务应用 PRD（管理员 + 店老板 + 库管 + DB 四合一） | Internal Business App PRD
-**文档版本：** v3.9 | **更新日期：** 2026-09-14
+**文档版本：** v3.10 | **更新日期：** 2026-09-17
 **模块编号：** UA | **平台：** 跨端（App + Web，一套代码）
 **使用角色：** 管理员 / 店老板 / 库管 / DB — 同一应用，按角色权限显示不同模块
 **文档说明：** 内部业务应用（管理员+店老板+库管+DB四角色）完整产品需求文档，跨端开发（一套代码编译 App + Web）。各角色子模块编号：SA（管理员）、OWN（店老板）、WH（库管）、DB（财务），统一登录等公共功能编号 UA。本 PRD 由原「05 门店综合App PRD」与「07 运营后台Web端 PRD」合并而来。
@@ -8,6 +8,7 @@
 
 | 日期 | 版本 | 更新内容 | 更新人 |
 |------|------|----------|--------|
+| 2026-09-17 | v3.10 | **SA-P0-05 配置中心：配置组 A 键表欠账补齐**。A4/A5/A6 仍为旧粗粒度键（`pricing.cosmetic.screen_*` 6 键、`pricing.cosmetic.body_*` 4 键、`pricing.functional.*` 8 键），与 06 PRD v1.12 的档位级编码及管理端 ConfigCenter 实现脱节（原 64 个编码级金额参数未在 PRD 登记）。本次重建为**编码级键**并增加"对应编码"列：A4 = DSP 12 键 + GLS 11 键，A5 = BDY 12 键 + BCK 10 键，A6 = PRT 12 键 + FNC 7 键。随本次 06 PRD v1.13 同故障重复扣款修复同步：删 `pricing.bdy.b4_loose`/`b4_stuck_broken`（B4 按键松动，编码废弃）、`pricing.functional.buttons_not_working`/`port_corrosion`（与 PRT-06/08、PRT-03/04 同义，编码废弃）；新增 `pricing.bdy.b7_slight`/`b7_obvious`（B7 边框划痕 300/900）、`pricing.prt.p6_soft`/`p6_failed`（P6 其他按键 300/800）；A4-A6 加通用说明（触发拒收档不计扣、同归并组取一码）。A1-A3、A7-A11 编号与内容不变 | 何子豪 |
 | 2026-09-14 | v3.9 | OWN-P0-01 换购价格录入扩展为"新机信息+金额"录入：新增新机 IMEI 扫码录入（扫码为主、手动输入兜底、15 位格式校验、提交时服务端查重），IMEI 录入后按 TAC 自动关联机型（品牌/型号）且店老板可手动纠正（留审计标记）；新增录入字段表；核销确认明确为用户在任意已登录设备的 C 端 App 完成（覆盖换购新机不作为主力机、不在新机登录 App 的场景，配套 06 PRD v1.9 CLOUD-P0-02 重写）；UI 同步：TradeInEntry 新增新机扫码录入块（Scan IMEI 演示按钮 + IMEI/机型输入 + 自动关联提示 + 可纠正），提交校验含新机字段 | 何子豪 |
 | 2026-09-07 | v3.8 | 移除管理端对 ENT（企业买家）的权限管控：ENT 定位明确为 C 端 App 角色（02 PRD APP-P1-04 门店账号切换企业采购模式），权限与 C 端普通用户一致，由 C 端 PRD 定义。管理端仅管控内部账号（SA/OWN/CLK/WH/DB）。§2.2 角色表/权限列表/权限矩阵（去 ENT 列）、§2.3 预置角色（6→5）/账号创建流程/激活流程/业务规则同步；UI 同步：AccountMgmt 可分配角色移除 Enterprise Buyer、roleDefs 预置角色 seed 排除 ENT（5 preset roles）、shared-utils PRESET_ROLE_META ENT 权限清空并标注归属 | 何子豪 |
 | 2026-09-06 | v3.7 | DB 模块逻辑闭环补全：DB-P0-01 授信结算展开完整生命周期（结算流程/到期日/逾期冻结解冻/批量结算/结算日志）对齐 CLOUD-P1-06；DB-P0-02 门店对账展开对账单结构（回收+B2B+佣金三明细+净结算额+资金方向）/穿透校验/导出；DB-P0-03 凭证审核重定义审核范围——从与公式校验重复的"金额一致性"改为公式防不住的真实风险点（VR-01 售价偏离基准价/VR-02 抵扣与翻新复核回溯/VR-03 型号价格匹配/VR-04 实付比例/VR-05 集中异常）+ 抽查规则引擎（硬规则必抽+随机 5%）+ 72h 限期回复 + append-only；DB-P1-01 佣金核算展开核算流程/剔除规则/状态机（draft→ready→paid）/对账联动 | 何子豪 |
@@ -742,33 +743,86 @@ Change your password after first login.
 | `pricing.hw.motherboard_repaired` | 主板有维修痕迹 | 5,000 INR |
 | `pricing.hw.biometric_not_working` | Face ID/Touch ID 不可用 | 2,000 INR |
 | `pricing.hw.touch_abnormal` | 触控异常 | 2,500 INR |
-**A4. 屏幕外观扣款（6 项）：**
-| 配置项 Key | 说明 | 默认值 |
-|------|------|------|
-| `pricing.cosmetic.screen_minor_scratch` | 轻微划痕 | 300 INR |
-| `pricing.cosmetic.screen_visible_scratch` | 明显划痕 | 1,000 INR |
-| `pricing.cosmetic.screen_cracked` | 屏幕碎裂 | 3,500 INR |
-| `pricing.cosmetic.screen_burn_in` | 老化/红斑/黄斑 | 1,500 INR |
-| `pricing.cosmetic.screen_dead_pixel` | 亮点/坏点/彩线 | 2,000 INR |
-| `pricing.cosmetic.screen_not_displaying` | 屏幕无法正常显示 | 4,000 INR |
-**A5. 机身边框扣款（4 项）：**
-| 配置项 Key | 说明 | 默认值 |
-|------|------|------|
-| `pricing.cosmetic.body_minor_wear` | 轻微掉漆或磨损 | 200 INR |
-| `pricing.cosmetic.body_visible_dent` | 明显磕碰或凹陷 | 1,000 INR |
-| `pricing.cosmetic.body_deformed` | 边框变形 | 2,500 INR |
-| `pricing.cosmetic.body_back_cracked` | 后盖碎裂 | 3,000 INR |
-**A6. 功能缺陷扣款（8 项）：**
-| 配置项 Key | 说明 | 默认值 |
-|------|------|------|
-| `pricing.functional.flash_abnormal` | 闪光灯异常 | 500 INR |
-| `pricing.functional.charging_port_abnormal` | 充电口异常 | 1,000 INR |
-| `pricing.functional.buttons_not_working` | 按键失灵 | 800 INR |
-| `pricing.functional.mic_abnormal` | 麦克风异常 | 1,200 INR |
-| `pricing.functional.speaker_abnormal` | 扬声器异常 | 800 INR |
-| `pricing.functional.camera_focus_fail` | 摄像头无法对焦 | 1,500 INR |
-| `pricing.functional.vibration_abnormal` | 振动马达异常 | 500 INR |
-| `pricing.functional.wireless_abnormal` | GPS/WiFi/蓝牙异常 | 2,000 INR |
+**A4. 屏幕外观扣款（DSP 12 键 + GLS 11 键）：**
+> v3.10 重建：由旧粗粒度键（`pricing.cosmetic.screen_*`，6 键）改为**编码级键**，与 06 PRD v1.12 §3.3.2.1.4 的档位级编码一一对应；点检端与管理端按 `deductionCode` 取同一个值。
+| 配置项 Key | 对应编码 | 说明（档位） | 默认值 |
+|------|------|------|------|
+| `pricing.dsp.d1_slight` | CO-DSP-01 | D1 显示老化/烧屏 轻微 | 500 INR |
+| `pricing.dsp.d1_obvious` | CO-DSP-02 | D1 显示老化/烧屏 明显 | 1,500 INR |
+| `pricing.dsp.d2_1_2_dots` | CO-DSP-03 | D2 亮点/坏点 1-2 个 | 300 INR |
+| `pricing.dsp.d2_3_or_lines` | CO-DSP-04 | D2 亮点/坏点 ≥3 个或有彩线 | 1,200 INR |
+| `pricing.dsp.d3_slight` | CO-DSP-05 | D3 屏幕变色/偏色 轻微 | 400 INR |
+| `pricing.dsp.d3_obvious` | CO-DSP-06 | D3 屏幕变色/偏色 明显 | 1,000 INR |
+| `pricing.dsp.d4_occasional` | CO-DSP-07 | D4 显示闪烁 偶尔 | 800 INR |
+| `pricing.dsp.d4_persistent` | CO-DSP-08 | D4 显示闪烁 频繁/持续 | 2,000 INR |
+| `pricing.dsp.d5_edge_bleed` | CO-DSP-09 | D5 液晶漏液/漏光 边缘漏光 | 600 INR |
+| `pricing.dsp.d5_liquid_leak` | CO-DSP-10 | D5 液晶漏液/漏光 漏液 | 2,500 INR |
+| `pricing.dsp.d6_partial` | CO-DSP-11 | D6 触摸功能 局部不灵敏（HW-TCH-01 命中时被归并，不计扣） | 1,000 INR |
+| `pricing.dsp.d6_major_fail` | CO-DSP-12 | D6 触摸功能 大面积失灵 | 0（触发拒收） |
+| `pricing.gls.g1_hairline` | CO-GLS-01 | G1 划痕深度 发丝纹 | 200 INR |
+| `pricing.gls.g1_shallow` | CO-GLS-02 | G1 划痕深度 浅划痕 | 800 INR |
+| `pricing.gls.g1_deep` | CO-GLS-03 | G1 划痕深度 深划痕 | 2,000 INR |
+| `pricing.gls.g2_few_1_5` | CO-GLS-04 | G2 划痕数量 少量(1-5条) | 300 INR |
+| `pricing.gls.g2_many_6_15` | CO-GLS-05 | G2 划痕数量 较多(6-15条) | 900 INR |
+| `pricing.gls.g2_dense` | CO-GLS-06 | G2 划痕数量 密集(16+条) | 1,800 INR |
+| `pricing.gls.g3_edge` | CO-GLS-07 | G3 玻璃碎裂 边缘碎裂 | 1,500 INR |
+| `pricing.gls.g3_display_area` | CO-GLS-08 | G3 玻璃碎裂 显示区碎裂 | 3,000 INR |
+| `pricing.gls.g3_shattered` | CO-GLS-09 | G3 玻璃碎裂 粉碎性 | 0（触发拒收） |
+| `pricing.gls.g4_slight` | CO-GLS-10 | G4 玻璃脱胶/翘起 轻微 | 800 INR |
+| `pricing.gls.g4_obvious` | CO-GLS-11 | G4 玻璃脱胶/翘起 明显 | 0（触发拒收） |
+
+**A5. 机身与后盖扣款（BDY 12 键 + BCK 10 键）：**
+> v3.10 重建：由旧粗粒度键（`pricing.cosmetic.body_*`，4 键）改为编码级键；原 B4「按键松动」两键随编码废弃删除（按键故障统一由 P3/P4/P6 承载），新增 B7「边框划痕」两键。
+| 配置项 Key | 对应编码 | 说明（档位） | 默认值 |
+|------|------|------|------|
+| `pricing.bdy.b1_slight` | CO-BDY-01 | B1 掉漆/氧化 轻微 | 300 INR |
+| `pricing.bdy.b1_obvious` | CO-BDY-02 | B1 掉漆/氧化 明显 | 900 INR |
+| `pricing.bdy.b2_slight` | CO-BDY-03 | B2 磕碰凹陷 轻微 | 400 INR |
+| `pricing.bdy.b2_obvious` | CO-BDY-04 | B2 磕碰凹陷 明显 | 1,200 INR |
+| `pricing.bdy.b3_slight` | CO-BDY-05 | B3 边框变形 轻微 | 800 INR |
+| `pricing.bdy.b3_obvious` | CO-BDY-06 | B3 边框变形 明显 | 2,000 INR |
+| `pricing.bdy.b5_worn` | CO-BDY-09 | B5 天线注塑条 轻微磨损 | 300 INR |
+| `pricing.bdy.b5_broken` | CO-BDY-10 | B5 天线注塑条 断裂/缺失 | 800 INR |
+| `pricing.bdy.b6_screw_marks` | CO-BDY-11 | B6 拆修痕迹 螺丝有拧痕 | 500 INR |
+| `pricing.bdy.b6_missing_screws` | CO-BDY-12 | B6 拆修痕迹 螺丝缺失 | 1,200 INR |
+| `pricing.bdy.b7_slight` | CO-BDY-13 | B7 边框划痕 轻微（反光角可见） | 300 INR |
+| `pricing.bdy.b7_obvious` | CO-BDY-14 | B7 边框划痕 明显（指甲有阻纳） | 900 INR |
+| `pricing.bck.rc1_slight` | CO-BCK-01 | RC1 后盖划痕 轻微 | 300 INR |
+| `pricing.bck.rc1_obvious` | CO-BCK-02 | RC1 后盖划痕 明显 | 900 INR |
+| `pricing.bck.rc2_partial` | CO-BCK-03 | RC2 后盖碎裂 局部 | 1,500 INR |
+| `pricing.bck.rc2_large_area` | CO-BCK-04 | RC2 后盖碎裂 大面积 | 3,000 INR |
+| `pricing.bck.rc3_slight` | CO-BCK-05 | RC3 后盖磨损 轻微 | 200 INR |
+| `pricing.bck.rc3_severe` | CO-BCK-06 | RC3 后盖磨损 严重 | 800 INR |
+| `pricing.bck.rc4_slight` | CO-BCK-07 | RC4 后盖鼓包 轻微 | 1,500 INR |
+| `pricing.bck.rc4_obvious` | CO-BCK-08 | RC4 后盖鼓包 明显 | 0（触发拒收 ADM-08） |
+| `pricing.bck.rc5_slight` | CO-BCK-09 | RC5 摄像头镜片 轻微划痕 | 400 INR |
+| `pricing.bck.rc5_affects_imaging` | CO-BCK-10 | RC5 摄像头镜片 影响成像 | 1,500 INR |
+
+**A6. 接口按键与功能缺陷扣款（PRT 12 键 + FNC 7 键）：**
+> v3.10 重建：接口按键由旧粗粒度键（`pricing.cosmetic.*`）改为编码级键并新增 P6「其他按键」两键；功能缺陷删除 `buttons_not_working`（与 PRT-06/08 同义）、`port_corrosion`（与 PRT-03/04 同义）两键，编码废弃。
+| 配置项 Key | 对应编码 | 说明（档位） | 默认值 |
+|------|------|------|------|
+| `pricing.prt.p1_loose` | CO-PRT-01 | P1 充电口 松动 | 500 INR |
+| `pricing.prt.p1_damaged` | CO-PRT-02 | P1 充电口 损坏/接触不良 | 1,500 INR |
+| `pricing.prt.p2_slight` | CO-PRT-03 | P2 数据口腐蚀 轻微氧化 | 600 INR |
+| `pricing.prt.p2_obvious` | CO-PRT-04 | P2 数据口腐蚀 明显（触发进水评估） | 2,000 INR |
+| `pricing.prt.p3_soft` | CO-PRT-05 | P3 音量键 松软 | 300 INR |
+| `pricing.prt.p3_failed` | CO-PRT-06 | P3 音量键 失灵/卡死 | 800 INR |
+| `pricing.prt.p4_soft` | CO-PRT-07 | P4 电源键 松软 | 300 INR |
+| `pricing.prt.p4_failed` | CO-PRT-08 | P4 电源键 失灵/卡死 | 800 INR |
+| `pricing.prt.p5_dusty` | CO-PRT-09 | P5 耳机/扬声器孔 积灰 | 200 INR |
+| `pricing.prt.p5_damaged` | CO-PRT-10 | P5 耳机/扬声器孔 网罩破损/异物堵塞 | 600 INR |
+| `pricing.prt.p6_soft` | CO-PRT-11 | P6 其他按键（静音拨键/Action 键等）松软 | 300 INR |
+| `pricing.prt.p6_failed` | CO-PRT-12 | P6 其他按键（静音拨键/Action 键等）失灵/卡死 | 800 INR |
+| `pricing.functional.flash_abnormal` | CO-FNC-01 | 闪光灯异常 | 500 INR |
+| `pricing.functional.charging_port_abnormal` | CO-FNC-02 | 充电口异常（充电功能失败；与 P1 同组取最高） | 1,000 INR |
+| `pricing.functional.mic_abnormal` | CO-FNC-04 | 麦克风异常 | 1,200 INR |
+| `pricing.functional.speaker_abnormal` | CO-FNC-05 | 扬声器异常（与 P5 同组取最高） | 800 INR |
+| `pricing.functional.camera_focus_fail` | CO-FNC-06 | 摄像头无法对焦 | 1,500 INR |
+| `pricing.functional.vibration_abnormal` | CO-FNC-07 | 振动马达异常 | 500 INR |
+| `pricing.functional.wireless_abnormal` | CO-FNC-08 | GPS/WiFi/蓝牙异常 | 2,000 INR |
+
+> **A4-A6 通用说明：** ①金额标注"触发拒收"的档位不计扣款，命中后不进入定价（见 06 PRD §3.3.2.0 准入检查）；②同单命中同一归并组的多个编码时按 06 PRD §3.3.2.1.5 取一码计扣（触控组自动优先 / 充电口组、扬声器组取最高）；③主档级的成色加价率见 A9，商城售价参数见 A11。
 **A7. 维修历史扣款（5 项）：**
 | 配置项 Key | 说明 | 默认值 |
 |------|------|------|

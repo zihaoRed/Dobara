@@ -103,7 +103,7 @@
       <span>文档版本：v1.0</span>
       <span>更新日期：2026-09-15</span>
       <span>适用角色：门店店员（ROLE-CLK）</span>
-      <span>依据：TAB PRD v1.15</span>
+      <span>依据：TAB PRD v1.16</span>
     </div>
   </div>
 </header>
@@ -126,7 +126,7 @@
       <li><a href="#s11">步骤 9：质检报告展示与报价确认</a></li>
       <li><a href="#s12">步骤 10：核销状态同步</a></li>
       <li><a href="#s13">异常与容错处理</a></li>
-      <li><a href="#s14">附录 A：手动点检标准（26 项）</a></li>
+      <li><a href="#s14">附录 A：手动点检标准（27 项）</a></li>
       <li><a href="#s15">附录 B：拒收原因预设列表</a></li>
       <li><a href="#s16">附录 C：常见问题（FAQ）</a></li>
     </ol>
@@ -317,7 +317,7 @@
   <section class="card" id="s7">
     <div class="step-title"><span class="step-num">5</span><h2 style="border:none;padding:0;margin:0;">外观 AI 检测 / 手动点检</h2></div>
     <p class="tag">对应 PRD：TAB-P0-13</p>
-    <p>对采集的外观影像做缺陷识别，输出 5 大维度 26 项缺陷的成色等级判定，供定价引擎扣款。</p>
+    <p>对采集的外观影像做缺陷识别，输出 5 大维度 27 项缺陷的成色等级判定，供定价引擎扣款。</p>
     <h3>两种模式</h3>
     <table>
       <tr><th>模式</th><th>适用场景</th><th>说明</th></tr>
@@ -348,7 +348,7 @@
       <tr><td>高置信自动通过</td><td>置信度 ≥ 90% 且非拒收等级 → 自动填充</td></tr>
       <tr><td>拒收不豁免</td><td>即使 AI 高置信判为"粉碎性碎裂"，仍需店员二次确认后才能触发拒收</td></tr>
       <tr><td>修正留痕</td><td>店员对 AI 结果的任何修改均记录：原 AI 判断、人工修正值、操作时间、店员 ID</td></tr>
-      <tr><td>手动模式必选</td><td>26 项按 5 维度分组，每项必须选择后方可提交</td></tr>
+      <tr><td>手动模式必选</td><td>27 项按 5 维度分组，每项必须选择后方可提交</td></tr>
       <tr><td>返回重拍确认</td><td>返回重拍需二次确认（会清除点检进度）</td></tr>
     </table>
   </section>
@@ -384,7 +384,7 @@
     <table>
       <tr><th>检测项</th><th>H5 承担</th><th>判定来源</th></tr>
       <tr><td>屏幕显示</td><td>全屏循环纯色画面（白 / 红 / 绿 / 蓝 / 黑 / 灰）</td><td>店员目视 + H5 确认按钮</td></tr>
-      <tr><td>屏幕触控</td><td>全屏滑涂 Canvas</td><td>H5 自动判定（覆盖率 / 断线）</td></tr>
+      <tr><td>屏幕触控</td><td>全屏滑涂 Canvas</td><td>H5 自动判定（覆盖率 / 断线）；检出异常后 D6 自动带出"系统检出"并锁定</td></tr>
       <tr><td>扬声器</td><td>播放测试音（左右声道分开）</td><td>店员听感确认</td></tr>
       <tr><td>麦克风</td><td>录音回放</td><td>店员听感确认</td></tr>
       <tr><td>摄像头</td><td>前后摄预览 + 拍照</td><td>H5 基础检测 + 人工确认</td></tr>
@@ -566,7 +566,7 @@
 
   <!-- 14 -->
   <section class="card" id="s14">
-    <h2>附录 A：手动点检标准（26 项）</h2>
+    <h2>附录 A：手动点检标准（27 项）</h2>
     <blockquote>当 AI 服务不可用时，店员需按以下标准逐项手动点检。AI 检测的判定规则亦以此为准。</blockquote>
 
     <h3>维度一：屏幕显示缺陷（D1-D6）</h3>
@@ -580,6 +580,7 @@
       <tr><td>D5</td><td>液晶漏液 / 漏光</td><td>无 → 边缘漏光 → 漏液</td><td>边缘漏光；漏液（黑色 / 紫色斑块）</td><td>CO-DSP-09 / CO-DSP-10</td></tr>
       <tr><td>D6</td><td>触摸功能</td><td>正常 → 局部不灵敏 → 大面积失灵</td><td>局部不灵敏；大面积失灵（&gt;30%）触发拒收</td><td>CO-DSP-11 / CO-DSP-12（拒收）</td></tr>
     </table>
+    <p style="color:var(--muted);font-size:13px;">D6 锁定：H5 滑涂测试检出触控异常时，D6 自动带出"系统检出"并锁定为局部不灵敏档，不可人工改判（复测通过后自动解除）。同一触控故障只计一次扣款，请勿再手动选择。</p>
 
     <h3>维度二：屏幕玻璃缺陷（G1-G4）</h3>
     <p style="color:var(--muted);font-size:13px;">检测方法：熄屏，45° 角，30cm 距离观察。</p>
@@ -591,17 +592,18 @@
       <tr><td>G4</td><td>玻璃脱胶 / 翘起</td><td>无 → 轻微 → 明显</td><td>轻微（缝隙&lt;0.5mm）；明显（可插入纸片，触发拒收）</td><td>CO-GLS-10 / 11（拒收）</td></tr>
     </table>
 
-    <h3>维度三：机身边框缺陷（B1-B6）</h3>
+    <h3>维度三：机身边框缺陷（B1-B7）</h3>
     <p style="color:var(--muted);font-size:13px;">检测方法：正常光线下旋转观察。</p>
     <table>
       <tr><th>编号</th><th>点检项</th><th>等级</th><th>判定标准</th><th>扣款代码</th></tr>
       <tr><td>B1</td><td>掉漆 / 氧化</td><td>无 → 轻微 → 明显</td><td>轻微（≤3 处，单处&lt;2mm²）；明显（&gt;3 处或单处&gt;5mm²）</td><td>CO-BDY-01 / 02</td></tr>
       <tr><td>B2</td><td>磕碰凹陷</td><td>无 → 轻微 → 明显</td><td>轻微（1-2 处，深&lt;0.5mm）；明显（≥3 处或深≥0.5mm）</td><td>CO-BDY-03 / 04</td></tr>
       <tr><td>B3</td><td>边框变形</td><td>无 → 轻微 → 明显</td><td>轻微（翘起&lt;2mm）；明显（目视弯曲，翘起≥2mm）</td><td>CO-BDY-05 / 06</td></tr>
-      <tr><td>B4</td><td>按键松动</td><td>正常 → 松动 → 卡死 / 损坏</td><td>—</td><td>CO-BDY-07 / 08</td></tr>
       <tr><td>B5</td><td>天线注塑条</td><td>完好 → 轻微磨损 → 断裂 / 缺失</td><td>—</td><td>CO-BDY-09 / 10</td></tr>
       <tr><td>B6</td><td>拆修痕迹</td><td>完好 → 螺丝有拧痕 → 螺丝缺失</td><td>螺丝有拧痕 / 易碎贴破损；螺丝缺失</td><td>CO-BDY-11 / 12</td></tr>
+      <tr><td>B7</td><td>边框划痕</td><td>无 → 轻微 → 明显</td><td>轻微（反光角可见）；明显（指甲有阻纳）</td><td>CO-BDY-13 / 14</td></tr>
     </table>
+    <p style="color:var(--muted);font-size:13px;">B4「按键松动」已取消：按键故障统一在维度五的 P3 音量键 / P4 电源键 / P6 其他按键点检，不要在机身边框维度重复勾选。</p>
 
     <h3>维度四：后盖与机身（RC1-RC5）</h3>
     <p style="color:var(--muted);font-size:13px;">检测方法：按玻璃 / 塑料 / 金属材质区分。</p>
@@ -614,7 +616,7 @@
       <tr><td>RC5</td><td>摄像头镜片</td><td>无 → 轻微 → 明显</td><td>轻微（不影响成像）；明显（影响成像）</td><td>CO-BCK-09 / 10</td></tr>
     </table>
 
-    <h3>维度五：接口与按键（P1-P5）</h3>
+    <h3>维度五：接口与按键（P1-P6）</h3>
     <p style="color:var(--muted);font-size:13px;">检测方法：目视 + 功能测试。</p>
     <table>
       <tr><th>编号</th><th>点检项</th><th>等级</th><th>判定标准</th><th>扣款代码</th></tr>
@@ -623,7 +625,9 @@
       <tr><td>P3</td><td>音量键</td><td>正常 → 松软 → 失灵 / 卡死</td><td>—</td><td>CO-PRT-05 / 06</td></tr>
       <tr><td>P4</td><td>电源键</td><td>正常 → 松软 → 失灵 / 卡死</td><td>—</td><td>CO-PRT-07 / 08</td></tr>
       <tr><td>P5</td><td>耳机 / 扬声器孔</td><td>正常 → 积灰 → 网罩破损</td><td>积灰；网罩破损 / 异物堵塞</td><td>CO-PRT-09 / 10</td></tr>
+      <tr><td>P6</td><td>其他按键（静音拨键 / Action 键等）</td><td>正常 → 松软 → 失灵 / 卡死</td><td>—</td><td>CO-PRT-11 / 12</td></tr>
     </table>
+    <p style="color:var(--muted);font-size:13px;">P6 说明：除音量键、电源键外的物理按键（iPhone 静音拨键、Action 键及 Android 侧边功能键）。此类按键不在硬件自动审计范围内，只能由本项人工点检，请勿在其他维度重复勾选。</p>
   </section>
 
   <!-- 15 -->
@@ -662,7 +666,7 @@
   </section>
 
   <footer>
-    本手册依据《质检工具产品需求文档》（TAB PRD v1.15）编制 · Dobara · 质检操作流程手册 v1.0
+    本手册依据《质检工具产品需求文档》（TAB PRD v1.16）编制 · Dobara · 质检操作流程手册 v1.1
   </footer>
 
 </div>
