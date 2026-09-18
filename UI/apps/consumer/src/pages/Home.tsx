@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SearchBar, DeviceCard, Button } from '@dobara/ui';
+import { isEnterpriseMode } from '../lib/enterpriseMode';
 import {
   Bell, ShoppingBag, Check, Star, ChevronRight,
   ShoppingCart, ArrowLeftRight,
@@ -94,6 +95,9 @@ function PhoneCluster() {
 
 export function Home() {
   const navigate = useNavigate();
+  // 企业采购模式：隐藏个人换购入口（服务宫格 Exchange 卡 + Sell CTA 横幅，APP-P1-04 v2.22）
+  const enterprise = isEnterpriseMode();
+  const services = enterprise ? SERVICES.filter((s) => s.key !== 'exchange') : SERVICES;
   const [search, setSearch] = useState('');
   const [email, setEmail] = useState('');
 
@@ -180,14 +184,14 @@ export function Home() {
 
       {/* Service grid */}
       <section className="mt-5 grid grid-cols-2 gap-3">
-        {SERVICES.map((s) => {
+        {services.map((s) => {
           const Icon = s.icon;
           return (
             <button
               key={s.key}
               type="button"
               onClick={() => navigate(s.to)}
-              className={`${s.bg} text-white rounded-2xl p-4 text-left shadow-card hover:shadow-card-hover transition-shadow relative overflow-hidden`}
+              className={`${s.bg} text-white rounded-2xl p-4 text-left shadow-card hover:shadow-card-hover transition-shadow relative overflow-hidden ${services.length === 1 ? 'col-span-2' : ''}`}
             >
               <Icon size={28} className="mb-3 opacity-90" />
               <p className="font-bold text-lg leading-none">{s.title}</p>
@@ -383,18 +387,20 @@ export function Home() {
         })}
       </section>
 
-      {/* Sell CTA */}
-      <section className="mt-5">
-        <div className="rounded-2xl bg-primary-500 text-white p-5 flex items-center justify-between gap-3">
-          <div>
-            <h3 className="font-bold text-lg">Exchange Your Phone</h3>
-            <p className="text-xs text-white/75 mt-0.5">Upgrade with trade-in bonus at partner stores</p>
+      {/* Sell CTA — 企业模式下隐藏（个人换购入口） */}
+      {!enterprise && (
+        <section className="mt-5">
+          <div className="rounded-2xl bg-primary-500 text-white p-5 flex items-center justify-between gap-3">
+            <div>
+              <h3 className="font-bold text-lg">Exchange Your Phone</h3>
+              <p className="text-xs text-white/75 mt-0.5">Upgrade with trade-in bonus at partner stores</p>
+            </div>
+            <Button pill size="sm" className="!bg-white !text-primary-500 shrink-0" onClick={() => navigate('/sell')}>
+              Exchange Now →
+            </Button>
           </div>
-          <Button pill size="sm" className="!bg-white !text-primary-500 shrink-0" onClick={() => navigate('/sell')}>
-            Exchange Now →
-          </Button>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Newsletter */}
       <section className="mt-5">

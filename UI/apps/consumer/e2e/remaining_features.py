@@ -284,14 +284,29 @@ def run():
             page.wait_for_url("**/home**", timeout=15000)
             print("PASS enterprise registration (store binding)")
 
-            # Profile shows enterprise badge + switch entry; personal accounts have none (u-1 covered by earlier suites implicitly)
+            # Profile in INDIVIDUAL mode: mode switcher visible, but store info hidden
             page.goto(f"{BASE}/account", wait_until="domcontentloaded")
-            expect(page.get_by_test_id("enterprise-account-badge")).to_be_visible(timeout=8000)
-            expect(page.get_by_test_id("enterprise-account-badge")).to_contain_text("ST-MH-0001")
+            expect(page.get_by_test_id("shopping-mode-card")).to_be_visible(timeout=8000)
+            expect(page.get_by_test_id("enterprise-account-card")).to_have_count(0)
 
-            # Enterprise mode → cart one device → credit pay (sufficient line st-mum-1)
+            # Switch to enterprise → bound store + enterprise profile card appears (02 APP-P0-06)
             page.get_by_test_id("mode-enterprise").click()
             page.wait_for_url("**/buy/enterprise**", timeout=10000)
+            page.goto(f"{BASE}/account", wait_until="domcontentloaded")
+            expect(page.get_by_test_id("enterprise-account-card")).to_be_visible(timeout=8000)
+            expect(page.get_by_test_id("enterprise-store-row")).to_contain_text("ST-MH-0001")
+            expect(page.get_by_test_id("enterprise-store-row")).to_contain_text("MobileXchange Andheri")
+            expect(page.get_by_test_id("enterprise-gstin-row")).to_contain_text("27AABCM1234F1Z5")
+            page.goto(f"{BASE}/buy/enterprise", wait_until="domcontentloaded")
+            # Enterprise mode hides the personal Exchange tab; direct /sell is redirected back
+            expect(page.get_by_role("button", name="Exchange")).to_have_count(0)
+            page.goto(f"{BASE}/sell", wait_until="domcontentloaded")
+            page.wait_for_url("**/buy/enterprise**", timeout=8000)
+            # Home page in enterprise mode: no Exchange service card, no Sell CTA banner
+            page.goto(f"{BASE}/home", wait_until="domcontentloaded")
+            expect(page.get_by_text("Exchange Your Phone")).to_have_count(0)
+            expect(page.get_by_role("button", name="Upgrade now")).to_have_count(0)
+            page.goto(f"{BASE}/buy/enterprise", wait_until="domcontentloaded")
             page.get_by_test_id(re.compile(r"^enterprise-select-\d+$")).first.click()
             page.get_by_test_id("enterprise-add-selected").click()
             page.get_by_test_id("enterprise-cart-link").click()

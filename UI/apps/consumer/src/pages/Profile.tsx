@@ -102,14 +102,61 @@ export function Profile() {
         ))}
       </Card>
 
+      {/* 企业账号信息卡（注册时绑定门店，06 §2.12.2 / 02 APP-P0-06）——展示绑定门店与企业档案；
+          仅企业模式显示（普通用户模式下属噪音，隐藏）；解绑归 SA（P0 不开放自助），仅提示。 */}
+      {enterprise && user.entBinding && user.entBinding.status === 'active' && (
+        <Card className="!rounded-xl" data-testid="enterprise-account-card">
+          <h3 className="text-body font-bold text-text-primary mb-3 flex items-center gap-2">
+            <Building2 size={18} className="text-primary-500" /> Enterprise account
+          </h3>
+          <div className="space-y-2 text-caption">
+            <div className="flex justify-between gap-3" data-testid="enterprise-store-row">
+              <span className="text-text-muted shrink-0">Bound store</span>
+              <span className="text-right font-semibold text-text-primary">
+                {user.entBinding.storeName}
+                <span className="block font-mono font-normal text-text-muted">{user.entBinding.storeCode}</span>
+              </span>
+            </div>
+            {user.entBinding.enterpriseName && (
+              <div className="flex justify-between gap-3">
+                <span className="text-text-muted shrink-0">Registered entity</span>
+                <span className="text-right text-text-secondary">{user.entBinding.enterpriseName}</span>
+              </div>
+            )}
+            {user.entBinding.gstin && (
+              <div className="flex justify-between gap-3" data-testid="enterprise-gstin-row">
+                <span className="text-text-muted shrink-0">GSTIN</span>
+                <span className="text-right font-mono text-text-secondary">{user.entBinding.gstin}</span>
+              </div>
+            )}
+            {user.entBinding.billingContact && (
+              <div className="flex justify-between gap-3">
+                <span className="text-text-muted shrink-0">Billing contact</span>
+                <span className="text-right text-text-secondary">{user.entBinding.billingContact}</span>
+              </div>
+            )}
+            <div className="flex justify-between gap-3">
+              <span className="text-text-muted shrink-0">Bound since</span>
+              <span className="text-right text-text-secondary">
+                {new Date(user.entBinding.boundAt).toLocaleDateString('en-IN')}
+              </span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span className="text-text-muted shrink-0">Status</span>
+              <span className="text-right text-dobara-success font-semibold">active</span>
+            </div>
+          </div>
+          <p className="text-caption text-text-muted mt-3 pt-3 border-t border-border">
+            Credit is shared across all accounts bound to this store. To change or unbind the store, contact the
+            platform administrator.
+          </p>
+        </Card>
+      )}
+
       {/* 企业账号（注册时绑定门店，06 §2.12.2）才可见切换入口；个人账号无此卡（P1 设置页开通） */}
       {user.entBinding && user.entBinding.status === 'active' && (
         <Card className="!rounded-xl" data-testid="shopping-mode-card">
-          <h3 className="text-body font-bold text-text-primary mb-1">Shopping mode</h3>
-          <p className="text-caption text-text-muted mb-3" data-testid="enterprise-account-badge">
-            Enterprise account · {user.entBinding.storeName} ({user.entBinding.storeCode})
-            {user.entBinding.enterpriseName ? ` · ${user.entBinding.enterpriseName}` : ''}
-          </p>
+          <h3 className="text-body font-bold text-text-primary mb-3">Shopping mode</h3>
           <div className="grid grid-cols-2 gap-2" data-testid="shopping-mode-switch">
             <button
               type="button"

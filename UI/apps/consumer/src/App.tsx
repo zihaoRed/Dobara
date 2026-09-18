@@ -76,13 +76,16 @@ function RegisterRoute() {
   return <Register phone={phone} />;
 }
 
-/* ── Tab Bar Layout — Home / Buy / Exchange / Account ── */
+/* ── Tab Bar Layout — Home / Buy / Exchange / Account ──
+   企业模式下隐藏 Exchange（个人换购入口）——APP-P1-04 企业采购模式为专属 UI。 */
 const TABS = [
   { key: '/home', label: 'Home', icon: <HomeIcon size={22} /> },
   { key: '/buy', label: 'Buy', icon: <ShoppingBag size={22} /> },
   { key: '/sell', label: 'Exchange', icon: <ArrowLeftRight size={22} /> },
   { key: '/account', label: 'Account', icon: <User size={22} /> },
 ];
+
+const VISIBLE_TABS = (enterprise: boolean) => (enterprise ? TABS.filter((t) => t.key !== '/sell') : TABS);
 
 function TabBar() {
   const navigate = useNavigate();
@@ -102,11 +105,13 @@ function TabBar() {
     navigate(key);
   };
 
+  const tabs = VISIBLE_TABS(isEnterpriseMode());
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 px-3 pb-3 safe-bottom pointer-events-none">
       <div className="pointer-events-auto bg-white/95 backdrop-blur-xl border border-border rounded-2xl shadow-[0_-2px_12px_rgba(6,68,57,0.08)] max-w-lg mx-auto">
         <div className="flex items-center justify-around h-14">
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => goTab(tab.key)}
@@ -132,6 +137,12 @@ const TAB_PATHS = ['/home', '/buy', '/sell', '/account'];
 function BuyEntry() {
   if (isEnterpriseMode()) return <Navigate to="/buy/enterprise" replace />;
   return <MallHome />;
+}
+
+/** 企业模式下 /sell（个人换购）不可达——Tab 已隐藏，直达 URL 也拦回企业页（APP-P1-04） */
+function SellEntry() {
+  if (isEnterpriseMode()) return <Navigate to="/buy/enterprise" replace />;
+  return <RecycleHome />;
 }
 
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -189,7 +200,7 @@ export function App() {
           <Route path="/buy/order/success/:orderId" element={<RequireAuth><OrderSuccess /></RequireAuth>} />
 
           {/* Sell — Exchange / trade-in */}
-          <Route path="/sell" element={<RequireAuth><RecycleHome /></RequireAuth>} />
+          <Route path="/sell" element={<RequireAuth><SellEntry /></RequireAuth>} />
           <Route path="/sell/appointment" element={<RequireAuth><Appointment /></RequireAuth>} />
           <Route path="/sell/appointment/success" element={<RequireAuth><AppointmentSuccess /></RequireAuth>} />
           <Route path="/sell/report/:sessionId" element={<RequireAuth><InspectionReport /></RequireAuth>} />
