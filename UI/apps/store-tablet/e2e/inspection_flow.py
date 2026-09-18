@@ -68,6 +68,10 @@ def run():
             expect(page.get_by_test_id("nav-step-hardware")).to_be_disabled()
 
             # pass admission checks → defect checklist
+            # TAB-P0-15 user interview: appointment prefill (this customer has one) →
+            # all 7 answered & no hit → continue enabled without extra clicks
+            expect(page.get_by_test_id("admission-interview")).to_be_visible()
+            expect(page.get_by_test_id("admission-continue")).to_be_enabled()
             page.get_by_test_id("admission-continue").click()
             page.get_by_test_id("appearance-inspect").wait_for()
             # Checklist is optional — continue with zero selections triggers auto QC

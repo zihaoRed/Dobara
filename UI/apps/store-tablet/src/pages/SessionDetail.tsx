@@ -91,12 +91,19 @@ export default function SessionDetail() {
         });
         setAppointments([]);
       } finally {
-        // Persist latest appointment basics for downstream steps (hardware color pre-fill)
+        // Persist latest appointment basics for downstream steps (hardware color pre-fill
+        // + admission interview pre-fill, TAB-P0-15)
         try {
           if (firstAppt) {
             sessionStorage.setItem(
               `dobara_appointments_${sessionId}`,
-              JSON.stringify({ color: firstAppt.color, brand: firstAppt.brand, model: firstAppt.model, storage: firstAppt.storage }),
+              JSON.stringify({
+                color: firstAppt.color,
+                brand: firstAppt.brand,
+                model: firstAppt.model,
+                storage: firstAppt.storage,
+                admissionSelfcheck: firstAppt.admissionSelfcheck,
+              }),
             );
           } else {
             sessionStorage.removeItem(`dobara_appointments_${sessionId}`);

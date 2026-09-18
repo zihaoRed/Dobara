@@ -119,6 +119,7 @@
       <li><a href="#s4">步骤 2：加载预约信息</a></li>
       <li><a href="#s5">步骤 3：外观拒收判断（拍照前）</a></li>
       <li><a href="#s6">步骤 4：外观影像采集</a></li>
+      <li><a href="#s6b">步骤 4.5：到店准入检查（客观检测 + 用户问询）</a></li>
       <li><a href="#s7">步骤 5：外观 AI 检测 / 手动点检</a></li>
       <li><a href="#s8">步骤 6：硬件自动审计</a></li>
       <li><a href="#s9">步骤 7：发票信息采集（可选）</a></li>
@@ -311,6 +312,22 @@
       <tr><td>遮挡检测</td><td>遮挡区域高亮红 + "请勿遮挡设备"</td><td>无提示</td></tr>
     </table>
     <blockquote>质量不达标时<b>不强制阻止拍照</b>，但会红色提示；可在确认弹窗选"仍要拍摄"。建议尽量等取景框变绿再拍。</blockquote>
+  </section>
+
+  <!-- 4.5 -->
+  <section class="card" id="s6b">
+    <div class="step-title"><span class="step-num">4.5</span><h2 style="border:none;padding:0;margin:0;">到店准入检查（客观检测 + 用户问询）</h2></div>
+    <p class="tag">对应 PRD：TAB-P0-15</p>
+    <p>影像采集完成后、外观点检之前，平板进入<b>到店准入检查</b>页，分两部分：</p>
+    <h3>① 客观检测</h3>
+    <p>设备连接后自动查询 IMEI 黑名单 / iCloud·FRP / CEIR 报失 / 运营商锁 / EMI 分期；主板目视（腐蚀 / LCI 进水指示器 / 维修痕迹）由店员开壳检查勾选——腐蚀或 LCI 触发即拒收，维修痕迹走扣款不拒收。</p>
+    <h3>② 用户问询（自报 7 项，与 C 端预约页同款问题）</h3>
+    <table>
+      <tr><th>场景</th><th>操作</th></tr>
+      <tr><td>有预约</td><td>预约单自报结果自动预填并标"来自预约"；店员逐项与用户核对，可纠正（纠正项自动标注「自报不符」留痕）</td></tr>
+      <tr><td>walk-in（无预约）</td><td>店员逐项询问用户后点选，7 项全部作答后"继续"才可用</td></tr>
+    </table>
+    <blockquote><b>命中即强制拒收</b>：任一问命中拒收答案（如"无法退出账号""进过水"）→ "Reject Device" 为唯一可用操作，无覆盖通道——到店以当场申报为准。拒收原因默认带入对应项，走步骤 3 的拒收流程。</blockquote>
   </section>
 
   <!-- 7 -->

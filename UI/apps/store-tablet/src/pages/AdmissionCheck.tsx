@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Card, CardHeader, CardContent, Badge } from '@dobara/ui';
-import { ShieldCheck, CheckCircle, XCircle, AlertTriangle, Loader, Cpu } from 'lucide-react';
-import { ADMISSION_CHECKS, MOTHERBOARD_CHECKS } from '@dobara/utils';
+import { ShieldCheck, CheckCircle, XCircle, AlertTriangle, Loader, Cpu, ClipboardList } from 'lucide-react';
+import { ADMISSION_CHECKS, MOTHERBOARD_CHECKS, ADMISSION_SELFCHECK } from '@dobara/utils';
 import { markStepComplete } from '../lib/sessionProgress';
 
 type TCheckStatus = 'pass' | 'fail' | 'pending';
 
-/** TAB-P0-12 / CLOUD-P0-01 admission gate — run right after device connects, before defect checklist & hardware audit. */
+/**
+ * TAB-P0-15 / CLOUD-P0-01 admission gate — run after photo/video capture, before defect checklist.
+ * 客观检测（服务端查询 + 主板目视）之外，含「用户问询」：walk-in 用户由店员代采 C 端同款
+ * 7 项自报（01 PRD TAB-P0-15；命中即强制拒收）；有预约用户带入自报结果、店员可纠正。
+ */
 export default function AdmissionCheck() {
   const { sessionId = '' } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
@@ -18,8 +22,12 @@ export default function AdmissionCheck() {
     lci: false,
     repairTraces: false,
   });
+  // 用户问询（TAB-P0-15）：key → 选中的 option value；预填来自预约自报，无预约由店员代采
+  const [interview, setInterview] = useState<Record<string, string>>({});
+  const [prefill, setPrefill] = useState<Record<string, string> | null>(null);
 
   // Mock: connect device → read IMEI → run admission lookups (blacklist / iCloud / CEIR / carrier / EMI).
+  // 同时读预约自报结果（SessionDetail 持久化），有预约则预填问询。
   useEffect(() => {
     const t = setTimeout(() => {
       const next: Record<string, TCheckStatus> = {};
@@ -27,12 +35,29 @@ export default function AdmissionCheck() {
         next[c.key] = c.key === 'water_damage' ? 'pending' : 'pass';
       }
       setChecks(next);
+      try {
+        const raw = sessionStorage.getItem(`dobara_appointments_${sessionId}`);
+        const appt = raw ? (JSON.parse(raw) as { admissionSelfcheck?: Record<string, string> }) : null;
+        const sc = appt?.admissionSelfcheck;
+        if (sc && Object.keys(sc).length > 0) {
+          setPrefill(sc);
+          setInterview(sc);
+        }
+      } catch { /* ignore */ }
       setLoading(false);
     }, 1400);
     return () => clearTimeout(t);
-  }, []);
+  }, [sessionId]);
 
-  const reject = mb.corrosion || mb.lci;
+  const interviewAnswered = ADMISSION_SELFCHECK.filter((q) => interview[q.key] != null).length;
+  const interviewHits = ADMISSION_SELFCHECK.flatMap((q) => {
+    const opt = q.options.find((o) => o.value === interview[q.key]);
+    return opt && 'reject' in opt && opt.reject ? [q.key] : [];
+  });
+  const interviewComplete = interviewAnswered === ADMISSION_SELFCHECK.length;
+  const interviewReject = interviewHits.length > 0;
+
+  const reject = mb.corrosion || mb.lci || interviewReject;
   const waterStatus: TCheckStatus = mb.corrosion || mb.lci ? 'fail' : 'pass';
 
   const statusIcon = (s: TCheckStatus) => {
@@ -45,7 +70,18 @@ export default function AdmissionCheck() {
     try {
       sessionStorage.setItem(
         `dobara_admission_${sessionId}`,
-        JSON.stringify({ checks: { ...checks, water_damage: waterStatus }, motherboard: mb }),
+        JSON.stringify({
+          checks: { ...checks, water_damage: waterStatus },
+          motherboard: mb,
+          // 问询结果与来源（TAB-P0-15 数据落盘）
+          selfcheck: interview,
+          selfcheckSource: prefill
+            ? JSON.stringify(prefill) === JSON.stringify(interview)
+              ? 'appointment_prefill'
+              : 'tablet_corrected'
+            : 'tablet_walk_in',
+          selfcheckHits: interviewHits,
+        }),
       );
     } catch { /* ignore */ }
   };
@@ -56,6 +92,7 @@ export default function AdmissionCheck() {
   };
 
   const goInspect = () => {
+    if (!interviewComplete || interviewReject) return; // 7 项必答 + 命中即拒收（严格）
     persist();
     markStepComplete(sessionId, 'admission');
     navigate(`/session/${sessionId}/inspect`);
@@ -160,9 +197,80 @@ export default function AdmissionCheck() {
         </CardContent>
       </Card>
 
-      {reject && (
+      {/* 用户问询（TAB-P0-15）：walk-in 店员代采 / 有预约只读预填可纠正；命中即强制拒收 */}
+      <Card className="mb-6" data-testid="admission-interview">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <ClipboardList size={18} className="text-text-muted" />
+            <span className="text-eyebrow text-text-muted uppercase">User Interview · Recycling self-check</span>
+            <Badge variant="neutral" className="ml-auto">
+              {interviewAnswered}/{ADMISSION_SELFCHECK.length} answered
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-caption text-text-muted mb-3">
+            {prefill
+              ? 'Pre-filled from the customer\'s appointment self-check. Verify each item with the customer and correct if needed — corrections are flagged as self-report mismatch.'
+              : 'Walk-in customer (no appointment) — ask the customer each question and record the answers. All items are required before continuing.'}
+          </p>
+          <div className="space-y-3">
+            {ADMISSION_SELFCHECK.map((q) => {
+              const selected = interview[q.key];
+              const chosen = q.options.find((o) => o.value === selected);
+              const hitMsg = chosen && 'reject' in chosen && chosen.reject ? String(chosen.reject) : null;
+              const corrected = prefill != null && prefill[q.key] != null && prefill[q.key] !== selected;
+              return (
+                <div key={q.key}>
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <p className="text-caption font-semibold text-text-primary">{q.question}</p>
+                    {prefill && prefill[q.key] != null && !corrected && (
+                      <Badge variant="info">from appointment</Badge>
+                    )}
+                    {corrected && <Badge variant="warning">corrected · self-report mismatch</Badge>}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {q.options.map((o) => (
+                      <button
+                        key={o.value}
+                        type="button"
+                        data-testid={`interview-${q.key}-${o.value}`}
+                        onClick={() => setInterview((prev) => ({ ...prev, [q.key]: o.value }))}
+                        className={`px-3 py-1.5 rounded-md text-caption font-medium border transition-colors ${
+                          selected === o.value
+                            ? 'border-primary-500 bg-primary-50 text-primary-700'
+                            : 'border-border text-text-secondary hover:bg-surface-container'
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                  {hitMsg && (
+                    <p className="text-caption text-dobara-error mt-1" data-testid={`interview-reject-${q.key}`}>
+                      {hitMsg}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {interviewReject && (
+        <div className="mb-4 rounded-lg bg-dobara-error-light text-dobara-error px-4 py-3 text-caption font-semibold flex items-center gap-2" data-testid="interview-reject-banner">
+          <AlertTriangle size={16} /> Recycling self-check hit a rejecting answer — this device must be rejected.
+        </div>
+      )}
+      {!interviewReject && (mb.corrosion || mb.lci) && (
         <div className="mb-4 rounded-lg bg-dobara-error-light text-dobara-error px-4 py-3 text-caption font-semibold flex items-center gap-2">
           <AlertTriangle size={16} /> Water damage / corrosion detected — this device must be rejected.
+        </div>
+      )}
+      {!reject && !interviewComplete && (
+        <div className="mb-4 rounded-lg bg-dobara-warning-light text-dobara-warning px-4 py-3 text-caption font-semibold flex items-center gap-2">
+          <AlertTriangle size={16} /> Answer all {ADMISSION_SELFCHECK.length} interview questions to continue.
         </div>
       )}
 
@@ -173,7 +281,7 @@ export default function AdmissionCheck() {
             Reject Device
           </Button>
         ) : (
-          <Button variant="primary" size="lg" data-testid="admission-continue" onClick={goInspect}>
+          <Button variant="primary" size="lg" data-testid="admission-continue" disabled={!interviewComplete} onClick={goInspect}>
             Continue to Inspect
           </Button>
         )}
