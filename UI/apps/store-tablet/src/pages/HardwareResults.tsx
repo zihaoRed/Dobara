@@ -5,6 +5,7 @@ import { CheckCircle, XCircle, AlertTriangle, RefreshCw, Usb, Hash, Smartphone, 
 import { HARDWARE_CHECK_ITEMS } from '@dobara/utils';
 import { subscribeBus, type IDemoCheckResult } from '@dobara/mock';
 import { markStepComplete } from '../lib/sessionProgress';
+import { DISPLAY_ITEMS } from '../lib/appearanceItems';
 
 type TResult = 'normal' | 'abnormal' | 'timeout' | 'pending' | 'manual' | 'unauthorized' | 'pending_network';
 /** TAB-P0-02 v1.8 — detection channel per item: USB read / on-device H5 page / H5 guide + ADB verdict. */
@@ -122,6 +123,8 @@ export default function HardwareResults() {
   // Color confirmation (walk-in has no appointment to align with)
   const [deviceColor, setDeviceColor] = useState('');
   const [colorFromAppointment, setColorFromAppointment] = useState(false);
+  // 屏幕显示缺陷 D1-D6（H5 纯色画面现场判定，v1.19 从外观点检表移入本步骤）
+  const [displayAnswers, setDisplayAnswers] = useState<Record<string, number>>({});
 
   // --- Network provisioning & H5 link (TAB-P0-14) ---
   const [platform, setPlatform] = useState<TPlatform>('android');
@@ -384,21 +387,33 @@ export default function HardwareResults() {
   // confirmed by the clerk before the inspection can continue.
   const colorConfirmed = deviceColor !== '';
 
+  /** H5 滑涂结果异常（HW-TCH-01）→ D6 锁定为"系统检出"，不可人工改判（06 §3.3.2.1.5） */
+  const touchLocked = items.find((i) => i.name === 'Screen Touch')?.status === 'abnormal';
+  const displayAnswered = DISPLAY_ITEMS.filter((i) => displayAnswers[i.code] != null).length;
+
+  // 命中 HW-TCH-01 后强制 D6 = Partial（index 1），并覆盖 AI/人工既有取值
+  useEffect(() => {
+    if (!touchLocked) return;
+    setDisplayAnswers((prev) => (prev.D6 === 1 ? prev : { ...prev, D6: 1 }));
+  }, [touchLocked]);
+
   const goCondition = () => {
     try {
       sessionStorage.setItem(
         `dobara_device_color_${sessionId}`,
         JSON.stringify({ color: deviceColor, fromAppointment: colorFromAppointment }),
       );
-      // Persist audit results (keyed by the CLOUD-P0-16 item_key namespace) so the
-      // appearance checklist can lock D6 when the H5 slide test flagged touch issues
-      // — see 06 PRD §3.3.2.1.5 touch-group dedupe.
+      // Persist audit results (keyed by the CLOUD-P0-16 item_key namespace) + the D1-D6
+      // screen-display verdicts taken next to the H5 checks (v1.19 moved here from the
+      // appearance checklist). Touch-group dedupe: 06 PRD §3.3.2.1.5.
       sessionStorage.setItem(
         `dobara_hardware_${sessionId}`,
         JSON.stringify({
           results: Object.fromEntries(
             items.map((i) => [ITEM_KEY_OF[i.name], { status: i.status, value: i.value }]),
           ),
+          displayAnswers,
+          displayLocked: touchLocked ? ['D6'] : [],
         }),
       );
     } catch { /* ignore */ }
@@ -707,12 +722,81 @@ export default function HardwareResults() {
         ))}
       </div>
 
-      <div className="flex flex-wrap justify-center gap-4">
+      {/* 屏幕显示缺陷（D1-D6）— H5 纯色画面现场判定（TAB-P0-02 / TAB-P0-14）。
+          照片判不出这些项（坏点/偏色/闪烁/漏液/触控），故不在外观点检表内，判定入口在此。
+          D6 触控由 H5 滑涂测试拥有：检出异常（HW-TCH-01）时自动带出"系统检出"并锁定，
+          仅计自动检测一次（06 PRD §3.3.2.1.5 触控组归并）。 */}
+      <Card variant="flat" className="mt-4 p-4" data-testid="display-verification">
+        <div className="flex items-start gap-2 mb-3">
+          <Smartphone size={18} className="text-text-muted mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="text-eyebrow text-text-muted uppercase">Screen Display — H5 solid-colour verification</p>
+            <p className="text-caption text-text-muted mt-1">
+              Checked on the phone via the H5 check page (solid-colour sweep + slide test), not from photos. D6 is
+              owned by the slide test — it locks to "system detected" when the test flags an anomaly.
+            </p>
+          </div>
+          <Badge variant={displayAnswered === DISPLAY_ITEMS.length ? 'success' : 'neutral'}>
+            {displayAnswered}/{DISPLAY_ITEMS.length}
+          </Badge>
+        </div>
+        <div className="space-y-3">
+          {DISPLAY_ITEMS.map((item) => {
+            const locked = touchLocked && item.code === 'D6';
+            return (
+              <div key={item.code}>
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <p className="text-caption font-semibold text-text-primary">
+                    {item.code} · {item.name}
+                  </p>
+                  {locked && (
+                    <span className="text-eyebrow font-normal text-dobara-info" data-testid="display-D6-locked">
+                      System detected · HW-TCH-01
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {item.options.map((opt, oi) => (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      disabled={locked}
+                      data-testid={`display-${item.code}-${oi}`}
+                      onClick={() => {
+                        if (locked) return;
+                        setDisplayAnswers((prev) => {
+                          const next = { ...prev };
+                          if (next[item.code] === oi) delete next[item.code];
+                          else next[item.code] = oi;
+                          return next;
+                        });
+                      }}
+                      className={`px-2.5 py-1.5 rounded-md text-caption border transition-colors ${
+                        locked ? 'cursor-not-allowed opacity-60' : ''
+                      } ${
+                        displayAnswers[item.code] === oi
+                          ? opt.reject
+                            ? 'border-dobara-error bg-dobara-error-light text-dobara-error'
+                            : 'border-primary-500 bg-primary-50 text-primary-700'
+                          : 'border-border text-text-secondary hover:bg-surface-container'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      <div className="flex flex-wrap justify-center gap-4 mt-6">
         <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/inspect`)}>Back</Button>
         <Button
           variant="primary"
           size="lg"
-          disabled={!done || usbDisconnected || !colorConfirmed}
+          disabled={!done || usbDisconnected || !colorConfirmed || displayAnswered < DISPLAY_ITEMS.length}
           data-testid="hardware-continue"
           onClick={goCondition}
         >

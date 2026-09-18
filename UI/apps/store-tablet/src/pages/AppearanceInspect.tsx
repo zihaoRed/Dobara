@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Card, Modal, Tabs } from '@dobara/ui';
-import { HelpCircle, Smartphone, Sparkles } from 'lucide-react';
+import { HelpCircle, Sparkles } from 'lucide-react';
 import { PHOTO_ANGLES } from '@dobara/utils';
 import { APPEARANCE_DIMENSIONS, ALL_APPEARANCE_ITEMS } from '../lib/appearanceItems';
 import { mockAiAppearanceAnalysis, type TAiAppearanceResult } from '../lib/aiAnalysis';
 import { markStepComplete } from '../lib/sessionProgress';
 
-/** TAB-P0-13 — AI "Thinking" pre-fills the checklist from photos; clerk reviews & corrects. */
+/**
+ * TAB-P0-13 — AI "Thinking" pre-fills the checklist from photos; clerk reviews & corrects.
+ * v1.19: 只覆盖外观磨损 4 维度 / 21 项（玻璃/边框/后盖/接口按键）。屏幕显示缺陷 D1-D6
+ * 由 H5 检测页判定，入口在下一步 Hardware（appearanceItems.DISPLAY_ITEMS）。
+ */
 export default function AppearanceInspect() {
   const { sessionId = '' } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
@@ -19,12 +23,6 @@ export default function AppearanceInspect() {
   const [helpCode, setHelpCode] = useState<string | null>(null);
   const [photoIdx, setPhotoIdx] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  /**
-   * TAB-P0-14 / 06 PRD §3.3.2.1.5 — the H5 slide test owns touch detection. When it
-   * flags an anomaly (HW-TCH-01), D6 is locked to "system detected" so the same fault
-   * is not deducted twice (once automatically, once by the clerk).
-   */
-  const [touchLocked, setTouchLocked] = useState(false);
 
   const dimension = APPEARANCE_DIMENSIONS.find((d) => d.key === dim) || APPEARANCE_DIMENSIONS[0];
   const helpItem = ALL_APPEARANCE_ITEMS.find((i) => i.code === helpCode);
@@ -64,23 +62,6 @@ export default function AppearanceInspect() {
     };
   }, [sessionId]);
 
-  // Read the hardware audit result (persisted on the Hardware step) to decide the lock.
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(`dobara_hardware_${sessionId}`);
-      if (!raw) return;
-      const hw = JSON.parse(raw) as { results?: Record<string, { status?: string }> };
-      setTouchLocked(hw.results?.screen_touch?.status === 'abnormal');
-    } catch { /* ignore */ }
-  }, [sessionId]);
-
-  // Force D6 to "Partial" once the audit has flagged touch anomalies; re-runs after
-  // the AI pre-fill resolves so the lock always wins over the AI suggestion.
-  useEffect(() => {
-    if (!touchLocked || thinking) return;
-    setAnswers((prev) => (prev.D6 === 1 ? prev : { ...prev, D6: 1 }));
-  }, [touchLocked, thinking]);
-
   const proceedToHardware = async () => {
     setSubmitting(true);
     // Unselected items → system auto-inspect (default to first / "None·Normal" grade)
@@ -95,7 +76,6 @@ export default function AppearanceInspect() {
           answers: resolved,
           aiAnswers,
           autoFilled: answeredCount < ALL_APPEARANCE_ITEMS.length,
-          hardwareLocked: touchLocked ? ['D6'] : [],
         }),
       );
     } catch { /* ignore */ }
@@ -200,19 +180,8 @@ export default function AppearanceInspect() {
               className="mb-3"
             />
 
-            {dimension.key === 'display' && (
-              <div className="mb-3 rounded-lg bg-dobara-info-light text-[#1e3a8a] px-3 py-2 text-caption font-medium flex items-center gap-2">
-                <Smartphone size={14} className="shrink-0" />
-                <span>
-                  D1–D6 are verified on-device via the H5 check page (TAB-P0-14) — AI photo marks here are
-                  cross-reference only; the H5 result takes precedence.
-                </span>
-              </div>
-            )}
-
             <div className="space-y-3 max-h-[min(420px,calc(100dvh-280px))] overflow-y-auto pr-1">
               {dimension.items.map((item) => {
-                const locked = touchLocked && item.code === 'D6';
                 return (
                 <Card key={item.code} variant="flat" className="p-3">
                   <div className="flex items-start justify-between gap-2 mb-2">
@@ -223,17 +192,8 @@ export default function AppearanceInspect() {
                     >
                       <p className="text-caption font-semibold text-text-primary">
                         {item.code} · {item.name}
-                        {locked ? (
-                          <span
-                            className="ml-2 text-eyebrow font-normal text-dobara-info"
-                            data-testid="inspect-D6-locked"
-                          >
-                            System detected · HW-TCH-01
-                          </span>
-                        ) : (
-                          aiAnswers[item.code] != null && (
-                            <span className="ml-2 text-eyebrow font-normal text-accent-600">AI-suggested</span>
-                          )
+                        {aiAnswers[item.code] != null && (
+                          <span className="ml-2 text-eyebrow font-normal text-accent-600">AI-suggested</span>
                         )}
                       </p>
                     </button>
@@ -251,10 +211,8 @@ export default function AppearanceInspect() {
                       <button
                         key={opt.label}
                         type="button"
-                        disabled={locked}
                         data-testid={`inspect-${item.code}-${oi}`}
                         onClick={() => {
-                          if (locked) return;
                           setAnswers((prev) => {
                             const next = { ...prev };
                             // Toggle off if same option clicked again
@@ -265,8 +223,6 @@ export default function AppearanceInspect() {
                           setPhotoIdx(item.photoIndex);
                         }}
                         className={`px-2.5 py-1.5 rounded-md text-caption border transition-colors ${
-                          locked ? 'cursor-not-allowed opacity-60' : ''
-                        } ${
                           answers[item.code] === oi
                             ? opt.reject
                               ? 'border-dobara-error bg-dobara-error-light text-dobara-error'
@@ -275,7 +231,7 @@ export default function AppearanceInspect() {
                         }`}
                       >
                         {opt.label}
-                        {!locked && aiAnswers[item.code] === oi && (
+                        {aiAnswers[item.code] === oi && (
                           <span className="ml-1 text-[9px] font-bold uppercase text-accent-600">AI</span>
                         )}
                       </button>

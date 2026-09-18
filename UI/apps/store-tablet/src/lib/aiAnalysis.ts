@@ -1,7 +1,11 @@
 import { ALL_APPEARANCE_ITEMS } from './appearanceItems';
 
 /** Server-side photo recognition — mock. In production this is a CV service
- *  that inspects the 10 captured photos and returns a condition per checklist item. */
+ *  that inspects the 10 captured photos and returns a condition per checklist item.
+ *
+ *  只覆盖 **外观磨损** 维度（玻璃 G / 边框 B / 后盖 RC / 接口按键 P，共 21 项）——
+ *  屏幕显示缺陷（D1-D6）无法从照片判定（坏点/偏色/闪烁/漏液/触控），
+ *  其判定归 H5 检测页，故不在 AI 回填范围内（01 PRD TAB-P0-13 分工）。 */
 export type TAiAppearanceResult = Record<string, number>; // itemCode → optionIndex
 
 /** Demo: mostly "None/Normal" (index 0) with a few realistic minor defects so the

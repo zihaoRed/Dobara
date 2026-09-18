@@ -86,6 +86,11 @@ def run():
             # uses the explicitly-labelled demo shortcut.
             page.get_by_test_id("sim-h5-results").click()
             page.get_by_test_id("hardware-continue").wait_for(state="visible", timeout=30000)
+            # Screen-display verdicts (D1-D6) moved here from the appearance checklist (v1.19):
+            # all 6 are required before continuing, and they appear next to the H5 checks.
+            expect(page.get_by_test_id("display-verification")).to_be_visible()
+            for d in ("D1", "D2", "D3", "D4", "D5", "D6"):
+                page.get_by_test_id(f"display-{d}-0").click()
             # Color gate: walk-in (no appointment) → continue disabled until clerk confirms color
             page.get_by_test_id("color-confirm").wait_for()
             expect(page.get_by_test_id("hardware-continue")).to_be_disabled()

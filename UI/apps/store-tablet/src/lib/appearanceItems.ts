@@ -1,11 +1,15 @@
-/** TAB-P0-13 manual appearance checklist — 5 dimensions / 27 items.
+/** TAB-P0-13 manual appearance checklist — 4 dimensions / 21 items.
  *  Every tier carries the deduction code that owns its amount (PRD 06 §3.3.2.1.4),
  *  so the tablet, the estimate and the pricing engine all read the same figure.
  *
  *  v1.16: B4 "Button looseness" removed (same fault was charged 3× via BDY-07/08,
  *  PRT-05~08 and FNC-03) — keys are carried by P3/P4/P6 instead. B7 "Frame scratches"
  *  added (no dedicated code existed; estimates were borrowing the paint/oxidation code).
- *  TAB-P0-14 touch abnormal locks D6 — see 06 PRD §3.3.2.1.5.
+ *
+ *  v1.19: 屏幕显示缺陷（D1-D6）移出本表 —— 坏点/偏色/闪烁/漏液/触控均无法从外观照片判定，
+ *  AI 回填这些项等于给店员假答案；其判定主依据是 H5 检测页（纯色画面目视 + 滑涂测试，
+ *  01 PRD TAB-P0-02 / TAB-P0-14）。D1-D6 现由 Hardware 步骤的 `DISPLAY_ITEMS` 承载，
+ *  与 H5 屏幕检测同处一步；D6 的系统检出锁定也随之下移。
  */
 
 export interface IAppearanceOption {
@@ -31,18 +35,6 @@ export interface IAppearanceDimension {
 }
 
 export const APPEARANCE_DIMENSIONS: IAppearanceDimension[] = [
-  {
-    key: 'display',
-    label: "Screen Display",
-    items: [
-      { code: 'D1', name: "Burn-in / Aging", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Slight", deductionCode: 'CO-DSP-01', deduction: 500 }, { label: "Obvious", deductionCode: 'CO-DSP-02', deduction: 1500 }] },
-      { code: 'D2', name: "Dead / Bright pixels", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "1–2 dots", deductionCode: 'CO-DSP-03', deduction: 300 }, { label: "≥3 or lines", deductionCode: 'CO-DSP-04', deduction: 1200 }] },
-      { code: 'D3', name: "Color cast", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Slight", deductionCode: 'CO-DSP-05', deduction: 400 }, { label: "Obvious", deductionCode: 'CO-DSP-06', deduction: 1000 }] },
-      { code: 'D4', name: "Flicker", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Occasional", deductionCode: 'CO-DSP-07', deduction: 800 }, { label: "Persistent", deductionCode: 'CO-DSP-08', deduction: 2000 }] },
-      { code: 'D5', name: "Bleed / Leak", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Edge bleed", deductionCode: 'CO-DSP-09', deduction: 600 }, { label: "Liquid leak", deductionCode: 'CO-DSP-10', deduction: 2500 }] },
-      { code: 'D6', name: "Touch response", photoIndex: 0, options: [{ label: "Normal", deductionCode: null, deduction: 0 }, { label: "Partial", deductionCode: 'CO-DSP-11', deduction: 1000 }, { label: "Major fail", deductionCode: 'CO-DSP-12', deduction: 0, reject: true }] },
-    ],
-  },
   {
     key: 'glass',
     label: "Screen Glass",
@@ -90,5 +82,20 @@ export const APPEARANCE_DIMENSIONS: IAppearanceDimension[] = [
   },
 ];
 
-/** Flat list of all 26 items — used by the checklist page and the AI cross-reference. */
+/** Flat list of all 21 appearance items — used by the checklist page and the AI recognition. */
 export const ALL_APPEARANCE_ITEMS: IAppearanceItem[] = APPEARANCE_DIMENSIONS.flatMap((d) => d.items);
+
+/**
+ * 屏幕显示缺陷（D1-D6）— H5 检测页现场判定，**不属于外观照片点检表**。
+ * 判定方法：H5 全屏循环纯色画面（白/红/绿/蓝/黑/灰）店员目视 D1-D5；D6 由 H5 滑涂测试判定
+ * （TAB-P0-02 / TAB-P0-14）。入口在 Hardware 步骤，紧邻 H5 屏幕检测；档位编码与 06 PRD
+ * §3.3.2.1.4 维度一一致（CO-DSP-01~12）。
+ */
+export const DISPLAY_ITEMS: IAppearanceItem[] = [
+  { code: 'D1', name: "Burn-in / Aging", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Slight", deductionCode: 'CO-DSP-01', deduction: 500 }, { label: "Obvious", deductionCode: 'CO-DSP-02', deduction: 1500 }] },
+  { code: 'D2', name: "Dead / Bright pixels", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "1–2 dots", deductionCode: 'CO-DSP-03', deduction: 300 }, { label: "≥3 or lines", deductionCode: 'CO-DSP-04', deduction: 1200 }] },
+  { code: 'D3', name: "Color cast", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Slight", deductionCode: 'CO-DSP-05', deduction: 400 }, { label: "Obvious", deductionCode: 'CO-DSP-06', deduction: 1000 }] },
+  { code: 'D4', name: "Flicker", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Occasional", deductionCode: 'CO-DSP-07', deduction: 800 }, { label: "Persistent", deductionCode: 'CO-DSP-08', deduction: 2000 }] },
+  { code: 'D5', name: "Bleed / Leak", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Edge bleed", deductionCode: 'CO-DSP-09', deduction: 600 }, { label: "Liquid leak", deductionCode: 'CO-DSP-10', deduction: 2500 }] },
+  { code: 'D6', name: "Touch response", photoIndex: 0, options: [{ label: "Normal", deductionCode: null, deduction: 0 }, { label: "Partial", deductionCode: 'CO-DSP-11', deduction: 1000 }, { label: "Major fail", deductionCode: 'CO-DSP-12', deduction: 0, reject: true }] },
+];
