@@ -57,6 +57,11 @@ export interface IStore {
   city: string;
   address: string;
   phone: string;
+  /** 门店编码（05 PRD SA-P0-01 生成，ST-{州码}-{序号}） */
+  code?: string;
+  /** 企业档案（可选，预导入；C 端企业注册选店时自动关联回显） */
+  enterpriseName?: string;
+  gstin?: string;
 }
 
 export interface IUser {
@@ -65,6 +70,36 @@ export interface IUser {
   name: string;
   role: TRole;
   storeId?: string;
+  /** 企业身份 = 可选门店绑定（02 PRD APP-P0-05 / 06 PRD §2.12.2 user_ent_binding） */
+  entBinding?: IEntBinding;
+}
+
+/**
+ * 用户-门店绑定（ROLE-ENT）：单一账号体系下企业身份的载体。
+ * 一用户一店（user 侧唯一）、一店多用户（共享该门店授信池）。
+ */
+export interface IEntBinding {
+  storeId: string;
+  storeCode: string;
+  storeName: string;
+  /** 注册选门店时从预导入门店档案带出（档案未填则空） */
+  enterpriseName?: string;
+  gstin?: string;
+  billingContact?: string;
+  source: 'registration' | 'settings';
+  status: 'active' | 'disabled';
+  boundAt: string;
+}
+
+/** 授信额度（06 PRD CLOUD-P1-06 credit_line；台账三段式：支付冻结→发货转已用→结算释放） */
+export interface ICreditLine {
+  storeId: string;
+  storeName: string;
+  totalInr: number;
+  usedInr: number;
+  frozenInr: number;
+  settlementCycleDays: number;
+  status: 'active' | 'frozen' | 'closed';
 }
 
 export type TRole = 'consumer' | 'clerk' | 'store_owner' | 'ops' | 'admin' | 'wh_manager' | 'finance';
@@ -173,6 +208,8 @@ export interface IOrder {
   createdAt: string;
   expiresAt?: string;
   paymentMethod?: string;
+  /** 授信单结算状态（isCredit 时有意义，05 PRD DB-P0-01 / 06 CLOUD-P1-06） */
+  settlementStatus?: 'pending_settlement' | 'settled' | 'overdue';
   trackingNumber?: string;
   /** Display helpers for consumer list/detail */
   brand?: string;

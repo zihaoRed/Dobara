@@ -38,16 +38,23 @@ import { isEnterpriseMode } from './lib/enterpriseMode';
 /* ── Auth helpers ── */
 const AUTH_KEY = 'dobara_user';
 
+/** 企业身份 = 账号上的可选门店绑定（06 §2.12.2 user_ent_binding），个人账号无此字段 */
+export interface ILocalUser {
+  phone: string;
+  name: string;
+  entBinding?: import('@dobara/utils').IEntBinding;
+}
+
 export function getUser() {
   try {
-    return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null') as { phone: string; name: string } | null;
+    return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null') as ILocalUser | null;
   } catch {
     return null;
   }
 }
 
-export function setUser(phone: string, name: string) {
-  localStorage.setItem(AUTH_KEY, JSON.stringify({ phone, name }));
+export function setUser(phone: string, name: string, entBinding?: ILocalUser['entBinding']) {
+  localStorage.setItem(AUTH_KEY, JSON.stringify({ phone, name, entBinding }));
 }
 
 export function clearUser() {

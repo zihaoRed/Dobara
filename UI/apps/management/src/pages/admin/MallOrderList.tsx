@@ -57,6 +57,8 @@ const MallOrderList: React.FC = () => {
   const [orders, setOrders] = useState<IOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
+  // 渠道筛选（05 SA-P0-04：全部 / B2C / B2B）
+  const [channelFilter, setChannelFilter] = useState<'all' | 'b2c' | 'b2b'>('all');
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -70,6 +72,8 @@ const MallOrderList: React.FC = () => {
   const filtered = useMemo(() => {
     return orders.filter((o) => {
       if (statusFilter !== 'all' && o.status !== statusFilter) return false;
+      if (channelFilter === 'b2b' && !o.isEnterprise) return false;
+      if (channelFilter === 'b2c' && o.isEnterprise) return false;
       if (search) {
         const q = search.toLowerCase();
         const hay = `${o.id} ${o.brand ?? ''} ${o.model ?? ''} ${o.deviceImei}`.toLowerCase();
@@ -77,7 +81,7 @@ const MallOrderList: React.FC = () => {
       }
       return true;
     });
-  }, [orders, statusFilter, search]);
+  }, [orders, statusFilter, channelFilter, search]);
 
   return (
     <div>
@@ -97,6 +101,23 @@ const MallOrderList: React.FC = () => {
             placeholder="Search order ID, brand, model, IMEI..."
             className="w-80"
           />
+          {/* 渠道筛选（05 SA-P0-04 订单类型：全部 / B2C / B2B） */}
+          <div className="flex rounded-md border border-border overflow-hidden" data-testid="channel-filter">
+            {([['all', 'All'], ['b2c', 'B2C'], ['b2b', 'B2B']] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setChannelFilter(key)}
+                className={`px-3 py-1.5 text-caption font-semibold transition-colors ${
+                  channelFilter === key
+                    ? 'bg-primary-50 text-primary-700'
+                    : 'bg-surface-high text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="flex flex-wrap gap-2">
             {STATUS_FILTERS.map((f) => (
               <button

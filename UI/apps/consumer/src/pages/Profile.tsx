@@ -102,38 +102,44 @@ export function Profile() {
         ))}
       </Card>
 
-      <Card className="!rounded-xl" data-testid="shopping-mode-card">
-        <h3 className="text-body font-bold text-text-primary mb-3">Shopping mode</h3>
-        <p className="text-caption text-text-muted mb-3">Individual retail or Enterprise bulk procurement (ROLE-ENT demo)</p>
-        <div className="grid grid-cols-2 gap-2" data-testid="shopping-mode-switch">
-          <button
-            type="button"
-            onClick={() => setShoppingMode('individual')}
-            data-testid="mode-individual"
-            className={`rounded-lg border px-3 py-3 text-left transition-colors ${
-              !enterprise ? 'border-primary-500 bg-primary-50' : 'border-border hover:bg-surface-low'
-            }`}
-          >
-            <ShoppingBag size={18} className={!enterprise ? 'text-primary-500' : 'text-text-muted'} />
-            <p className={`text-caption font-semibold mt-1 ${!enterprise ? 'text-primary-700' : 'text-text-primary'}`}>
-              Individual
-            </p>
-          </button>
-          <button
-            type="button"
-            onClick={() => setShoppingMode('enterprise')}
-            data-testid="mode-enterprise"
-            className={`rounded-lg border px-3 py-3 text-left transition-colors ${
-              enterprise ? 'border-primary-500 bg-primary-50' : 'border-border hover:bg-surface-low'
-            }`}
-          >
-            <Building2 size={18} className={enterprise ? 'text-primary-500' : 'text-text-muted'} />
-            <p className={`text-caption font-semibold mt-1 ${enterprise ? 'text-primary-700' : 'text-text-primary'}`}>
-              Enterprise (Bulk)
-            </p>
-          </button>
-        </div>
-      </Card>
+      {/* 企业账号（注册时绑定门店，06 §2.12.2）才可见切换入口；个人账号无此卡（P1 设置页开通） */}
+      {user.entBinding && user.entBinding.status === 'active' && (
+        <Card className="!rounded-xl" data-testid="shopping-mode-card">
+          <h3 className="text-body font-bold text-text-primary mb-1">Shopping mode</h3>
+          <p className="text-caption text-text-muted mb-3" data-testid="enterprise-account-badge">
+            Enterprise account · {user.entBinding.storeName} ({user.entBinding.storeCode})
+            {user.entBinding.enterpriseName ? ` · ${user.entBinding.enterpriseName}` : ''}
+          </p>
+          <div className="grid grid-cols-2 gap-2" data-testid="shopping-mode-switch">
+            <button
+              type="button"
+              onClick={() => setShoppingMode('individual')}
+              data-testid="mode-individual"
+              className={`rounded-lg border px-3 py-3 text-left transition-colors ${
+                !enterprise ? 'border-primary-500 bg-primary-50' : 'border-border hover:bg-surface-low'
+              }`}
+            >
+              <ShoppingBag size={18} className={!enterprise ? 'text-primary-500' : 'text-text-muted'} />
+              <p className={`text-caption font-semibold mt-1 ${!enterprise ? 'text-primary-700' : 'text-text-primary'}`}>
+                Individual
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShoppingMode('enterprise')}
+              data-testid="mode-enterprise"
+              className={`rounded-lg border px-3 py-3 text-left transition-colors ${
+                enterprise ? 'border-primary-500 bg-primary-50' : 'border-border hover:bg-surface-low'
+              }`}
+            >
+              <Building2 size={18} className={enterprise ? 'text-primary-500' : 'text-text-muted'} />
+              <p className={`text-caption font-semibold mt-1 ${enterprise ? 'text-primary-700' : 'text-text-primary'}`}>
+                Enterprise (Bulk)
+              </p>
+            </button>
+          </div>
+        </Card>
+      )}
 
       <Card className="!rounded-xl">
         <h3 className="text-body font-bold text-text-primary mb-3">Account</h3>

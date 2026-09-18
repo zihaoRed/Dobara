@@ -186,6 +186,18 @@ export function OrderDetail() {
               <span className="text-caption text-text-secondary capitalize">{order.paymentMethod}</span>
             </div>
           )}
+          {order.isCredit && order.settlementStatus && (
+            <div className="flex justify-between py-1">
+              <span className="text-caption text-text-muted">Settlement</span>
+              <span className="text-caption text-text-secondary" data-testid="order-settlement-status">
+                {order.settlementStatus === 'pending_settlement'
+                  ? 'Pending settlement (T+cycle, DB initiates)'
+                  : order.settlementStatus === 'settled'
+                    ? 'Settled · credit released'
+                    : 'Overdue · credit frozen'}
+              </span>
+            </div>
+          )}
         </div>
       </Card>
 

@@ -1,9 +1,23 @@
-import React, { useState, type ChangeEvent } from 'react';
+import React, { useEffect, useState, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input, Button, Card, Modal } from '@dobara/ui';
+import { Building2 } from 'lucide-react';
+import type { IEntBinding } from '@dobara/utils';
 import { setUser } from '../App';
 
-/** APP-P0-05 — new-user second half: set password + confirm + agreement, then finish registration. */
+/** APP-P0-05 — new-user second half: set password + account type + agreement, then finish registration.
+ *  v2.21: account type 个人/企业 — enterprise requires a store selection (search the admin
+ *  pre-imported store profile; binding created on completion = ROLE-ENT, 06 §2.12.2). */
+
+/** 预导入门店档案条目（GET /api/ent/stores） */
+interface IEntStoreHit {
+  id: string;
+  code?: string;
+  name: string;
+  city: string;
+  enterpriseName?: string;
+  gstin?: string;
+}
 
 const KNOWN_USERS_KEY = 'dobara_registered_phones';
 
@@ -92,22 +106,71 @@ export function Register({ phone }: { phone: string }) {
   const [error, setError] = useState('');
   const [docOpen, setDocOpen] = useState<'agreement' | 'privacy' | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // 账号类型（APP-P0-05 v2.21）：enterprise 需选门店（必填）
+  const [accountType, setAccountType] = useState<'personal' | 'enterprise'>('personal');
+  const [storeQuery, setStoreQuery] = useState('');
+  const [storeHits, setStoreHits] = useState<IEntStoreHit[]>([]);
+  const [storeSearching, setStoreSearching] = useState(false);
+  const [selectedStore, setSelectedStore] = useState<IEntStoreHit | null>(null);
+  const [billingContact, setBillingContact] = useState('');
+
+  // 门店搜索（≥2 字符触发；命中预导入档案）
+  useEffect(() => {
+    const q = storeQuery.trim();
+    if (accountType !== 'enterprise' || q.length < 2 || (selectedStore && q === `${selectedStore.name} ${selectedStore.code}`)) {
+      setStoreHits([]);
+      return;
+    }
+    setStoreSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/ent/stores?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        setStoreHits(data.stores || []);
+      } catch {
+        setStoreHits([]);
+      } finally {
+        setStoreSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeQuery, accountType]);
 
   const errors = password ? passwordErrors(password) : [];
   const confirmMismatch = confirm.length > 0 && password !== confirm;
-  const canSubmit = password.length > 0 && errors.length === 0 && password === confirm && agree && !submitting;
+  const enterpriseReady = accountType === 'personal' || selectedStore !== null;
+  const canSubmit =
+    password.length > 0 && errors.length === 0 && password === confirm && agree && enterpriseReady && !submitting;
 
   const submit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
+    let entBinding: IEntBinding | undefined;
     try {
-      await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, password }),
-      }).catch(() => { /* demo fallback below */ });
+      if (accountType === 'enterprise' && selectedStore) {
+        // 企业注册：创建门店绑定（06 §2.12.2 user_ent_binding）
+        const res = await fetch('/api/auth/ent-register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, password, storeId: selectedStore.id, billingContact: billingContact || undefined }),
+        });
+        const data = await res.json().catch(() => ({}) as { user?: { entBinding?: IEntBinding } });
+        entBinding = data.user?.entBinding;
+        if (!entBinding) {
+          setError('Enterprise registration failed. Please try again.');
+          setSubmitting(false);
+          return;
+        }
+      } else {
+        await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone, password }),
+        }).catch(() => { /* demo fallback below */ });
+      }
       markRegistered(phone);
-      setUser(phone, 'Demo User');
+      setUser(phone, 'Demo User', entBinding);
       navigate('/home', { replace: true });
     } finally {
       setSubmitting(false);
@@ -164,6 +227,99 @@ export function Register({ phone }: { phone: string }) {
             data-testid="register-confirm"
           />
 
+          {/* 账号类型（APP-P0-05 v2.21）：企业必填门店，绑定即 ROLE-ENT */}
+          <div>
+            <p className="text-caption text-text-muted mb-1 font-semibold">Account type</p>
+            <div className="flex gap-2">
+              {(['personal', 'enterprise'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  data-testid={`register-type-${t}`}
+                  onClick={() => { setAccountType(t); setSelectedStore(null); setStoreQuery(''); }}
+                  className={`flex-1 px-3 py-2 rounded-md text-caption font-medium border transition-colors flex items-center justify-center gap-1.5 ${
+                    accountType === t
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-border text-text-secondary hover:bg-surface-high'
+                  }`}
+                >
+                  {t === 'enterprise' && <Building2 size={14} />}
+                  {t === 'personal' ? 'Personal' : 'Enterprise'}
+                </button>
+              ))}
+            </div>
+            {accountType === 'enterprise' && (
+              <div className="mt-3 space-y-2" data-testid="register-enterprise-block">
+                {selectedStore ? (
+                  // 选中门店：档案信息只读回显（预导入数据，不可编辑）
+                  <div className="rounded-md border border-border p-3 space-y-1" data-testid="register-store-selected">
+                    <div className="flex items-center justify-between">
+                      <p className="text-body font-semibold text-text-primary flex items-center gap-1.5">
+                        <Building2 size={14} /> {selectedStore.name}
+                      </p>
+                      <button
+                        type="button"
+                        className="text-caption text-primary-600 underline"
+                        onClick={() => { setSelectedStore(null); setStoreQuery(''); }}
+                      >
+                        Change
+                      </button>
+                    </div>
+                    <p className="text-caption text-text-muted">
+                      Store code: {selectedStore.code || '—'} · {selectedStore.city}
+                    </p>
+                    <p className="text-caption text-text-muted">
+                      Enterprise: {selectedStore.enterpriseName || '— (profile not filled)'}
+                    </p>
+                    <p className="text-caption text-text-muted">GSTIN: {selectedStore.gstin || '—'}</p>
+                    <Input
+                      label="Billing contact (optional)"
+                      value={billingContact}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setBillingContact(e.target.value)}
+                      placeholder="Name · phone (for credit settlement)"
+                      data-testid="register-billing-contact"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <Input
+                      label="Your store (required)"
+                      value={storeQuery}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => setStoreQuery(e.target.value)}
+                      placeholder="Search by store name or code, e.g. Andheri / ST-MH-0001"
+                      data-testid="register-store-search"
+                    />
+                    {storeSearching && <p className="text-caption text-text-muted">Searching…</p>}
+                    {storeHits.length > 0 && (
+                      <div className="rounded-md border border-border divide-y divide-border" data-testid="register-store-results">
+                        {storeHits.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            data-testid={`register-store-hit-${s.id}`}
+                            onClick={() => { setSelectedStore(s); setStoreHits([]); }}
+                            className="w-full text-left px-3 py-2 hover:bg-surface-high"
+                          >
+                            <p className="text-body font-medium text-text-primary">{s.name}</p>
+                            <p className="text-caption text-text-muted">
+                              {s.code || s.id} · {s.city}
+                              {s.enterpriseName ? ` · ${s.enterpriseName}` : ''}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {!storeSearching && storeQuery.trim().length >= 2 && storeHits.length === 0 && (
+                      <p className="text-caption text-dobara-error">
+                        No pre-imported store matches. Contact the platform admin.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           <label className="flex items-start gap-2 text-caption text-text-secondary cursor-pointer" data-testid="register-agree">
             <input
               type="checkbox"
@@ -197,6 +353,11 @@ export function Register({ phone }: { phone: string }) {
           </Button>
           {!agree && (
             <p className="text-caption text-text-muted text-center">Agree to the terms to enable registration</p>
+          )}
+          {accountType === 'enterprise' && !selectedStore && (
+            <p className="text-caption text-text-muted text-center" data-testid="register-store-required-hint">
+              Enterprise accounts must select a store to complete registration
+            </p>
           )}
         </Card>
 

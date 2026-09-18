@@ -375,9 +375,9 @@ export const afterSaleStore: IAfterSaleTicket[] = [
 ];
 
 export const stores: IStore[] = [
-  { id: 'st-mum-1', name: 'MobileXchange Andheri', city: 'Mumbai', address: 'Andheri West, Mumbai 400058', phone: '+91-9876543201' },
-  { id: 'st-del-1', name: 'GadgetMart CP', city: 'Delhi', address: 'Connaught Place, New Delhi 110001', phone: '+91-9876543202' },
-  { id: 'st-blr-1', name: 'Fonfix Koramangala', city: 'Bangalore', address: 'Koramangala 5th Block, Bangalore 560095', phone: '+91-9876543203' },
+  { id: 'st-mum-1', code: 'ST-MH-0001', name: 'MobileXchange Andheri', city: 'Mumbai', address: 'Andheri West, Mumbai 400058', phone: '+91-9876543201', enterpriseName: 'MobileXchange Retail Pvt Ltd', gstin: '27AABCM1234F1Z5' },
+  { id: 'st-del-1', code: 'ST-DL-0001', name: 'GadgetMart CP', city: 'Delhi', address: 'Connaught Place, New Delhi 110001', phone: '+91-9876543202', enterpriseName: 'GadgetMart India LLP', gstin: '07AAFCG5678K1Z2' },
+  { id: 'st-blr-1', code: 'ST-KA-0001', name: 'Fonfix Koramangala', city: 'Bangalore', address: 'Koramangala 5th Block, Bangalore 560095', phone: '+91-9876543203' },
 ];
 
 export const users: IUser[] = [
@@ -389,6 +389,67 @@ export const users: IUser[] = [
   { id: 'u-6', phone: '+919876543206', name: 'Admin User', role: 'admin' },
   { id: 'u-7', phone: '+919876543207', name: 'Rajesh Kumar', role: 'wh_manager' },
   { id: 'u-8', phone: '+919876543208', name: 'Sunita Verma', role: 'finance' },
+  // 企业账号 = 手机号账号 + entBinding（06 §2.12.2；u-1 保持个人不绑定，e2e 依赖）
+  {
+    id: 'u-9', phone: '+919876543211', name: 'Kiran Desai', role: 'consumer',
+    entBinding: { storeId: 'st-mum-1', storeCode: 'ST-MH-0001', storeName: 'MobileXchange Andheri', enterpriseName: 'MobileXchange Retail Pvt Ltd', gstin: '27AABCM1234F1Z5', source: 'registration', status: 'active', boundAt: '2026-09-01T10:00:00.000Z' },
+  },
+  {
+    id: 'u-10', phone: '+919876543212', name: 'Arjun Nair', role: 'consumer',
+    entBinding: { storeId: 'st-del-1', storeCode: 'ST-DL-0001', storeName: 'GadgetMart CP', enterpriseName: 'GadgetMart India LLP', gstin: '07AAFCG5678K1Z2', source: 'registration', status: 'active', boundAt: '2026-09-02T10:00:00.000Z' },
+  },
+];
+
+/**
+ * 企业注册产生的用户-门店绑定登记表（管理端 SA-P0-02 绑定管理的数据源）。
+ * users[].entBinding 为快照；本表是权威列表（含已停用）。
+ */
+export const entBindings: (IUser['entBinding'] & { id: string; userId: string; phone: string; userName: string })[] = [
+  { id: 'eb-1', userId: 'u-9', phone: '+919876543211', userName: 'Kiran Desai', storeId: 'st-mum-1', storeCode: 'ST-MH-0001', storeName: 'MobileXchange Andheri', enterpriseName: 'MobileXchange Retail Pvt Ltd', gstin: '27AABCM1234F1Z5', source: 'registration', status: 'active', boundAt: '2026-09-01T10:00:00.000Z' },
+  { id: 'eb-2', userId: 'u-10', phone: '+919876543212', userName: 'Arjun Nair', storeId: 'st-del-1', storeCode: 'ST-DL-0001', storeName: 'GadgetMart CP', enterpriseName: 'GadgetMart India LLP', gstin: '07AAFCG5678K1Z2', source: 'registration', status: 'active', boundAt: '2026-09-02T10:00:00.000Z' },
+];
+
+/**
+ * MSW 内存态在整页刷新后重置——企业注册用户持久化到 localStorage，
+ * 使注册→刷新→登录/查额度等链路跨刷新可用（贴近真实服务端行为）。
+ */
+const ENT_USERS_KEY = 'dobara_mock_ent_users';
+
+export function loadPersistedEntUsers(): IUser[] {
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(ENT_USERS_KEY) || '[]') as IUser[];
+  } catch {
+    return [];
+  }
+}
+
+export function persistEntUser(user: IUser) {
+  if (typeof localStorage === 'undefined') return;
+  const list = loadPersistedEntUsers();
+  const idx = list.findIndex((u) => u.phone.replace(/\D/g, '').slice(-10) === user.phone.replace(/\D/g, '').slice(-10));
+  if (idx >= 0) list[idx] = user;
+  else list.push(user);
+  try {
+    localStorage.setItem(ENT_USERS_KEY, JSON.stringify(list));
+  } catch { /* ignore */ }
+}
+
+/** 种子 + 持久化注册用户的合并查询（按手机号后 10 位） */
+export function findUserByPhone(phone: string): IUser | undefined {
+  const q = phone.replace(/\D/g, '').slice(-10);
+  const all = [...users, ...loadPersistedEntUsers()];
+  return all.find((u) => u.phone.replace(/\D/g, '').slice(-10) === q);
+}
+
+/**
+ * 授信额度（06 PRD CLOUD-P1-06 credit_line，台账三段式）。
+ * st-del-1 可用仅 20000 —— 用于 C 端"额度不足差额拦截"演示。
+ */
+export const creditLines = [
+  { storeId: 'st-mum-1', storeName: 'MobileXchange Andheri', totalInr: 500000, usedInr: 120000, frozenInr: 0, settlementCycleDays: 15, status: 'active' as const },
+  { storeId: 'st-del-1', storeName: 'GadgetMart CP', totalInr: 300000, usedInr: 280000, frozenInr: 0, settlementCycleDays: 15, status: 'active' as const },
+  { storeId: 'st-blr-1', storeName: 'Fonfix Koramangala', totalInr: 200000, usedInr: 0, frozenInr: 0, settlementCycleDays: 15, status: 'closed' as const },
 ];
 
 /** C 端预约页「回收前置条件自检」的自报答案（02 PRD APP-P1-01） */

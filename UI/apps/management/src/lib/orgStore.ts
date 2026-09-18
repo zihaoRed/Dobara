@@ -21,6 +21,11 @@ export interface OrgUnit {
   note?: string;
   /** 服务门店（仅仓库，多选门店编码） */
   servingStores?: string[];
+  /** 企业档案（可选，仅门店；05 SA-P0-01 v3.12）——C 端企业注册选店时自动关联回显，仅供授信参考、不设门槛 */
+  enterpriseName?: string;
+  gstin?: string;
+  billingContact?: string;
+  billingPhone?: string;
 }
 
 export interface StateMeta {

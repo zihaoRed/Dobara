@@ -37,6 +37,7 @@ export const ATOMIC_PERMISSIONS: PermissionDef[] = [
   { code: 'order:refund', label: 'Process refunds' },
   { code: 'settlement:read', label: 'View settlement data' },
   { code: 'settlement:approve', label: 'Approve credit settlement' },
+  { code: 'credit:manage', label: 'Configure & adjust store credit lines' },
   { code: 'report:read', label: 'View reports' },
   { code: 'report:export', label: 'Export reports' },
   { code: 'device:admin', label: 'Tablet device admin' },

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { maskPhone } from '@dobara/utils';
 import { DataTable } from '../../components/DataTable';
+import EntBindings from './EntBindings';
 import { listOrgs } from '../../lib/orgStore';
 import {
   listAccounts,
@@ -422,6 +423,11 @@ const AccountMgmt: React.FC = () => {
           />
         </CardContent>
       </Card>
+
+      {/* 企业账号绑定（ROLE-ENT）— C 端注册自助绑定，此处事后管理（05 SA-P0-02 v3.12） */}
+      <div className="mt-6">
+        <EntBindings />
+      </div>
 
       {/* ---- Create wizard ---- */}
       <Modal

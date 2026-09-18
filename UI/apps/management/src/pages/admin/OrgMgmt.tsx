@@ -36,6 +36,9 @@ const SELECT_CLS =
 const TEXTAREA_CLS =
   'w-full px-3 py-2 rounded-md border border-border bg-surface-container text-body placeholder:text-text-placeholder focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
 
+const INPUT_CLS =
+  'w-full h-[40px] px-3 rounded-md border border-border bg-surface-container text-body placeholder:text-text-placeholder focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent';
+
 type TabKey = 'stores' | 'warehouses' | 'audit';
 type ModalMode = 'create' | 'edit' | 'detail';
 
@@ -49,6 +52,11 @@ interface FormState {
   gps: string;
   note: string;
   servingStores: string[];
+  // 企业档案（可选，仅门店；05 SA-P0-01 v3.12）
+  enterpriseName: string;
+  gstin: string;
+  billingContact: string;
+  billingPhone: string;
 }
 
 const emptyForm = (): FormState => ({
@@ -61,6 +69,10 @@ const emptyForm = (): FormState => ({
   gps: '',
   note: '',
   servingStores: [],
+  enterpriseName: '',
+  gstin: '',
+  billingContact: '',
+  billingPhone: '',
 });
 
 const toForm = (o: OrgUnit): FormState => ({
@@ -73,6 +85,10 @@ const toForm = (o: OrgUnit): FormState => ({
   gps: o.gps ?? '',
   note: o.note ?? '',
   servingStores: o.servingStores ?? [],
+  enterpriseName: o.enterpriseName ?? '',
+  gstin: o.gstin ?? '',
+  billingContact: o.billingContact ?? '',
+  billingPhone: o.billingPhone ?? '',
 });
 
 const AUDIT_VARIANT: Record<string, 'success' | 'info' | 'error' | 'accent'> = {
@@ -188,6 +204,10 @@ const OrgMgmt: React.FC = () => {
       setFormError('GPS must be in "lat, lng" format.');
       return;
     }
+    if (kind === 'store' && form.gstin.trim() && !/^[0-9A-Z]{15}$/.test(form.gstin.trim().toUpperCase())) {
+      setFormError('GSTIN must be 15 characters (digits + uppercase letters), or leave it empty.');
+      return;
+    }
 
     const phone = normalizePhone(form.phone);
     const optional = {
@@ -197,6 +217,11 @@ const OrgMgmt: React.FC = () => {
       gps: form.gps.trim() || undefined,
       note: form.note.trim() || undefined,
       servingStores: kind === 'warehouse' ? form.servingStores : undefined,
+      // 企业档案（可选，仅门店）——预导入后 C 端企业注册可搜索关联
+      enterpriseName: kind === 'store' ? form.enterpriseName.trim() || undefined : undefined,
+      gstin: kind === 'store' ? form.gstin.trim().toUpperCase() || undefined : undefined,
+      billingContact: kind === 'store' ? form.billingContact.trim() || undefined : undefined,
+      billingPhone: kind === 'store' ? (form.billingPhone.trim() ? normalizePhone(form.billingPhone) : undefined) : undefined,
     };
 
     if (modalMode === 'create') {
@@ -577,6 +602,55 @@ const OrgMgmt: React.FC = () => {
             />
           </div>
 
+          {/* 企业档案（可选，仅门店；05 SA-P0-01 v3.12）——预导入后 C 端企业注册自动关联 */}
+          {kind === 'store' && (
+            <div className="rounded-md border border-border p-3 space-y-2" data-testid="org-enterprise-profile">
+              <p className="text-caption font-semibold text-text-secondary">
+                Enterprise profile (optional) — linked to C-end enterprise registration; reference only, not a gate
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="text-caption text-text-muted mb-0.5 block">Registered entity name</label>
+                  <input
+                    value={form.enterpriseName}
+                    onChange={(e) => setField('enterpriseName', e.target.value)}
+                    placeholder="e.g. MobileXchange Retail Pvt Ltd"
+                    className={INPUT_CLS}
+                    data-testid="org-enterprise-name"
+                  />
+                </div>
+                <div>
+                  <label className="text-caption text-text-muted mb-0.5 block">GSTIN (15 chars)</label>
+                  <input
+                    value={form.gstin}
+                    onChange={(e) => setField('gstin', e.target.value)}
+                    placeholder="e.g. 27AABCM1234F1Z5"
+                    className={INPUT_CLS}
+                    data-testid="org-gstin"
+                  />
+                </div>
+                <div>
+                  <label className="text-caption text-text-muted mb-0.5 block">Billing contact (name)</label>
+                  <input
+                    value={form.billingContact}
+                    onChange={(e) => setField('billingContact', e.target.value)}
+                    placeholder="Credit settlement contact"
+                    className={INPUT_CLS}
+                  />
+                </div>
+                <div>
+                  <label className="text-caption text-text-muted mb-0.5 block">Billing phone</label>
+                  <input
+                    value={form.billingPhone}
+                    onChange={(e) => setField('billingPhone', e.target.value)}
+                    placeholder="10-digit Indian mobile"
+                    className={INPUT_CLS}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="secondary" onClick={closeModal}>
               Cancel
@@ -639,6 +713,20 @@ const OrgMgmt: React.FC = () => {
                 <div className="flex items-start gap-2">
                   <FileText size={16} className="text-text-muted mt-0.5 shrink-0" />
                   <span className="text-text-muted">{detailOrg.note}</span>
+                </div>
+              )}
+              {detailOrg.kind === 'store' && (detailOrg.enterpriseName || detailOrg.gstin) && (
+                <div className="rounded-md bg-surface-low p-3 space-y-1" data-testid="detail-enterprise-profile">
+                  <p className="text-caption font-semibold text-text-secondary">Enterprise profile</p>
+                  <p className="text-caption text-text-muted">
+                    Entity: {detailOrg.enterpriseName || '—'} · GSTIN: {detailOrg.gstin || '—'}
+                  </p>
+                  {detailOrg.billingContact && (
+                    <p className="text-caption text-text-muted">
+                      Billing contact: {detailOrg.billingContact}
+                      {detailOrg.billingPhone ? ` · ${detailOrg.billingPhone}` : ''}
+                    </p>
+                  )}
                 </div>
               )}
               <div className="text-caption text-text-muted">Created {detailOrg.createdAt}</div>

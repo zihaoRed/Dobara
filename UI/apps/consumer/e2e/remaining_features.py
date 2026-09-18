@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from playwright.sync_api import sync_playwright, expect
 
@@ -255,6 +256,84 @@ def run():
             failures.append(f"admission gate: {e}")
             print(f"FAIL admission gate: {e}")
             page.screenshot(path="e2e-fail-admission.png", full_page=True)
+
+        # Enterprise account: register → bind store → switch mode → credit checkout (02 APP-P0-05 / APP-P1-04)
+        try:
+            page.goto(f"{BASE}/login", wait_until="domcontentloaded")
+            page.get_by_test_id("login-phone").fill("9876500099")
+            page.get_by_test_id("send-otp").click()
+            page.get_by_test_id("login-otp").wait_for()
+            page.get_by_test_id("login-otp").fill("123456")
+            page.get_by_test_id("verify-otp").click()
+            page.wait_for_url("**/register**", timeout=15000)
+            # Personal type (default): no store required → submit enabled once form valid
+            page.get_by_test_id("register-password").fill("Ent@Dobra9")
+            page.get_by_test_id("register-confirm").fill("Ent@Dobra9")
+            page.get_by_test_id("register-agree").click()
+            expect(page.get_by_test_id("complete-registration")).to_be_enabled()
+            # Switch to enterprise → store becomes required → button disables
+            page.get_by_test_id("register-type-enterprise").click()
+            expect(page.get_by_test_id("complete-registration")).to_be_disabled()
+            page.get_by_test_id("register-store-search").fill("Andheri")
+            page.get_by_test_id("register-store-hit-st-mum-1").wait_for(timeout=8000)
+            page.get_by_test_id("register-store-hit-st-mum-1").click()
+            expect(page.get_by_test_id("register-store-selected")).to_contain_text("MobileXchange Andheri")
+            expect(page.get_by_test_id("register-store-selected")).to_contain_text("27AABCM1234F1Z5")
+            expect(page.get_by_test_id("complete-registration")).to_be_enabled()
+            page.get_by_test_id("complete-registration").click()
+            page.wait_for_url("**/home**", timeout=15000)
+            print("PASS enterprise registration (store binding)")
+
+            # Profile shows enterprise badge + switch entry; personal accounts have none (u-1 covered by earlier suites implicitly)
+            page.goto(f"{BASE}/account", wait_until="domcontentloaded")
+            expect(page.get_by_test_id("enterprise-account-badge")).to_be_visible(timeout=8000)
+            expect(page.get_by_test_id("enterprise-account-badge")).to_contain_text("ST-MH-0001")
+
+            # Enterprise mode → cart one device → credit pay (sufficient line st-mum-1)
+            page.get_by_test_id("mode-enterprise").click()
+            page.wait_for_url("**/buy/enterprise**", timeout=10000)
+            page.get_by_test_id(re.compile(r"^enterprise-select-\d+$")).first.click()
+            page.get_by_test_id("enterprise-add-selected").click()
+            page.get_by_test_id("enterprise-cart-link").click()
+            expect(page.get_by_test_id("credit-line-card")).to_be_visible(timeout=8000)
+            expect(page.get_by_test_id("credit-available")).to_contain_text("3,80,000")
+            page.get_by_test_id("pay-credit").click()
+            page.get_by_test_id("enterprise-place-order").click()
+            page.wait_for_url("**/account/orders**", timeout=15000)
+            expect(page.get_by_test_id("order-list-toast")).to_contain_text("pending settlement")
+            print("PASS enterprise credit checkout")
+        except Exception as e:
+            failures.append(f"enterprise: {e}")
+            print(f"FAIL enterprise: {e}")
+            page.screenshot(path="e2e-fail-enterprise.png", full_page=True)
+
+        # Insufficient credit: u-10 bound to st-del-1 (available ₹20,000) → credit disabled + shortfall
+        try:
+            page.goto(f"{BASE}/login", wait_until="domcontentloaded")
+            # logout via local state clear is unreliable; use fresh context state reset through storage
+            page.evaluate("localStorage.clear()")
+            page.goto(f"{BASE}/login", wait_until="domcontentloaded")
+            page.get_by_test_id("login-phone").fill("9876543212")
+            page.get_by_test_id("send-otp").click()
+            page.get_by_test_id("login-otp").wait_for()
+            page.get_by_test_id("login-otp").fill("123456")
+            page.get_by_test_id("verify-otp").click()
+            page.wait_for_url("**/home**", timeout=15000)
+            page.goto(f"{BASE}/account", wait_until="domcontentloaded")
+            page.get_by_test_id("mode-enterprise").click()
+            page.wait_for_url("**/buy/enterprise**", timeout=10000)
+            page.get_by_test_id(re.compile(r"^enterprise-select-\d+$")).first.click()
+            page.get_by_test_id("enterprise-add-selected").click()
+            page.get_by_test_id("enterprise-cart-link").click()
+            expect(page.get_by_test_id("credit-line-card")).to_be_visible(timeout=8000)
+            expect(page.get_by_test_id("pay-credit")).to_be_disabled()
+            expect(page.get_by_test_id("pay-credit-shortfall")).to_contain_text("short ₹")
+            expect(page.get_by_test_id("pay-razorpay")).to_be_enabled()
+            print("PASS insufficient credit gate (shortfall + razorpay fallback)")
+        except Exception as e:
+            failures.append(f"insufficient credit: {e}")
+            print(f"FAIL insufficient credit: {e}")
+            page.screenshot(path="e2e-fail-insufficient.png", full_page=True)
 
         browser.close()
 

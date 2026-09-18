@@ -29,6 +29,7 @@ import Dashboard from './pages/admin/Dashboard';
 import OrgMgmt from './pages/admin/OrgMgmt';
 import RoleMgmt from './pages/admin/RoleMgmt';
 import AccountMgmt from './pages/admin/AccountMgmt';
+import CreditMgmt from './pages/admin/CreditMgmt';
 import ConfigCenter from './pages/admin/ConfigCenter';
 import CategoryMgmt from './pages/admin/CategoryMgmt';
 import SpecEdit from './pages/admin/SpecEdit';
@@ -341,6 +342,7 @@ function AppRoutes() {
           <Route path="orgs" element={<OrgMgmt />} />
           <Route path="roles" element={<RoleMgmt />} />
           <Route path="accounts" element={<AccountMgmt />} />
+          <Route path="credit" element={<CreditMgmt />} />
           <Route path="orders/recycle" element={<RecycleOrderList />} />
           <Route path="orders/recycle/:id" element={<RecycleOrderDetail />} />
           <Route path="orders/mall" element={<MallOrderList />} />

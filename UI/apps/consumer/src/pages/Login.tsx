@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Input, Button, Card, Modal, Tabs } from '@dobara/ui';
 import { setUser } from '../App';
 import { isValidIndiaPhone, OTP_COOLDOWN_SECONDS } from '@dobara/utils';
+import type { IEntBinding } from '@dobara/utils';
 import { isKnownUser, LegalDoc } from './Register';
 
 const DEMO_OTP = '123456';
@@ -63,8 +64,8 @@ export function Login() {
     setLoading(false);
   };
 
-  const finishLogin = (name: string) => {
-    setUser(normalizedPhone, name);
+  const finishLogin = (name: string, entBinding?: IEntBinding) => {
+    setUser(normalizedPhone, name, entBinding);
     navigate('/home', { replace: true });
   };
 
@@ -83,7 +84,8 @@ export function Login() {
         navigate(`/register?phone=${normalizedPhone}`);
         return;
       }
-      finishLogin(data.userId || 'Demo User');
+      // 企业身份随登录返回（06 §2.12.2：绑定存在即 ROLE-ENT，无二次登录）
+      finishLogin(data.userId || 'Demo User', data.entBinding || undefined);
       return;
     }
     if (otp === DEMO_OTP) {

@@ -4,6 +4,7 @@ import { Card, Button, GradeBadge, Badge, SkeletonCard, EmptyState } from '@doba
 import { Building2, ShoppingCart } from 'lucide-react';
 import type { IDevice, IBrand, IModel } from '@dobara/utils';
 import { imeiLast4 } from '@dobara/utils';
+import { getUser } from '../App';
 import {
   addDevicesToEnterpriseCart,
   enterpriseCartCount,
@@ -52,8 +53,14 @@ export function EnterpriseHome() {
   const [toast, setToast] = useState('');
 
   useEffect(() => {
+    // 企业模式门控（06 §2.12.2）：仅注册时绑定门店的企业账号可进入，直达 URL 拦回普通商城
+    const u = getUser();
+    if (!u?.entBinding || u.entBinding.status !== 'active') {
+      navigate('/buy', { replace: true });
+      return;
+    }
     if (!isEnterpriseMode()) setEnterpriseMode(true);
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     const sync = () => setCartCount(enterpriseCartCount());

@@ -25,6 +25,7 @@ import {
   SlidersHorizontal,
   PackageSearch,
   Printer,
+  IndianRupee,
 } from 'lucide-react';
 import { Modal, Button } from '@dobara/ui';
 import { useAuth } from '../lib/AuthContext';
@@ -42,6 +43,7 @@ export const adminNav: NavItem[] = [
   { label: 'Org Mgmt', path: '/admin/orgs', icon: <Building2 size={18} /> },
   { label: 'Role Mgmt', path: '/admin/roles', icon: <Users size={18} /> },
   { label: 'Account Mgmt', path: '/admin/accounts', icon: <UserRound size={18} /> },
+  { label: 'Credit Lines', path: '/admin/credit', icon: <IndianRupee size={18} /> },
   { label: 'Recycle Orders', path: '/admin/orders/recycle', icon: <Recycle size={18} /> },
   { label: 'Mall Orders', path: '/admin/orders/mall', icon: <ShoppingBag size={18} /> },
   { label: 'Config Center', path: '/admin/config', icon: <SlidersHorizontal size={18} /> },

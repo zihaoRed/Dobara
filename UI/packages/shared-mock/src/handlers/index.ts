@@ -11,6 +11,10 @@ import {
   users,
   appointments,
   todayLocal,
+  entBindings,
+  creditLines,
+  findUserByPhone,
+  persistEntUser,
   orderStore,
   recycleOrderStore,
   addressStore,
@@ -530,10 +534,100 @@ export const handlers = [
     await simulateDelay();
     const body = await request.json() as { phone: string; otp: string };
     if (body.otp === '123456') {
-      const user = users.find((u) => normalizePhone(u.phone) === normalizePhone(body.phone));
-      return HttpResponse.json({ success: true, userId: user?.id || `u-new-${Date.now()}`, isNew: !user });
+      const user = findUserByPhone(body.phone);
+      return HttpResponse.json({
+        success: true,
+        userId: user?.id || `u-new-${Date.now()}`,
+        isNew: !user,
+        // 企业身份随登录返回（06 §2.12.2：绑定存在即 ROLE-ENT，无二次登录）
+        entBinding: user?.entBinding ?? null,
+      });
     }
     return HttpResponse.json({ error: 'Invalid OTP' }, { status: 400 });
+  }),
+
+  // ---- Enterprise account: registration-time store binding (06 §2.12.2) ----
+
+  // 预导入门店档案搜索（C 端企业注册选店；05 SA-P0-01 预导入的数据源）
+  http.get('/api/ent/stores', async ({ request }) => {
+    await simulateDelay();
+    const q = (new URL(request.url).searchParams.get('q') || '').trim().toLowerCase();
+    const list = stores
+      .filter((s) => !q || s.name.toLowerCase().includes(q) || (s.code || '').toLowerCase().includes(q))
+      .map((s) => ({ id: s.id, code: s.code, name: s.name, city: s.city, enterpriseName: s.enterpriseName, gstin: s.gstin }));
+    return HttpResponse.json({ stores: list });
+  }),
+
+  // 企业账号注册（02 PRD APP-P0-05）：手机号+OTP 已验，此处补门店绑定
+  http.post('/api/auth/ent-register', async ({ request }) => {
+    await simulateDelay();
+    const body = await request.json() as { phone: string; name?: string; storeId: string; billingContact?: string };
+    const store = stores.find((s) => s.id === body.storeId);
+    if (!store) return HttpResponse.json({ error: 'Store not found (not pre-imported?)' }, { status: 404 });
+    const phone = body.phone.startsWith('+91') ? body.phone : `+91${body.phone.replace(/\D/g, '')}`;
+    let user = findUserByPhone(phone);
+    const binding = {
+      storeId: store.id,
+      storeCode: store.code || store.id,
+      storeName: store.name,
+      enterpriseName: store.enterpriseName,
+      gstin: store.gstin,
+      billingContact: body.billingContact || undefined,
+      source: 'registration' as const,
+      status: 'active' as const,
+      boundAt: new Date().toISOString(),
+    };
+    if (user) {
+      user.entBinding = binding; // 一用户一店：重复注册覆盖
+    } else {
+      user = { id: `u-${Date.now()}`, phone, name: body.name || 'Enterprise User', role: 'consumer', entBinding: binding };
+      users.push(user);
+    }
+    // 持久化注册用户（MSW 内存态整页刷新即重置；跨刷新可用）
+    persistEntUser(user);
+    entBindings.unshift({ id: `eb-${Date.now()}`, userId: user.id, phone: user.phone, userName: user.name, ...binding });
+    return HttpResponse.json({ user });
+  }),
+
+  // 门店自查额度（06 API-37b；demo 以 query phone 代替 JWT 的 ent_store_id）
+  http.get('/api/credit/my', async ({ request }) => {
+    await simulateDelay();
+    const phone = normalizePhone(new URL(request.url).searchParams.get('phone') || '');
+    const user = findUserByPhone(phone);
+    if (!user?.entBinding || user.entBinding.status !== 'active') {
+      return HttpResponse.json({ error: 'No active store binding' }, { status: 403 });
+    }
+    const line = creditLines.find((c) => c.storeId === user.entBinding!.storeId);
+    if (!line || line.status === 'closed') {
+      return HttpResponse.json({ error: 'Credit line not open', code: 'CREDIT_CLOSED' }, { status: 403 });
+    }
+    return HttpResponse.json({
+      storeId: line.storeId,
+      storeName: line.storeName,
+      totalInr: line.totalInr,
+      usedInr: line.usedInr,
+      frozenInr: line.frozenInr,
+      availableInr: line.totalInr - line.usedInr - line.frozenInr,
+      settlementCycleDays: line.settlementCycleDays,
+      status: line.status,
+    });
+  }),
+
+  // 绑定管理列表（05 SA-P0-02；management 消费）
+  http.get('/api/ent/bindings', async () => {
+    await simulateDelay();
+    return HttpResponse.json({ bindings: entBindings });
+  }),
+
+  http.put('/api/ent/bindings/:id', async ({ params, request }) => {
+    await simulateDelay();
+    const body = await request.json() as { status: 'active' | 'disabled' };
+    const row = entBindings.find((b) => b.id === String(params.id));
+    if (!row) return HttpResponse.json({ error: 'Binding not found' }, { status: 404 });
+    row.status = body.status;
+    const user = users.find((u) => u.id === row.userId);
+    if (user?.entBinding) user.entBinding.status = body.status;
+    return HttpResponse.json({ binding: row });
   }),
 
   // Appointments — TAB-P1-02 auto-load by phone (latest first)
@@ -953,6 +1047,8 @@ export const handlers = [
       pincode?: string;
       isEnterprise?: boolean;
       isCredit?: boolean;
+      /** demo：企业授信单需定位绑定门店（正式环境走 JWT ent_store_id） */
+      phone?: string;
     };
     const device = getDeviceById(body.deviceImei);
     if (!device) return HttpResponse.json({ error: 'Device not found' }, { status: 404 });
@@ -977,6 +1073,34 @@ export const handlers = [
     const isEnterprise = !!body.isEnterprise;
     const isCredit = !!body.isCredit && isEnterprise;
 
+    // 授信支付前置校验（06 CLOUD-P1-06 CR-02/CR-03，台账三段式之一·冻结）
+    let creditLine: (typeof creditLines)[number] | undefined;
+    if (isCredit) {
+      const buyer = findUserByPhone(body.phone || '');
+      const binding = buyer?.entBinding;
+      if (!binding || binding.status !== 'active') {
+        return HttpResponse.json({ error: 'No active store binding', code: 'NO_BINDING' }, { status: 403 });
+      }
+      creditLine = creditLines.find((c) => c.storeId === binding.storeId);
+      if (!creditLine || creditLine.status !== 'active') {
+        return HttpResponse.json({ error: 'Credit line not open', code: 'CREDIT_CLOSED' }, { status: 403 });
+      }
+      const totals = calcOrderTotal(device.price, body.deliveryMethod || 'standard');
+      const available = creditLine.totalInr - creditLine.usedInr - creditLine.frozenInr;
+      if (available < totals.total) {
+        return HttpResponse.json(
+          {
+            error: 'Insufficient credit',
+            code: 'CREDIT_INSUFFICIENT',
+            availableInr: available,
+            orderAmountInr: totals.total,
+            shortfallInr: totals.total - available,
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     // Lock on submit (credit enterprise skips payment lock timer pressure in demo)
     device.status = isCredit ? 'sold' : 'locked';
     const expiresAt = new Date(Date.now() + LOCK_DURATION_SECONDS * 1000).toISOString();
@@ -998,6 +1122,7 @@ export const handlers = [
     const delivery = body.deliveryMethod || 'standard';
     const totals = calcOrderTotal(device.price, delivery);
     const orderId = `ORD-${Date.now().toString().slice(-8)}`;
+    if (isCredit && creditLine) creditLine.frozenInr += totals.total; // 冻结（发货转已用、结算释放由后续流程驱动）
     const order: IOrder = {
       id: orderId,
       userId: 'u-1',
@@ -1009,6 +1134,7 @@ export const handlers = [
       createdAt: new Date().toISOString(),
       expiresAt: isCredit ? undefined : expiresAt,
       paymentMethod: body.paymentMethod || (isCredit ? 'credit' : 'upi'),
+      settlementStatus: isCredit ? 'pending_settlement' : undefined,
       brand: getBrandById(device.brandId)?.name,
       model: getModelById(device.modelId)?.name,
       grade: device.grade,

@@ -302,6 +302,9 @@ export function OrderList() {
                     <p className="text-caption text-text-muted">
                       {order.id} · {new Date(order.createdAt).toLocaleDateString('en-IN')}
                       {order.isEnterprise ? ' · Enterprise' : ''}
+                      {order.isCredit && order.settlementStatus === 'pending_settlement' ? ' · Pending settlement' : ''}
+                      {order.isCredit && order.settlementStatus === 'settled' ? ' · Settled' : ''}
+                      {order.isCredit && order.settlementStatus === 'overdue' ? ' · Overdue' : ''}
                     </p>
                   </div>
                   <StatusBadge status={buyBadge(order.status)} customLabel={statusLabel(order.status)} />
