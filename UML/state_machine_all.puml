@@ -288,10 +288,10 @@ state Overdue : 逾期未结算\nOverdue
 state Frozen : 额度冻结\nFrozen
 state Settled : 已结算释放\nSettled
 
-Active --> Deducted : 门店授信支付下单\n可用额度−订单金额
+Active --> Deducted : 门店授信支付下单\n冻结额度+订单金额(发货转已用)\n可用额度−订单金额
 
-Deducted --> Active : DB发起结算→门店付款\n→DB确认收款→释放额度
-Deducted --> Overdue : 超过结算周期未付款\n(T+7/T+15)
+Deducted --> Active : DB发起结算→门店付款\n→DB确认收款→释放额度\n(台账三段式,06 §3.5.3)
+Deducted --> Overdue : 超过结算周期未付款\n(按店settlement_cycle_days,默认15天)
 
 Overdue --> Frozen : 管理员/DB手动冻结
 

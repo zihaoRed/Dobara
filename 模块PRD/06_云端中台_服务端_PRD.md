@@ -1,5 +1,5 @@
 # 云端中台 - 服务端 PRD
-**文档版本：** v1.14 | **更新日期：** 2026-09-17
+**文档版本：** v1.15 | **更新日期：** 2026-09-18
 **模块编号：** CLOUD | **平台：** 服务端 API
 **使用角色：** 管理员、系统、后端开发、QA、架构师
 **文档说明：** Dobara平台核心业务逻辑中枢，负责定价计算、核销确认、库存管理、支付集成、订单路由、国际化等全链路服务端业务处理。所有前端客户端均通过本模块的 RESTful API 进行数据交互。每条功能编号格式为 `CLOUD-Px-xx`。
@@ -8,6 +8,7 @@
 
 | 日期 | 版本 | 更新内容 | 更新人 |
 |------|------|----------|--------|
+| 2026-09-18 | v1.15 | **企业账号 + B2B 授信闭环修补**（全链路审计发现断链集中在"企业账号的出生"与"授信的入口"两个接缝）：①**§2.12 新增「企业账号（ROLE-ENT）：手机号注册 + 门店绑定」**——企业账号此前三方矛盾（02 说管理员创建 / 05 说管理端不管 / 06 创建 API 无 ENT 分支）。定为**单一账号体系**：所有用户手机号+OTP 注册，注册时可选"企业账号"（必填门店——名称/编号搜索，自动关联管理员**预导入**的门店档案企业信息）；绑定记录 `user_ent_binding`（一用户一店、一店多用户共享门店授信池），无二次登录；ROLE-ENT 绑定实体由"无"改为"门店（经 user_ent_binding 关联）"，打通 credit_line.store_id / buyer_store_id 挂账链路；删除 §2.12 登录示例中 owner 权限的 `b2b_purchase` 旧架构残留；②**CLOUD-P1-06 台账数学修正（三段式）**——原支付时只 `frozen+=` 而结算时 `used-=` 且 `frozen-=`（used 从未增加即被扣减，会出负数/双重释放），统一为：支付成功冻结、**发货时转已用**（进待结算池）、结算确认释放；可用额度 = 总额−已用−冻结；③credit_line 补 `settlement_cycle_days`（结算周期按店配置，替代"与门店约定"的模糊口径）；④**新增 CR-08 授信单取消/退款回补**（未发货取消回补冻结、待结算退款移出结算池回补已用、已结算退款走额度贷记；授信单退款不走 Razorpay 原路退回）；⑤新增 `GET /api/v1/credit/my`（企业账号自查绑定门店额度，C 端结算页消费）；Razorpay 补付最小定义（Payment Link 流程）；⑥验收标准补 3 条。涉及：02C端PRD v2.21（APP-P0-05 注册类型分支 + APP-P1-04 消费端规则补齐）、05内部业务应用PRD v3.12（SA-P0-06 授信配置 + SA-P0-02 绑定管理，**部分修订 v3.8 决策**）；需求池同步 | 何子豪 |
 | 2026-09-17 | v1.14 | **新增「预约阶段准入自检」口径**（C 端 APP-P1-01 配套）：准入检查原先只在到店质检时执行，用户在预约阶段完全不知情，导致填完一屏、选好时段、跑到门店才被告知拒收。本次明确：①§3.3.2.0 新增「预约阶段自检 vs 到店准入判定」及对照表——自检为用户自报的**软前置**，用于提前引导，**不替代**到店准入；②**「准入拒绝不可逆转」口径仅适用于到店判定**，自检命中不落 `admission_check` 表、不产生不可逆记录，用户改正答案后可重新预约；③**ADM-01（IMEI 黑名单）不进入预约自检**——预约表单按设计不采集 IMEI，该项仅能在到店读取 IMEI 后判定；④自报"通过"而到店检出"命中"时以到店结果为准，并在质检记录标注自报不符（供风控分析）；⑤§3.1.1 预约数据模型 `device_info.usage_condition` 拆为 `power_on` / `account_signout` 两字段（原单字段同时承载"能否开机"与"能否退账号"两件事），新增 `admission_selfcheck` 对象记录 7 项自报结果与命中项，并补 `functional_issues` 缺失的 `vibration_motor`；⑥§3.1.2.1 扩写"准入拒收项不在本表"规则。涉及：02C端PRD v2.20（预约页新增「回收前置条件自检」区块与硬拦截）、01质检工具PRD v1.17（平板展示自报自检结果并高亮命中项）、05内部业务应用PRD v3.11（配置组 B8 准入自检选项）；UI：consumer 预约页自检区块 + 硬拦截、store-tablet 预约卡展示、shared-mock 字段同步 | 何子豪 |
 | 2026-09-17 | v1.13 | **同故障重复扣款修复**：同一物理故障可被多套编码重复计扣。①**删结构性重复码 3 组**——CO-BDY-07/08（B4 按键松动，与 P3/P4 专项 PRT-05~08 及 FNC-03 三层同义）、CO-FNC-03（"音量键/电源键任一不可用"与 CO-PRT-06/08 逐字同义）、CO-FNC-09（"接口内部绿/白氧化物"与 CO-PRT-04 逐字同义，其"明显档触发进水评估"动作迁至 CO-PRT-04）；②**补缺口码 4 个**——CO-BDY-13/14（B7 边框划痕，判定对齐 RC1 后盖划痕；原"边框划痕"无专项码，C 端预估被迫借用 CO-BDY-01 掉漆码）、CO-PRT-11/12（P6 其他按键：静音拨键/Action 键等，B4 删除后该类按键无码可勾）；点检项 26→27、点检类编码 55→57（BDY 减 2 增 2、PRT 增 2）、功能缺陷编码 9→7（删 FNC-03/09），**两类编码合计 64 保持不变**；③**新增 §3.3.2.1.5 同故障归并计扣规则**——触控组（HW-TCH-01/CO-DSP-11）自动优先且 D6 联动锁定、充电口组（CO-PRT-01/02/CO-FNC-02）与扬声器组（CO-PRT-09/10/CO-FNC-05）同单取最高一码；④§3.3.2.2 成色判定编码区间同步（新增 B7 的 B/C 级容忍档）、§3.1.2.1 映射表改码（机身·轻微划痕→CO-BDY-13、明显磕碰划痕→CO-BDY-04/14 取上限、按键失灵→CO-PRT-06/08 取上限）并修正示例算术；⑤CO-DSP-12/GLS-09/GLS-11/BCK-08 四码语义明确为"触发拒收"（此前管理端误标为降档 fuseDrop）。废弃码编号不复用，历史单据按 0 金额读取并标注"已废弃" | 何子豪 |
 | 2026-09-15 | v1.12 | **外观/功能扣款编码细化为"档位级编码"**（方案 A）：原 20 个编码与质检端点检项（26 项 / 55 个非零档位）粒度不匹配，平均 2.6 个档位挤一个编码，导致"预估 = 编码金额×系数"无法成立、质检端点检金额只能前端写死。本次按 5 个点检维度重排编码，**每个有独立金额的档位一个编码**（55 个）：屏幕显示 CO-DSP-01~12 / 屏幕玻璃 CO-GLS-01~11 / 机身边框 CO-BDY-01~12 / 后盖与机身 CO-BCK-01~10 / 接口与按键 CO-PRT-01~10；原 CO-SCR-01~06（划痕/碎裂/显示混编）与旧 CO-BDY-01~04 已废弃，语义按维度拆分。§3.3.2.2 成色判定规则、§3.1.2.1 映射表（C 端粗档→细档取保守档）、01 PRD 26 项点检表扣款代码列同步；质检端 appearanceItems 每档改为引用 deductionCode，管理端 deductionCatalog/ConfigCenter 重建（55 个金额参数） | 何子豪 |
@@ -1797,7 +1798,7 @@ H5 页面处于 "report_ready" 状态
       "role": "owner",
       "store_id": "ST001",
       "store_name": "Mumbai Central",
-      "permissions": ["verification", "staff_mgmt", "revenue", "b2b_purchase"]
+      "permissions": ["verification", "staff_mgmt", "revenue"]
     },
     {
       "role": "warehouse",
@@ -1863,7 +1864,7 @@ Response: { "token": "new-jwt-token", "role": "warehouse", ... }
 | `ROLE-CLK` | 店员/质检员 | 平板质检工具 | 门店(store_id) |
 | `ROLE-WH` | 库管 | 内部业务应用（跨端） | 仓库(warehouse_id) |
 | `ROLE-DB` | 财务/结算 | 内部业务应用（跨端） | 无（跨门店） |
-| `ROLE-ENT` | 企业采购员 | C端App | 无 |
+| `ROLE-ENT` | 企业采购员 | C端App | 门店（store_id，注册时经 `user_ent_binding` 关联，见 §2.12.2） |
 
 **权限编码格式：** `{resource}:{action}`
 
@@ -1886,12 +1887,49 @@ Response: { "token": "new-jwt-token", "role": "warehouse", ... }
 | `order:refund` | 处理退款 |
 | `settlement:read` | 查看结算数据 |
 | `settlement:approve` | 审批授信结算 |
+| `credit:manage` | 授信额度配置与调整（05 PRD SA-P0-06） |
 | `report:read` | 查看报表 |
 | `report:export` | 导出报表 |
 | `device:admin` | 平板设备管理 |
 | `pricing:config` | 定价参数配置 |
 | `review:write` | 上架审核操作（直接上架/调整后上架） |
 | `review:read` | 查看审核历史/效率统计 |
+
+### 2.12.2 企业账号（ROLE-ENT）：手机号注册 + 门店绑定
+
+C 端采用**单一账号体系**：所有用户（个人/企业）均以手机号+OTP 注册登录（02 PRD APP-P0-05）。企业身份不是第二套账号，而是账号上的一个**可选门店绑定**——注册时选择"企业账号"并必填门店（搜索名称/编号，自动关联预导入的门店档案），绑定记录即 `user_ent_binding`，持有有效绑定的账号即 ROLE-ENT。
+
+**数据模型 `user_ent_binding`：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `binding_id` | UUID (PK) | 绑定 ID |
+| `user_id` | UUID (FK, **UNIQUE**) | 用户账号——一个账号同一时间只绑定一个门店 |
+| `store_id` | UUID (FK) | 绑定门店——**一个门店可绑定多个用户**（店老板/采购员各自手机号） |
+| `enterprise_name` | VARCHAR | 企业注册名（选门店时从门店档案带出，可空=档案未填） |
+| `gstin` | VARCHAR | GSTIN 税号（同上，从档案带出） |
+| `billing_contact` | VARCHAR | 账期联系人及电话（注册时可选补充） |
+| `source` | ENUM | `registration`（注册时绑定）/ `settings`（P1 设置页补绑） |
+| `status` | ENUM | `active` / `disabled`（SA 解绑/停用后企业模块入口消失） |
+| `created_at` | TIMESTAMP | 绑定时间 |
+
+**规则：**
+
+| 规则项 | 说明 |
+|--------|------|
+| 门店预导入前提 | 门店及其企业档案（注册名/GSTIN，05 PRD SA-P0-01）由管理员**预先导入**；C 端注册时搜索的即这份档案，未导入的门店不可选 |
+| 注册接口 | 企业注册复用手机号+OTP 流程，附加 `account_type=ent` + 门店选择（`POST /api/v1/auth/ent-register`）；选择门店后档案信息只读回显，用户补充账期联系人（可选） |
+| 无二次登录 | 企业身份随账号；JWT payload 在存在有效绑定时附加 `ent_store_id`/`ent_store_name`。个人中心"切换至企业采购"是**界面模式切换**，不产生第二个会话 |
+| 企业 API 鉴权 | B2B 下单（API-34/39）、`GET /api/v1/credit/my` 等企业接口校验 JWT 中 `ent_store_id` 存在；`buyer_store_id` 与授信校验门店即该绑定门店 |
+| 绑定数量 | 一用户一店（user_id UNIQUE）；一店多用户——同店所有绑定用户**共享该门店授信额度池**（额度挂门店不变） |
+| 解绑/停用 | 仅 SA 在内部应用操作（05 PRD SA-P0-02）；停用后该用户企业模块入口消失、企业 API 拒绝，已产生的 B2B 订单与待结算不受影响 |
+| 风控说明 | 绑定环节不做手机号与门店档案的一致性校验（体验优先）；授信风险由额度配置控制——**新导入门店默认未开通授信**（SA-P0-06 显式开通并设额度后才可授信支付），直接支付无授信风险 |
+
+**验收标准：**
+- [ ] 企业注册（手机号+OTP+选门店）成功创建 `user_ent_binding`；个人账号无绑定记录
+- [ ] 持有效绑定的账号 JWT 含 `ent_store_id`；无绑定/已停用绑定的账号调用企业 API 返回 403
+- [ ] 同店两个绑定账号下单均挂 `buyer_store_id`=该门店，共享同一授信池
+- [ ] SA 停用绑定后该账号企业模块入口消失，历史订单与待结算不受影响
 
 ### 2.12.3 账号注册与邀请 API
 
@@ -2857,9 +2895,10 @@ B2B 合并订单支付成功
 | `credit_id` | UUID (PK) | 授信记录 ID |
 | `store_id` | UUID (FK) | 门店 ID |
 | `total_credit_inr` | INTEGER | 授信总额度（INR），管理员配置 |
-| `used_credit_inr` | INTEGER | 已用额度：已通过授信支付但尚未结算的累计金额 |
-| `frozen_credit_inr` | INTEGER | 冻结额度：授信订单已确认但 DB 尚未结算的金额（在途资金） |
+| `used_credit_inr` | INTEGER | 已用额度：**已发货**且尚未结算的累计金额（支付后未发货的部分计冻结，发货时转入本字段——台账三段式，见 §3.5.3） |
+| `frozen_credit_inr` | INTEGER | 冻结额度：授信订单已支付但**尚未发货**的金额（在途占用） |
 | `available_credit_inr` | INTEGER (计算字段) | 可用额度 = total_credit - used_credit - frozen_credit |
+| `settlement_cycle_days` | INTEGER | 结算周期（天），按店配置，默认 15（CR-04） |
 | `status` | ENUM | active / frozen / closed |
 | `credit_limit_updated_by` | UUID | 额度修改人 |
 | `credit_limit_updated_at` | TIMESTAMP | 额度修改时间 |
@@ -2887,7 +2926,7 @@ B2B 确认批量下单 → 选择支付方式
         │             "suggestion": "请切换至直接支付或联系管理员提高授信额度"
         │           }
         │
-        ├── 扣减授信额度：
+        ├── 扣减授信额度（台账三段式之一·冻结）：
         │     → frozen_credit += 订单金额
         │     → available_credit = total_credit - used_credit - frozen_credit
         │
@@ -2912,11 +2951,17 @@ B2B 确认批量下单 → 选择支付方式
   │     → 门店完成付款
   │     → DB 点击"确认已收款"
   │
-  ├── 系统执行结算：
-  │     → used_credit -= 本次结算金额（若已结算金额 >= 订单金额，全部释放）
-  │     → frozen_credit -= 结算金额
+  ├── 系统执行结算（台账三段式之三·释放）：
+  │     → used_credit -= 本次结算金额（该金额在发货时已由 frozen 转入 used，见下方转已用规则）
   │     → order.settlement_status = "settled"
   │     → 记录结算日志
+  │
+  ├── 台账三段式之二·发货转已用（订单发货时执行，衔接冻结与结算两段）：
+  │     → frozen_credit -= 订单金额
+  │     → used_credit += 订单金额（订单进入 DB 待结算池）
+  │     → 不变式：任意时点 available_credit = total_credit - used_credit - frozen_credit，
+  │              且 used_credit 恒等于"已发货未结算授信订单"金额合计，
+  │              frozen_credit 恒等于"已支付未发货授信订单"金额合计
   │
   └── 逾期处理：
         → 超过结算周期（如 T+15）未付款
@@ -2926,17 +2971,24 @@ B2B 确认批量下单 → 选择支付方式
 
 ```
 
+**结算方式说明（v1.15）：**
+
+| 方式 | 流程 | 依据 |
+|------|------|------|
+| 银行转账 | DB 发起结算时向门店展示平台收款账户信息（账户配置来源：05 PRD 配置组 G `finance.platform_bank_accounts`）→ 门店线下转账 → 门店在通知中回填转账凭证号 → DB 核对后"确认已收款" | 银行转账/打款 API 未调研（见 方案/技术API调研清单），P0 走线下凭证核对 |
+| Razorpay 补付 | DB 发起结算并选择"Razorpay 补付" → 系统经 Razorpay **Payment Link** API 生成补付链接（金额=本次结算额）→ SMS/WhatsApp 发送门店 → 门店支付 → Razorpay `payment_link.paid` Webhook 回调 → 系统自动确认结算并记录 payment_ref | Payment Link 为 Razorpay 标准能力，无需门店侧集成 |
 ## 3.5.4 业务规则
 
 | 编号 | 规则项 | 说明 |
 |------|--------|------|
-| CR-01 | 额度配置 | 管理员按门店配置授信总额度，修改记录操作人和时间戳 |
+| CR-01 | 额度配置 | 管理员按门店配置授信总额度与结算周期（管理入口见 05 PRD SA-P0-06，权限 `credit:manage`），修改记录操作人和时间戳 |
 | CR-02 | 额度校验 | 每次授信支付前实时校验可用额度，不足时拒绝支付并展示具体差额 |
-| CR-03 | 冻结机制 | 授信订单确认后立即冻结对应金额（frozen_credit），防止超额使用 |
-| CR-04 | 结算周期 | DB 端根据与门店约定的结算周期发起结算（默认 T+15） |
+| CR-03 | 冻结机制 | 授信订单确认后立即冻结对应金额（frozen_credit），防止超额使用；**发货时由冻结转入已用**（used_credit，台账三段式，见 §3.5.3） |
+| CR-04 | 结算周期 | 按门店的 `credit_line.settlement_cycle_days`（默认 15 天）计算到期日，DB 端据此发起结算 |
 | CR-05 | 逾期冻结 | 超过结算周期未付款的授信订单，系统标记"逾期"并冻结该门店的授信额度 |
 | CR-06 | 额度调整 | 管理员调整授信总额度时，若新额度 < (used + frozen)，拒绝调整 |
 | CR-07 | P2 扩展 | 若订单金额超过可用额度，门店可部分授信+部分直接支付（P2 阶段实现） |
+| CR-08 | 授信单取消/退款回补 | 授信支付订单的取消与退款按所处阶段回补台账：①已支付**未发货**取消 → `frozen_credit −= 订单金额`（冻结回补，订单不进结算池）；②已发货（待结算）退款 → 移出 DB 待结算池 + `used_credit −= 金额`；③已结算后退款 → 不回补额度，生成**额度贷记单（credit_note）**增加可用额度，由 DB 操作并留审计。授信单退款**不走 Razorpay 原路退回**（平台未实际收款），联动 05 PRD SA-P0-04 退款规则 |
 
 ## 3.5.5 授信结算 API
 
@@ -2971,6 +3023,18 @@ Response: {
   "settled_orders": 2,
   "released_credit_inr": 120000
 }
+## 门店自查本店额度（C 端企业模式结算页消费，企业账号经 user_ent_binding 鉴权）
+GET /api/v1/credit/my
+Response: {
+  "store_id": "UUID",
+  "store_name": "Mumbai Store A",
+  "total_credit_inr": 500000,
+  "used_credit_inr": 120000,
+  "frozen_credit_inr": 30000,
+  "available_credit_inr": 350000,
+  "settlement_cycle_days": 15,
+  "status": "active"
+}
 
 ```
 **验收标准：**
@@ -2978,8 +3042,11 @@ Response: {
 - [ ] 门店 B2B 下单时可选择"直接支付"或"授信支付"
 - [ ] 授信支付时系统实时校验可用额度，不足时拒绝并展示差额 + 引导切换
 - [ ] 授信支付成功后订单立即确认，额度正确冻结
+- [ ] **台账三段式不变量成立**：支付冻结 → 发货转已用 → 结算释放；任意时点 used = 已发货未结算合计、frozen = 已支付未发货合计，两字段不为负
+- [ ] 企业账号可经 `GET /api/v1/credit/my` 查询绑定门店额度（C 端结算页展示）
+- [ ] **授信单取消/退款按 CR-08 回补台账**，已用/冻结不出现负数
 - [ ] DB 端可查看所有待结算授信订单，支持批量结算
-- [ ] 结算完成后已用额度和冻结额度自动释放
+- [ ] 结算完成后已用额度自动释放
 - [ ] 逾期未结算订单标记逾期，门店授信额度冻结
 - [ ] 调整授信总额度时校验新额度不低于已占用额度
 
@@ -3026,8 +3093,10 @@ Response: {
 | API-35 | B2B 批量释放锁 | DELETE | `/api/v1/orders/b2b/lock` | CLOUD-P1-03 |
 | API-36 | B2B 子订单查询 | GET | `/api/v1/orders/{order_id}/sub-orders` | CLOUD-P1-04 |
 | API-37 | 授信额度查询 | GET | `/api/v1/credit/{store_id}` | CLOUD-P1-06 |
-| API-38 | 授信额度调整 | PUT | `/api/v1/credit/{store_id}` | CLOUD-P1-06 |
+| API-37b | 门店自查额度 | GET | `/api/v1/credit/my` | CLOUD-P1-06（C 端企业账号，经 user_ent_binding） |
+| API-38 | 授信额度调整 | PUT | `/api/v1/credit/{store_id}` | CLOUD-P1-06（SA，`credit:manage`） |
 | API-39 | 授信支付 | POST | `/api/v1/orders/b2b/credit-payment` | CLOUD-P1-06 |
+| API-40b | 企业账号注册（手机号+OTP+门店绑定） | POST | `/api/v1/auth/ent-register` | CLOUD-P0-14 §2.12.2 |
 | API-40 | 待结算订单查询 | GET | `/api/v1/settlements/pending` | CLOUD-P1-06 |
 | API-41 | 确认结算 | POST | `/api/v1/settlements/confirm` | CLOUD-P1-06 |
 | API-42 | 签发检测 token | POST | `/api/v1/inspections/{session_id}/check-token` | CLOUD-P0-16 |
@@ -3083,6 +3152,7 @@ Response: {
 | `outbound_task` | 出库任务 | CLOUD-P0-07 |
 | `credit_line` | 授信额度 | CLOUD-P1-06 |
 | `credit_transaction` | 授信交易记录 | CLOUD-P1-06 |
+| `user_ent_binding` | 用户-门店绑定（ROLE-ENT） | CLOUD-P0-14 §2.12.2 |
 | `settlement` | 结算记录 | CLOUD-P1-06 |
 | `i18n_resource` | 语言资源元数据 | CLOUD-P0-09 |
 | `audit_log` | 合规审计日志 | CLOUD-P0-12 (审计) |

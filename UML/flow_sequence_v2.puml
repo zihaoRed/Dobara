@@ -293,8 +293,8 @@ alt 直接企业支付
 else 授信金额支付
     Central -> Central: (B5b) 校验门店授信额度\n可用额度 ≥ 订单金额？
     alt 额度充足
-        Central -> Central: (B6b) 扣减授信额度\n(已用额度 + 订单金额)\n标记订单为 [授信支付-待结算]
-        Central --> Client: 授信支付成功\n(展示：本次扣减金额 / 剩余额度)
+        Central -> Central: (B6b) 冻结授信额度\n(冻结额度 + 订单金额)\n标记订单为 [授信支付-待结算]\n(发货时冻结转已用，见 06 §3.5.3 台账三段式)
+        Central --> Client: 授信支付成功\n(展示：本次扣减金额 / 剩余可用额度)
     else 额度不足
         Central --> Client: 授信额度不足\n(可用额度 / 订单金额 / 差额)\n引导切换直接支付
         Client -> Central: 切换至直接支付
