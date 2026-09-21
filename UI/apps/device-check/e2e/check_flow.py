@@ -73,11 +73,7 @@ def run():
         page.get_by_test_id("dc-camera-shot").click()
         page.get_by_test_id("dc-camera-pass").click()
 
-        # 7. buttons — H5 records that an external hardware check is still required
-        page.get_by_test_id("dc-buttons-ok").wait_for(state="visible", timeout=15000)
-        page.get_by_test_id("dc-buttons-ok").click()
-
-        # local summary
+        # The seventh, physical-button item is confirmed on the inspection tablet.
         page.get_by_text("Check complete").wait_for()
         print("PASS device-check flow")
         browser.close()

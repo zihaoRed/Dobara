@@ -9,7 +9,8 @@ Guided hardware checks for a phone browser. The page exchanges the one-time dete
 pnpm --filter @dobara/device-check dev
 ```
 
-Open `/device-check/`. Use `?token=INSPECTION_ID` to provide a local inspection ID. The sensor simulation control is available only with `?demo=1`.
+Open the tablet-issued `/device-check/?token=DETECT_TOKEN` URL for a real inspection. Use
+`/device-check/?demo=1` for a standalone local UI check; demo results are not uploaded.
 
 When a token is present in the URL, the page opens the backend session automatically. During local
 development, Vite proxies `/api` to `http://test.dobaraindia.com`. Set `VITE_DOBARA_API_BASE_URL`
@@ -27,7 +28,8 @@ Camera, microphone and motion APIs require HTTPS on physical devices (`localhost
 - Desktop Chromium/Safari: screen, touch/mouse, audio and media devices; orientation is normally unsupported.
 - Embedded WebViews: support depends on the host app's permission forwarding and secure-context configuration.
 
-Power and volume buttons cannot be verified by a normal webpage. The final step is deliberately recorded as `external` until a tablet/native integration supplies the verdict.
+Power and volume buttons are not part of the H5 sequence. The clerk confirms the fixed button item
+on the inspection tablet, which submits the seventh result separately.
 
 ## E2E
 

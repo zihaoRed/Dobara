@@ -18,6 +18,13 @@ export type H5SessionState = {
   items: H5ItemState[];
 };
 
+export type H5DeviceFingerprint = {
+  userAgent: string;
+  deviceMemoryGb: number | null;
+  cpuCores: number | null;
+  screen: string;
+};
+
 type ApiEnvelope<T> = {
   code: string;
   message?: string;
@@ -70,10 +77,15 @@ async function request<T>(path: string, token: string, init: RequestInit = {}): 
   return payload.data;
 }
 
-export function openH5Session(token: string, idempotencyKey: string): Promise<H5SessionState> {
+export function openH5Session(
+  token: string,
+  idempotencyKey: string,
+  fingerprint: H5DeviceFingerprint,
+): Promise<H5SessionState> {
   return request('/api/h5-detect/v1/open', token, {
     method: 'POST',
     headers: headers(token, idempotencyKey),
+    body: JSON.stringify({ h5DeviceJson: JSON.stringify(fingerprint) }),
   });
 }
 
@@ -81,5 +93,19 @@ export function getH5SessionState(token: string): Promise<H5SessionState> {
   return request('/api/h5-detect/v1/state', token, {
     method: 'GET',
     headers: headers(token),
+  });
+}
+
+export function submitH5ItemResult(
+  token: string,
+  itemCode: string,
+  itemStatus: 2 | 3 | 4,
+  resultJson: string,
+  idempotencyKey: string,
+): Promise<H5ItemState> {
+  return request(`/api/h5-detect/v1/items/${encodeURIComponent(itemCode)}/result`, token, {
+    method: 'POST',
+    headers: headers(token, idempotencyKey),
+    body: JSON.stringify({ itemStatus, resultJson }),
   });
 }

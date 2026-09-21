@@ -2,13 +2,8 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import DeviceCheck from './DeviceCheck';
 
-/**
- * CLOUD-P0-16 relay — the check page reports results and polls for commands over /api.
- * In this demo the relay is mocked in-browser (same handlers as the tablet), so the phone
- * tab and the tablet tab share state through the demoBus on their common origin.
- * Standalone runs (no tablet, no relay) simply continue without it.
- */
 async function startMSW() {
+  if (new URLSearchParams(window.location.search).get('demo') !== '1') return;
   try {
     const { worker } = await import('@dobara/mock/browser');
     await Promise.race([
@@ -21,7 +16,7 @@ async function startMSW() {
       }),
       new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000)),
     ]);
-  } catch { /* relay unavailable — the page still runs its local checks */ }
+  } catch { /* Local demo remains usable without the mock worker. */ }
 }
 
 async function bootstrap() {
