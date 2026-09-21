@@ -12,7 +12,7 @@ import { CityPicker } from '../components/CityPicker';
 
 /** APP-P1-07 — App Settings: language, notifications, city, cache, about, legal, sign out. */
 
-type NotifKey = 'orders' | 'logistics' | 'promo' | 'aftersale' | 'system';
+type NotifKey = 'orders' | 'logistics' | 'promo' | 'aftersale' | 'recycle' | 'system';
 
 const NOTIF_KEY = 'dobara_notif_prefs';
 
@@ -21,11 +21,12 @@ const NOTIF_ITEMS: { key: NotifKey; label: string; desc: string; locked?: boolea
   { key: 'logistics', label: 'Logistics Updates', desc: 'Shipping milestones & delivery' },
   { key: 'promo', label: 'Promotions', desc: 'Deals, price drops & campaigns' },
   { key: 'aftersale', label: 'After-sales', desc: 'Refund, return & ticket progress' },
+  { key: 'recycle', label: 'Exchange Updates', desc: 'Inspection report & quote ready' },
   { key: 'system', label: 'System Notices', desc: 'Account security — always on', locked: true },
 ];
 
 const DEFAULT_PREFS: Record<NotifKey, boolean> = {
-  orders: true, logistics: true, promo: false, aftersale: true, system: true,
+  orders: true, logistics: true, promo: false, aftersale: true, recycle: true, system: true,
 };
 
 const APP_VERSION = 'v0.2';
