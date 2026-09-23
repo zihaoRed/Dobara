@@ -1,5 +1,5 @@
 # 云端中台 - 服务端 PRD
-**文档版本：** v1.16 | **更新日期：** 2026-09-18
+**文档版本：** v1.17 | **更新日期：** 2026-09-23
 **模块编号：** CLOUD | **平台：** 服务端 API
 **使用角色：** 管理员、系统、后端开发、QA、架构师
 **文档说明：** Dobara平台核心业务逻辑中枢，负责定价计算、核销确认、库存管理、支付集成、订单路由、国际化等全链路服务端业务处理。所有前端客户端均通过本模块的 RESTful API 进行数据交互。每条功能编号格式为 `CLOUD-Px-xx`。
@@ -8,6 +8,7 @@
 
 | 日期 | 版本 | 更新内容 | 更新人 |
 |------|------|----------|--------|
+| 2026-09-23 | v1.17 | **回收侧「门店→仓库」发货闭环补齐**：①CLOUD-P0-03 状态机新增「待入库 pending_inbound」状态（15→16 状态），核销后 `inspection_completed → pending_inbound → pending_review`，新增 SM-06 禁止核销直跳待上架申请；②CLOUD-P0-02 核销成功动作 `device.status → pending_inbound` 并新增第 5 步「自动生成回收发货单 + 推 DB」；③CLOUD-P0-04 新增 2.4.4 回收发货单数据模型 store_shipment（created/shipped/delivered/exception）+ Delhivery 运单生成与 webhook 物流轨迹回传（默认目标仓 = 门店绑定仓库，DB 可改选）。配套 05 PRD v3.13（DB-P0-04 回收发货调度）、需求池同步；UI：management DB 视图新增待发货列表/发货单详情/批量发货 | 何子豪 |
 | 2026-09-18 | v1.16 | §3.3.2.0「预约阶段自检」补 **walk-in 代采口径**：预约自检只覆盖填预约单的用户，未预约直接到店的用户此前无采集入口——现明确由店员在质检工具代采同一套 7 项自检（01 PRD TAB-P0-15 用户问询），**任一命中即锁定拒收路径**（到店以当场申报为准，严于预约侧的可改正重约）；问询结果随准入记录上传并标记 source（appointment_prefill / tablet_walk_in / tablet_corrected） | 何子豪 |
 | 2026-09-18 | v1.15 | **企业账号 + B2B 授信闭环修补**（全链路审计发现断链集中在"企业账号的出生"与"授信的入口"两个接缝）：①**§2.12 新增「企业账号（ROLE-ENT）：手机号注册 + 门店绑定」**——企业账号此前三方矛盾（02 说管理员创建 / 05 说管理端不管 / 06 创建 API 无 ENT 分支）。定为**单一账号体系**：所有用户手机号+OTP 注册，注册时可选"企业账号"（必填门店——名称/编号搜索，自动关联管理员**预导入**的门店档案企业信息）；绑定记录 `user_ent_binding`（一用户一店、一店多用户共享门店授信池），无二次登录；ROLE-ENT 绑定实体由"无"改为"门店（经 user_ent_binding 关联）"，打通 credit_line.store_id / buyer_store_id 挂账链路；删除 §2.12 登录示例中 owner 权限的 `b2b_purchase` 旧架构残留；②**CLOUD-P1-06 台账数学修正（三段式）**——原支付时只 `frozen+=` 而结算时 `used-=` 且 `frozen-=`（used 从未增加即被扣减，会出负数/双重释放），统一为：支付成功冻结、**发货时转已用**（进待结算池）、结算确认释放；可用额度 = 总额−已用−冻结；③credit_line 补 `settlement_cycle_days`（结算周期按店配置，替代"与门店约定"的模糊口径）；④**新增 CR-08 授信单取消/退款回补**（未发货取消回补冻结、待结算退款移出结算池回补已用、已结算退款走额度贷记；授信单退款不走 Razorpay 原路退回）；⑤新增 `GET /api/v1/credit/my`（企业账号自查绑定门店额度，C 端结算页消费）；Razorpay 补付最小定义（Payment Link 流程）；⑥验收标准补 3 条。涉及：02C端PRD v2.21（APP-P0-05 注册类型分支 + APP-P1-04 消费端规则补齐）、05内部业务应用PRD v3.12（SA-P0-06 授信配置 + SA-P0-02 绑定管理，**部分修订 v3.8 决策**）；需求池同步。**UI 同步**：mock 新增 /api/ent/stores、/api/auth/ent-register、/api/credit/my（额度校验 + CREDIT_INSUFFICIENT + frozen 冻结）、/api/ent/bindings、企业注册用户 localStorage 持久化；consumer Register 账号类型分支+门店搜索、Profile 企业标识+入口门控、EnterpriseCart 额度卡+不足拦截、OrderList/OrderDetail 结算状态徽标；management CreditMgmt（/admin/credit）、AccountMgmt 企业绑定区块、OrgMgmt 企业档案字段、MallOrderList 渠道筛选；shared-utils IEntBinding/ICreditLine 类型与 credit:manage 权限；e2e 新增企业注册→授信下单与额度不足两段 | 何子豪 |
 | 2026-09-17 | v1.14 | **新增「预约阶段准入自检」口径**（C 端 APP-P1-01 配套）：准入检查原先只在到店质检时执行，用户在预约阶段完全不知情，导致填完一屏、选好时段、跑到门店才被告知拒收。本次明确：①§3.3.2.0 新增「预约阶段自检 vs 到店准入判定」及对照表——自检为用户自报的**软前置**，用于提前引导，**不替代**到店准入；②**「准入拒绝不可逆转」口径仅适用于到店判定**，自检命中不落 `admission_check` 表、不产生不可逆记录，用户改正答案后可重新预约；③**ADM-01（IMEI 黑名单）不进入预约自检**——预约表单按设计不采集 IMEI，该项仅能在到店读取 IMEI 后判定；④自报"通过"而到店检出"命中"时以到店结果为准，并在质检记录标注自报不符（供风控分析）；⑤§3.1.1 预约数据模型 `device_info.usage_condition` 拆为 `power_on` / `account_signout` 两字段（原单字段同时承载"能否开机"与"能否退账号"两件事），新增 `admission_selfcheck` 对象记录 7 项自报结果与命中项，并补 `functional_issues` 缺失的 `vibration_motor`；⑥§3.1.2.1 扩写"准入拒收项不在本表"规则。涉及：02C端PRD v2.20（预约页新增「回收前置条件自检」区块与硬拦截）、01质检工具PRD v1.17（平板展示自报自检结果并高亮命中项）、05内部业务应用PRD v3.11（配置组 B8 准入自检选项）；UI：consumer 预约页自检区块 + 硬拦截、store-tablet 预约卡展示、shared-mock 字段同步 | 何子豪 |
@@ -774,9 +775,10 @@ if (invoice_provided) {
 | 序号 | 动作 | 说明 |
 |------|------|------|
 | 1 | 标记 verification.status = "confirmed" | 记录用户确认时间、新机信息（店老板扫码录入的） |
-| 2 | 更新旧机状态 | device.status → "回收完成"，进入后续物流入库流程 |
+| 2 | 更新旧机状态 | device.status → "pending_inbound"（待入库），进入 DB 发货与仓库入库流程 |
 | 3 | 生成换购凭证 (Trade-In Voucher) | 包含旧机信息 + 新机信息 + 抵扣金额 + 实付金额 + 店员 ID + 店老板 ID + 时间戳，用于门店对账和平台审计 |
 | 4 | 推送完成通知 | 用户 App/H5 展示"核销成功"；店老板 App 和店员平板同步收到完成通知；平板提示"旧机交给 DB" |
+| 5 | 生成回收发货单 | 自动创建 store_shipment（status=created，默认目标仓 = 门店绑定仓库），推送「待发货任务」通知至 DB（见 2.4.4 / 05 DB-P0-04） |
 
 ## 2.2.4 防欺诈规则
 
@@ -845,8 +847,13 @@ if (invoice_provided) {
                          │ 核销成功        │                 │ 用户拒绝报价
                          ▼                 │                 ▼
               ┌──────────────────┐         │    ┌──────────────────────┐
-              │   [待上架申请]    │         │    │  [已完成-拒收] (终态) │
+              │    [待入库]       │         │    │  [已完成-拒收] (终态) │
               └────────┬─────────┘         │    └──────────────────────┘
+                       │ 仓库扫码入库(WH-P0-01)
+                       ▼
+              ┌──────────────────┐
+              │   [待上架申请]    │
+              └────────┬─────────┘
                        │                   │
          ┌─────────────┼─────────────┐     │
          │ 审核通过    │             │     │
@@ -920,9 +927,10 @@ if (invoice_provided) {
 
 | 状态 | 英文标识 | 含义 | 可流转至 | 是否终态 |
 |------|----------|------|----------|----------|
-| 质检完成 | `inspection_completed` | 平板已上传质检数据，待用户决策 | `pending_review` / `rejected` | 否 |
+| 质检完成 | `inspection_completed` | 平板已上传质检数据，待用户决策 | `pending_inbound` / `rejected` | 否 |
 | 已完成-拒收 | `rejected` | 外观拒收或用户拒绝报价，会话终止 | — | 是 |
-| 待上架申请 | `pending_review` | 用户已接受+核销完成，待库管审核上架 | `available_for_sale` | 否 |
+| 待入库 | `pending_inbound` | 核销完成，旧机由门店经 DB 发往仓库途中 | `pending_review` | 否 |
+| 待上架申请 | `pending_review` | 仓库已入库，待库管审核上架 | `available_for_sale` | 否 |
 | 在库可售 | `available_for_sale` | 审核通过/调整后上架，可被购买 | `payment_in_progress` | 否 |
 | 付款中 | `payment_in_progress` | 用户已锁定，等待支付 | `available_for_sale` / `sold` | 否 |
 | 已售 | `sold` | 支付完成，待出库 | `shipped` | 否 |
@@ -945,6 +953,7 @@ if (invoice_provided) {
 | SM-03 | 互斥保证 | 同一设备不存在两个互斥状态，使用数据库行锁 + 乐观锁版本号保证 |
 | SM-04 | 变更日志 | 每次状态变更写入 `device_status_log` 表，包含：操作人、时间戳、变更前状态、变更后状态、触发事件 |
 | SM-05 | 配送中拒收退回 | `shipped` 可因"配送中拒收/物流退回"流转至 `return_in_transit`；库管重新质检（检查防拆标签完好）后重新上架为 `available_for_sale`；标签损坏/异常走争议处理 |
+| SM-06 | 回收入库必经 | 核销后设备必须先经 `pending_inbound`（待入库）再流转 `pending_review`，禁止 `inspection_completed → pending_review` 直跳（对齐 SM-01 禁止跨级跳跃） |
 **状态变更日志数据模型：**
 ```json
 {
@@ -961,7 +970,7 @@ if (invoice_provided) {
 
 ```
 **验收标准：**
-- [ ] 所有 15 个状态定义完整，互斥关系正确
+- [ ] 所有 16 个状态定义完整，互斥关系正确
 - [ ] 状态流转只能按图走，禁止跨级跳跃
 - [ ] 除"付款中→在库可售"外，其余状态不可逆向流转
 - [ ] 每次状态变更记录完整的操作人、时间戳、前后状态
@@ -1049,6 +1058,53 @@ CREATE INDEX idx_device_store ON device(store_id);
 - [ ] IMEI 在数据库中以 AES-256-GCM 加密存储，日志中脱敏
 - [ ] 复合查询（品牌+型号+成色+价格区间）响应时间 < 3 秒
 - [ ] 并发更新场景下乐观锁 (version) 正确阻止脏写
+
+## 2.4.4 回收发货单数据模型与 Delhivery 物流集成
+
+核销完成后（设备进入 `pending_inbound` 待入库），系统自动生成「回收发货单」`store_shipment`，由 DB 在内部业务应用选择目标仓库并发货（05 PRD DB-P0-04）。门店绑定仓库为默认目标仓，DB 可改选。发货时调用 Delhivery 创建运单，物流进度经 webhook 回传，仓库扫码入库（WH-P0-01）为送达的权威信号。
+
+**store_shipment 数据模型：**
+
+| 字段名 | 数据类型 | 说明 |
+|--------|----------|------|
+| `shipment_id` | UUID (PK) | 回收发货单 ID |
+| `store_id` | UUID | 回收门店 ID |
+| `warehouse_id` | UUID | 目标仓库 ID（默认 = 门店绑定仓库，DB 可改选） |
+| `status` | ENUM('created','shipped','delivered','exception') | 发货单状态 |
+| `device_ids` | UUID[] | 本单包含的设备（一单多机，门店成批发） |
+| `selected_by` | UUID | 操作 DB ID |
+| `warehouse_select_source` | ENUM('bound_store','manual') | 目标仓选择来源（绑定仓库 / 手动改选） |
+| `carrier` | VARCHAR(32) | 物流承运商，固定 "Delhivery" |
+| `tracking_no` | VARCHAR(64) | Delhivery 运单号（AWB） |
+| `tracking_url` | VARCHAR(512) | 物流轨迹页 URL |
+| `shipped_at` | TIMESTAMP | 发货时间 |
+| `delivered_at` | TIMESTAMP | 送达（仓库入库）时间 |
+| `created_at` | TIMESTAMP | 生成时间 |
+
+**状态流转：**
+
+| 状态 | 含义 | 触发 |
+|------|------|------|
+| `created` | 待发货 | 核销完成自动生成 |
+| `shipped` | 已发货 / 在途 | DB 调 Delhivery 生成运单并发货 |
+| `delivered` | 已送达 | 仓库扫码入库（WH-P0-01）成功 |
+| `exception` | 物流异常 | Delhivery webhook 退回/丢失事件 |
+
+**Delhivery 集成：**
+
+| 环节 | 说明 |
+|------|------|
+| 运单创建 | DB 发货时调 Delhivery 创建运单 API，回传 AWB 号 + 面单，写回 `tracking_no`/`tracking_url` |
+| 物流轨迹 | Delhivery 状态 webhook 推送（Manifested → In Transit → Out for Delivery → Delivered 等节点）写入轨迹时间线 |
+| 送达判定 | 以 WH-P0-01 扫码入库为权威 `delivered` 信号；webhook 的 Delivered 与扫码先到者置 `delivered`，幂等处理 |
+| 异常处理 | 退回/丢失等 webhook 事件 → 发货单 `exception` + 告警 DB/SA |
+
+**验收标准：**
+- [ ] 核销完成后自动生成 store_shipment（created），默认目标仓 = 门店绑定仓库
+- [ ] DB 发货后调 Delhivery 生成 AWB，发货单置 shipped，回写 tracking_no/tracking_url
+- [ ] Delhivery webhook 轨迹正确写入，DB 可查看物流进度
+- [ ] 仓库扫码入库后发货单置 delivered（幂等，与 webhook 先到者一致）
+- [ ] 物流退回/丢失事件将发货单置 exception 并告警
 
 ## 2.5 CLOUD-P0-05 5 分钟独占锁
 **优先级：** P0

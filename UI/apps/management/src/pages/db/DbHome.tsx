@@ -1,12 +1,14 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent } from '@dobara/ui';
-import { DollarSign, Clock, AlertTriangle, FileCheck, FileText, Percent, Search } from 'lucide-react';
+import { DollarSign, Clock, AlertTriangle, FileCheck, FileText, Percent, Search, Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { listCredits, settlementStats } from '../../lib/dbStore';
+import { shipmentStats } from '../../lib/shipmentStore';
 
 const DbHome: React.FC = () => {
   const navigate = useNavigate();
   const stats = useMemo(() => settlementStats(), []);
+  const ship = useMemo(() => shipmentStats(), []);
   const creditUsed = useMemo(
     () => listCredits().reduce((a, c) => a + c.creditUsed, 0),
     [],
@@ -37,13 +39,21 @@ const DbHome: React.FC = () => {
       bg: 'bg-primary-50',
       path: '/db/settlement',
     },
+    {
+      label: 'Awaiting dispatch',
+      value: String(ship.pendingCount),
+      sub: `${ship.inTransitCount} in transit`,
+      icon: <Truck size={20} className="text-dobara-info" />,
+      bg: 'bg-dobara-info-light',
+      path: '/db/dispatch',
+    },
   ];
 
   return (
     <div className="space-y-4" data-testid="db-home">
       <h2 className="text-h3 font-heading">Finance Overview</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
         {cards.map((stat) => (
           <Card key={stat.label} variant="hover" onClick={() => navigate(stat.path)}>
             <CardContent className="flex items-center gap-3">
@@ -93,6 +103,15 @@ const DbHome: React.FC = () => {
             </div>
             <p className="text-body font-semibold">Commission</p>
             <p className="text-caption text-text-muted">Monthly store payout</p>
+          </CardContent>
+        </Card>
+        <Card variant="hover" onClick={() => navigate('/db/dispatch')}>
+          <CardContent className="text-center space-y-2 py-4">
+            <div className="p-3 rounded-full bg-dobara-info-light w-fit mx-auto">
+              <Truck size={24} className="text-dobara-info" />
+            </div>
+            <p className="text-body font-semibold">Dispatch</p>
+            <p className="text-caption text-text-muted">Store → warehouse shipping</p>
           </CardContent>
         </Card>
       </div>

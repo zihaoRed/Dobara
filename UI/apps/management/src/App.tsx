@@ -74,6 +74,8 @@ import ReconciliationDetail from './pages/db/ReconciliationDetail';
 import VoucherReview from './pages/db/VoucherReview';
 import CommissionList from './pages/db/CommissionList';
 import CommissionDetail from './pages/db/CommissionDetail';
+import ShipmentList from './pages/db/ShipmentList';
+import ShipmentDetail from './pages/db/ShipmentDetail';
 
 function PublicOnly({ children }: { children: React.ReactNode }) {
   const { session } = useAuth();
@@ -395,6 +397,8 @@ function AppRoutes() {
           <Route path="voucher-review" element={<VoucherReview />} />
           <Route path="commission" element={<CommissionList />} />
           <Route path="commission/:commissionId" element={<CommissionDetail />} />
+          <Route path="dispatch" element={<ShipmentList />} />
+          <Route path="dispatch/:shipmentId" element={<ShipmentDetail />} />
         </Route>
       </Route>
 

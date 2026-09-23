@@ -26,6 +26,7 @@ import {
   PackageSearch,
   Printer,
   IndianRupee,
+  Truck,
 } from 'lucide-react';
 import { Modal, Button } from '@dobara/ui';
 import { useAuth } from '../lib/AuthContext';
@@ -72,6 +73,7 @@ export const whNav: NavItem[] = [
 
 export const dbNav: NavItem[] = [
   { label: 'Overview', path: '/db', icon: <Home size={18} /> },
+  { label: 'Dispatch', path: '/db/dispatch', icon: <Truck size={18} /> },
   { label: 'Settlements', path: '/db/settlement', icon: <FileCheck size={18} /> },
   { label: 'Reconciliation', path: '/db/reconciliation', icon: <FileText size={18} /> },
   { label: 'Voucher Review', path: '/db/voucher-review', icon: <Search size={18} /> },
