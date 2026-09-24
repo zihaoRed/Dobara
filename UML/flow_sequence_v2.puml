@@ -77,12 +77,8 @@ else OTP 验证失败\nOTP Failed
     Tablet --> Staff: 重新输入或重发 OTP\nRe-enter or resend OTP
 end
 
-' --- 质检环节（平板：先外观后硬件） ---
-Staff -> Tablet: (3) 操作平板：拍照 + 录视频\n(外观采集：边框/屏幕/后盖)
-activate Tablet
-Tablet -> Tablet: (4) 外观影像采集完成
-
-Staff -> Tablet: (5) 外观检查判断：设备是否可回收？
+' --- 质检环节（平板：先硬件后外观） ---
+Staff -> Tablet: (3) 外观检查判断：设备是否可回收？（拍照前）
 break 外观无法回收，店员拒收\nAppearance rejection: staff rejects device
     Staff -> Tablet: 点击"拒收该设备"\n拍摄损坏细节照片 (≥3 张)\n选择拒收原因
     Tablet -> Central: 上传拒收记录\n(照片 + 拒收原因 + 会话 ID)
@@ -95,16 +91,22 @@ break 外观无法回收，店员拒收\nAppearance rejection: staff rejects dev
     deactivate Staff
 end
 
-Staff -> Tablet: (6) 连数据线，启动硬件检测
-Tablet -> Tablet: (7) 全自动硬件审计\n(IMEI/电池健康度/屏幕触控/传感器等)
+Staff -> Tablet: (4) 到店准入检查\n(客观检测 + 用户问询)
+
+Staff -> Tablet: (5) 连数据线，启动硬件检测
+Tablet -> Tablet: (6) 全自动硬件审计\n(IMEI/电池健康度/屏幕触控/传感器等)
+
+Staff -> Tablet: (7) 操作平板：拍照 + 录视频\n(外观采集：边框/屏幕/后盖)
+activate Tablet
+Tablet -> Tablet: (8) 外观影像采集完成 + 外观AI检测
 
 ' --- 可选：录入发票信息 ---
 opt 用户提供了购买发票
-    Staff -> Tablet: (8) 拍摄发票照片\n录入发票金额 + 购买日期
+    Staff -> Tablet: (9) 拍摄发票照片\n录入发票金额 + 购买日期
     Tablet -> Tablet: 发票信息 (可选，不影响流程)
 end
 
-Tablet -> Central: (9) 综合上传：外观影像 + 硬件数据\n+ 发票信息 (如有)
+Tablet -> Central: (10) 综合上传：外观影像 + 硬件数据\n+ 发票信息 (如有)
 activate Central
 Central -> Central: 数据加密存储
 
@@ -112,10 +114,10 @@ Central -> Central: 数据加密存储
 Central -> Central: 定价引擎计算抵扣价\n基准价 = min(发票价格, 市场基准价)\n无发票则以市场基准价为准
 Central --> Tablet: 返回质检报告 + 抵扣报价
 deactivate Central
-Tablet --> Staff: (10) 质检完成，平板屏幕展示报告摘要
+Tablet --> Staff: (11) 质检完成，平板屏幕展示报告摘要
 deactivate Tablet
 
-Central -> Client: (11) 推送完整质检报告 + 抵扣报价\n(已装App用户推App + SMS H5 链接同步更新)
+Central -> Client: (12) 推送完整质检报告 + 抵扣报价\n(已装App用户推App + SMS H5 链接同步更新)
 activate Central
 deactivate Central
 note right of Client
@@ -125,13 +127,13 @@ note right of Client
 end note
 
 ' --- 当面沟通 + 用户自主接受 ---
-Staff -> Client: (12) 店员当面沟通解释报价\n("报告已发到您手机上，您看一下")
+Staff -> Client: (13) 店员当面沟通解释报价\n("报告已发到您手机上，您看一下")
 
 alt 用户接受报价
-    Client -> Central: (13) 用户在App/H5内点击"接受报价"
+    Client -> Central: (14) 用户在App/H5内点击"接受报价"
     activate Central
     Central -> Central: 记录用户确认
-    Central --> Owner: (14) 推送抵扣金额至店老板App\n(旧机抵扣价 + 会话信息)
+    Central --> Owner: (15) 推送抵扣金额至店老板App\n(旧机抵扣价 + 会话信息)
     deactivate Central
 
     note right of Owner
@@ -140,7 +142,7 @@ alt 用户接受报价
     end note
 
     ' --- 店老板录入新机售价 ---
-    Owner -> Central: (15) 店老板在App录入\n新机售价 + 消费者实付金额
+    Owner -> Central: (16) 店老板在App录入\n新机售价 + 消费者实付金额
     activate Central
     Central -> Central: 自动校验：\n新机售价 − 抵扣金额 = 实付金额？
     alt 金额校验通过
@@ -152,7 +154,7 @@ alt 用户接受报价
     deactivate Central
 
     ' --- 用户新手机登录App，自动识别新机并确认核销 ---
-    Client -> Central: (16) 用户在新手机上登录App
+    Client -> Central: (17) 用户在新手机上登录App
     activate Central
     Central -> Client: App自动读取新机信息\n(品牌/型号/IMEI)
     Client -> Central: 上报新机设备信息
@@ -167,7 +169,7 @@ alt 用户接受报价
       点击"确认核销"
     end note
 
-    Client -> Central: (17) 用户在App点击"确认核销"
+    Client -> Central: (18) 用户在App点击"确认核销"
     activate Central
     Central -> Central: 标记核销为 [已完成]\n记录旧机抵扣 + 新机信息 + 实付金额\n旧机回收完成
     Central --> Client: 核销成功
@@ -175,19 +177,19 @@ alt 用户接受报价
     deactivate Central
 
     ' --- DB将旧机发往仓库 ---
-    Staff -> DB: (18) 店员将旧机交给 DB
+    Staff -> DB: (19) 店员将旧机交给 DB
     activate DB
-    DB -> Warehouse: (19) DB 将旧机发往区域总/分仓库
+    DB -> Warehouse: (20) DB 将旧机发往区域总/分仓库
     deactivate DB
     activate Warehouse
-    Warehouse -> Central: (20) 入库确认 (复用质检环节的视频/图片)
+    Warehouse -> Central: (21) 入库确认 (复用质检环节的视频/图片)
     activate Central
     deactivate Central
 
     ' --- 库管判断是否需要翻新 ---
-    WHManager -> WHTablet: (21) 库管检查设备实物\n判断是否需要翻新
+    WHManager -> WHTablet: (22) 库管检查设备实物\n判断是否需要翻新
     alt 需要翻新
-        WHManager -> WHTablet: (22) 仓库质检平板重新质检\n(拍照/硬件检测/外观点检)
+        WHManager -> WHTablet: (23) 仓库质检平板重新质检\n(拍照/硬件检测/外观点检)
         activate WHTablet
         WHTablet -> Central: 上传更新后的质检数据
         activate Central
@@ -200,10 +202,10 @@ alt 用户接受报价
     end
 
     Central -> Central: 设备状态变更为 [待上架申请]
-    Central --> WHManager: (23) 推送待审核上架申请\n(本仓库审核队列)
+    Central --> WHManager: (24) 推送待审核上架申请\n(本仓库审核队列)
     activate WHManager
 
-    WHManager -> WHManager: (24) 库管审核影像资料\n(外观/功能/配件完整性)
+    WHManager -> WHManager: (25) 库管审核影像资料\n(外观/功能/配件完整性)
     alt 机况一致，直接上架
         WHManager -> Central: 审核通过，上传商品主图\n(从新机图片库选择或本地上传)
         activate Central
@@ -216,7 +218,7 @@ alt 用户接受报价
         activate Central
         Central -> Central: 重新计算回收价和商城售价\n(基于调整后的成色/扣款)\n设备状态 → [在库可售]\n主图 + 质检影像 → 自动上架至商城
         Central --> WHManager: 价格已调整，上架成功
-        Central --> Tablet: (25) 推送调整详情至平板\n(调整项 / 原价 / 调整后价格)
+        Central --> Tablet: (26) 推送调整详情至平板\n(调整项 / 原价 / 调整后价格)
         deactivate Central
     end
     deactivate WHManager
@@ -229,10 +231,10 @@ else 用户拒绝报价
 end
 
 == 正向销售流 - B2C ==
-Client -> Central: (26) 浏览商城 (优先推荐同城货源)
+Client -> Central: (27) 浏览商城 (优先推荐同城货源)
 activate Central
 deactivate Central
-Client -> Central: (27) 锁定唯一 IMEI 商品并下单
+Client -> Central: (28) 锁定唯一 IMEI 商品并下单
 activate Central
 Central -> Central: 开启5分钟独占锁 (状态: 付款中)
 Central -> Razorpay: 唤起 UPI Intent (Google Pay)
@@ -240,18 +242,18 @@ activate Razorpay
 Central --> Client: 跳转至支付界面
 deactivate Central
 
-Client -> Razorpay: (28) 输入密码完成付款
+Client -> Razorpay: (29) 输入密码完成付款
 Razorpay -> Razorpay: 扣款成功清算
-Razorpay --> Central: (29) 异步发送支付成功信号
+Razorpay --> Central: (30) 异步发送支付成功信号
 deactivate Razorpay
 activate Central
 
 Central -> Central: 智能路由引擎：反查库存\n精确定位所在区域总仓库
-Central -> Warehouse: (30) 向对应仓库下发出库通知
+Central -> Warehouse: (31) 向对应仓库下发出库通知
 activate Warehouse
 deactivate Central
 
-Warehouse -> Warehouse: (31) 从货架取机，扫码核销 IMEI
+Warehouse -> Warehouse: (32) 从货架取机，扫码核销 IMEI
 Warehouse -> Central: 打印快递面单并确认出库
 activate Central
 Central -> Central: 状态机变更为 [已发货]
