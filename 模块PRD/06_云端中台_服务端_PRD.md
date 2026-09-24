@@ -8,7 +8,7 @@
 
 | 日期 | 版本 | 更新内容 | 更新人 |
 |------|------|----------|--------|
-| 2026-09-24 | v1.18 | **CR-08 授信单取消/退款补金额口径**：原 CR-08 只写"回补金额/订单金额"，未明确是否扣除运费。明确为：①已支付未发货取消 → `frozen_credit` 全额回补（商品金额+配送费+税费）；②已发货（待结算）退款 → `used_credit` 回补 = 商品金额+税费−往返运费（与 02 PRD APP-P0-08 个人单配送中拒收同口径扣运费）；③已结算后退款 → 额度贷记单。配套 02 PRD v2.24（APP-P0-08 补授信退款分支）、需求池同步 | 何子豪 |
+| 2026-09-24 | v1.18 | **①CR-08 授信单取消/退款补金额口径**：原只写"回补金额"，未明确扣运费；明确 ①未发货取消全额回补冻结（商品+配送费+税费）、②已发货退款回补已用=商品+税费−往返运费（与个人单配送中拒收同口径）、③已结算走贷记单。**②新增 CLOUD-P0-18 旧机数据清除（P0）**：报价接受后生成 `device_wipe`，清除完成（wiped）是「确认核销」与「发仓库」硬前置（DW-01~06）；核销摘要补「旧机已清除」+ 核销成功动作补清除前置校验。配套 01 PRD v1.20、02 PRD v2.24、需求池同步 | 何子豪 |
 | 2026-09-23 | v1.17 | **回收侧「门店→仓库」发货闭环补齐**：①CLOUD-P0-03 状态机新增「待入库 pending_inbound」状态（15→16 状态），核销后 `inspection_completed → pending_inbound → pending_review`，新增 SM-06 禁止核销直跳待上架申请；②CLOUD-P0-02 核销成功动作 `device.status → pending_inbound` 并新增第 5 步「自动生成回收发货单 + 推 DB」；③CLOUD-P0-04 新增 2.4.4 回收发货单数据模型 store_shipment（created/shipped/delivered/exception）+ Delhivery 运单生成与 webhook 物流轨迹回传（默认目标仓 = 门店绑定仓库，DB 可改选）。配套 05 PRD v3.13（DB-P0-04 回收发货调度）、需求池同步；UI：management DB 视图新增待发货列表/发货单详情/批量发货 | 何子豪 |
 | 2026-09-18 | v1.16 | §3.3.2.0「预约阶段自检」补 **walk-in 代采口径**：预约自检只覆盖填预约单的用户，未预约直接到店的用户此前无采集入口——现明确由店员在质检工具代采同一套 7 项自检（01 PRD TAB-P0-15 用户问询），**任一命中即锁定拒收路径**（到店以当场申报为准，严于预约侧的可改正重约）；问询结果随准入记录上传并标记 source（appointment_prefill / tablet_walk_in / tablet_corrected） | 何子豪 |
 | 2026-09-18 | v1.15 | **企业账号 + B2B 授信闭环修补**（全链路审计发现断链集中在"企业账号的出生"与"授信的入口"两个接缝）：①**§2.12 新增「企业账号（ROLE-ENT）：手机号注册 + 门店绑定」**——企业账号此前三方矛盾（02 说管理员创建 / 05 说管理端不管 / 06 创建 API 无 ENT 分支）。定为**单一账号体系**：所有用户手机号+OTP 注册，注册时可选"企业账号"（必填门店——名称/编号搜索，自动关联管理员**预导入**的门店档案企业信息）；绑定记录 `user_ent_binding`（一用户一店、一店多用户共享门店授信池），无二次登录；ROLE-ENT 绑定实体由"无"改为"门店（经 user_ent_binding 关联）"，打通 credit_line.store_id / buyer_store_id 挂账链路；删除 §2.12 登录示例中 owner 权限的 `b2b_purchase` 旧架构残留；②**CLOUD-P1-06 台账数学修正（三段式）**——原支付时只 `frozen+=` 而结算时 `used-=` 且 `frozen-=`（used 从未增加即被扣减，会出负数/双重释放），统一为：支付成功冻结、**发货时转已用**（进待结算池）、结算确认释放；可用额度 = 总额−已用−冻结；③credit_line 补 `settlement_cycle_days`（结算周期按店配置，替代"与门店约定"的模糊口径）；④**新增 CR-08 授信单取消/退款回补**（未发货取消回补冻结、待结算退款移出结算池回补已用、已结算退款走额度贷记；授信单退款不走 Razorpay 原路退回）；⑤新增 `GET /api/v1/credit/my`（企业账号自查绑定门店额度，C 端结算页消费）；Razorpay 补付最小定义（Payment Link 流程）；⑥验收标准补 3 条。涉及：02C端PRD v2.21（APP-P0-05 注册类型分支 + APP-P1-04 消费端规则补齐）、05内部业务应用PRD v3.12（SA-P0-06 授信配置 + SA-P0-02 绑定管理，**部分修订 v3.8 决策**）；需求池同步。**UI 同步**：mock 新增 /api/ent/stores、/api/auth/ent-register、/api/credit/my（额度校验 + CREDIT_INSUFFICIENT + frozen 冻结）、/api/ent/bindings、企业注册用户 localStorage 持久化；consumer Register 账号类型分支+门店搜索、Profile 企业标识+入口门控、EnterpriseCart 额度卡+不足拦截、OrderList/OrderDetail 结算状态徽标；management CreditMgmt（/admin/credit）、AccountMgmt 企业绑定区块、OrgMgmt 企业档案字段、MallOrderList 渠道筛选；shared-utils IEntBinding/ICreditLine 类型与 credit:manage 权限；e2e 新增企业注册→授信下单与额度不足两段 | 何子豪 |
@@ -757,6 +757,7 @@ if (invoice_provided) {
   → App 展示核销确认摘要：
       ├── 会话信息：换购会话 ID、店员姓名、质检时间
       ├── 旧机信息：品牌型号、IMEI（后四位）、成色等级、抵扣金额
+      ├── 旧机数据清除：已清除 ✓（未清除则提示「旧机未清除」，先完成门店清除，见 CLOUD-P0-18）
       ├── 新机信息：机型（店老板录入）、IMEI（后四位）、门店售价
       └── 结算校验：新机售价 - 旧机抵扣 = 实付金额 ✓
   → 用户按 IMEI 后四位与到手新机实物标签人工核对
@@ -780,6 +781,8 @@ if (invoice_provided) {
 | 3 | 生成换购凭证 (Trade-In Voucher) | 包含旧机信息 + 新机信息 + 抵扣金额 + 实付金额 + 店员 ID + 店老板 ID + 时间戳，用于门店对账和平台审计 |
 | 4 | 推送完成通知 | 用户 App/H5 展示"核销成功"；店老板 App 和店员平板同步收到完成通知；平板提示"旧机交给 DB" |
 | 5 | 生成回收发货单 | 自动创建 store_shipment（status=created，默认目标仓 = 门店绑定仓库），推送「待发货任务」通知至 DB（见 2.4.4 / 05 DB-P0-04） |
+
+> **数据清除前置校验（CLOUD-P0-18）**：核销成功执行「更新旧机状态 / 生成回收发货单」前，服务端校验 `device_wipe.status = wiped`；未清除则拒绝并提示「旧机未清除，请先在门店完成数据清除」。数据清除在「用户确认核销」前完成（见 CLOUD-P0-18）。
 
 ## 2.2.4 防欺诈规则
 
@@ -2536,6 +2539,47 @@ check:results:{session_id} → Hash(item_key → result JSON)   TTL 86400s（质
 - [ ] 设备指纹比对结论（match）随结果返回质检工具并存档
 - [ ] check.dobara.in 全站 HTTPS，无 HTTP 回退；首屏资源 ≤ 500KB
 - [ ] 上报频率超限或多地 IP 访问触发风控告警
+
+---
+
+## 2.15 CLOUD-P0-18 旧机数据清除
+**优先级：** P0
+**功能描述：**
+用户接受报价后，服务端自动生成「数据清除任务」`device_wipe`（status=pending_wipe）。旧机在门店由用户本人退出账号（Apple ID/Google）、关闭查找、抹除/恢复出厂，店员在质检工具引导并目视验证（重启后无激活锁/FRP 锁），提交清除结果。清除完成（wiped）是「用户确认核销」与「设备发仓库」的硬性前置条件。
+
+**数据模型 device_wipe：**
+```json
+{
+  "session_id": "UUID",
+  "device_id": "UUID",
+  "wipe_status": "pending_wipe | wiping | wiped | wipe_failed",
+  "account_signed_out": true,
+  "find_my_off": true,
+  "factory_reset_done": true,
+  "verified_by_clerk": true,
+  "clerk_id": "UUID",
+  "verified_at": "ISO8601",
+  "failure_reason": "string | null"
+}
+```
+
+**业务规则：**
+
+| 编号 | 规则项 | 说明 |
+|------|--------|------|
+| DW-01 | 触发 | 用户接受报价后自动生成 device_wipe（pending_wipe），进入清除环节 |
+| DW-02 | 清除完成 | 店员在质检工具提交「清除完成 + 验证通过」→ status=wiped，记录 clerk_id/verified_at |
+| DW-03 | 核销前置 | 用户确认核销前校验 device_wipe.status=wiped，未清除则核销摘要提示「旧机未清除」并阻止确认 |
+| DW-04 | 发仓库前置 | 生成 store_shipment 时校验 device_wipe.status=wiped，未清除拒绝生成并提示「旧机未清除」 |
+| DW-05 | 清除失败 | 用户忘记密码无法退出激活锁 → status=wipe_failed，设备暂存门店；用户找回密码后可重试（wipe_failed → pending_wipe → wiping → wiped） |
+| DW-06 | 不适用场景 | 无法开机（ADM-04）/报失（ADM-05）已在准入拒收，不进入清除流程 |
+
+**验收标准：**
+- [ ] 报价接受后自动生成 device_wipe（pending_wipe）
+- [ ] 店员提交清除结果后 status=wiped，记录时间戳与店员 ID
+- [ ] 未清除（非 wiped）时用户确认核销被阻止，核销摘要提示「旧机未清除」
+- [ ] 未清除（非 wiped）时禁止生成 store_shipment，提示「旧机未清除」
+- [ ] wipe_failed 后用户找回密码可重试清除
 
 ---
 
