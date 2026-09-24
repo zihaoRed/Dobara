@@ -204,6 +204,12 @@ export function RedeemConfirm() {
             <span className="text-text-secondary">Old device deduction</span>
             <span>₹{data.deduction.toLocaleString('en-IN')}</span>
           </div>
+          <div className="flex justify-between text-body" data-testid="redeem-wipe-status">
+            <span className="text-text-secondary">Old device data cleared</span>
+            <span className="text-dobara-success flex items-center gap-1">
+              <CheckCircle size={14} /> Cleared
+            </span>
+          </div>
           <div className="flex justify-between text-body">
             <span className="text-text-secondary">New device price</span>
             <span>₹{data.newPrice.toLocaleString('en-IN')}</span>
