@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Card, Button, PriceDisplay, GradeBadge, Badge, EmptyState } from '@dobara/ui';
 import { MapPin, Truck, CreditCard, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import type { IDevice, IModel, IBrand } from '@dobara/utils';
 import { calcOrderTotal, imeiLast4, type TDeliveryMethod } from '@dobara/utils';
+import { getKyc } from './Kyc';
 
 interface Address {
   id: string;
@@ -65,6 +66,7 @@ const DEMO_ADDRESSES: Address[] = [
 export function OrderConfirm() {
   const { imei } = useParams<{ imei: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [device, setDevice] = useState<IDevice | null>(null);
   const [brand, setBrand] = useState<IBrand | null>(null);
   const [model, setModel] = useState<IModel | null>(null);
@@ -205,6 +207,11 @@ export function OrderConfirm() {
     !submitting;
 
   const handleSubmit = async () => {
+    // APP-P0-12 — KYC gate before submitting order / payment
+    if (getKyc().status !== 'verified') {
+      navigate('/account/kyc', { state: { from: location.pathname } });
+      return;
+    }
     if (!imei || !device || !selectedAddress || !canSubmit) return;
     setSubmitting(true);
     setError('');

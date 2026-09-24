@@ -21,6 +21,7 @@ import { ProfileEdit } from './pages/ProfileEdit';
 import { AccountSecurity } from './pages/AccountSecurity';
 import { Settings } from './pages/Settings';
 import { H5Preview } from './pages/H5Preview';
+import { Kyc } from './pages/Kyc';
 import { AddressList } from './pages/AddressList';
 import { AfterSaleList } from './pages/AfterSaleList';
 import { AfterSaleApply } from './pages/AfterSaleApply';
@@ -230,6 +231,7 @@ export function App() {
           <Route path="/account/settings" element={<RequireAuth><Settings /></RequireAuth>} />
           <Route path="/account/profile-edit" element={<RequireAuth><ProfileEdit /></RequireAuth>} />
           <Route path="/account/security" element={<RequireAuth><AccountSecurity /></RequireAuth>} />
+          <Route path="/account/kyc" element={<RequireAuth><Kyc /></RequireAuth>} />
 
           {/* Legacy profile redirects */}
           <Route path="/profile" element={<Navigate to="/account" replace />} />
