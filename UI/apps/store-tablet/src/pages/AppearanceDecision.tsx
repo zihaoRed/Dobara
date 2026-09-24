@@ -37,14 +37,14 @@ export default function AppearanceDecision() {
           data-testid="continue-inspect"
           onClick={() => {
             markStepComplete(sessionId, 'decision');
-            navigate(`/session/${sessionId}/photo`);
+            navigate(`/session/${sessionId}/admission`);
           }}
           className="rounded-2xl bg-dobara-success text-white p-6 text-left shadow-card hover:opacity-95 transition-opacity"
         >
           <CheckCircle size={32} className="mb-3" />
-          <p className="text-h4 font-bold">Continue to Photos</p>
+          <p className="text-h4 font-bold">Continue to Admission</p>
           <p className="text-caption text-white/85 mt-1">
-            Recyclable — proceed to 10-angle photos, then video, admission checks & hardware audit
+            Recyclable — proceed to admission checks & hardware audit, then photos, video & appearance AI
           </p>
         </button>
 

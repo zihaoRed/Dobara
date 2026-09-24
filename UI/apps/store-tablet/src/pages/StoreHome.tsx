@@ -1,25 +1,27 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Stepper } from '@dobara/ui';
-import { Smartphone, Camera, Video, ClipboardCheck, Cpu, Receipt, FileText } from 'lucide-react';
+import { Smartphone, Camera, Video, ClipboardCheck, Cpu, Receipt, FileText, ShieldCheck, List } from 'lucide-react';
 
 const steps = [
   { key: 'otp', label: 'OTP' },
+  { key: 'decision', label: 'Decision' },
+  { key: 'admission', label: 'Admission' },
+  { key: 'hardware', label: 'Hardware' },
   { key: 'photo', label: 'Photos' },
   { key: 'video', label: 'Video' },
-  { key: 'decision', label: 'Decision' },
   { key: 'inspect', label: 'Inspect' },
-  { key: 'hardware', label: 'Hardware' },
   { key: 'report', label: 'Report' },
 ];
 
 const stepIcons = [
   <Smartphone size={18} />,
+  <ClipboardCheck size={18} />,
+  <ShieldCheck size={18} />,
+  <Cpu size={18} />,
   <Camera size={18} />,
   <Video size={18} />,
   <ClipboardCheck size={18} />,
-  <ClipboardCheck size={18} />,
-  <Cpu size={18} />,
   <FileText size={18} />,
 ];
 
@@ -31,7 +33,7 @@ export default function StoreHome() {
       <div className="mb-6">
         <h1 className="text-h3 font-heading text-text-primary">Store Tablet</h1>
         <p className="text-body text-text-body mt-1">
-          Standardized trade-in inspection — OTP → appearance → hardware → quote
+          Standardized trade-in inspection — OTP → admission → hardware → appearance → quote
         </p>
       </div>
 
@@ -43,8 +45,8 @@ export default function StoreHome() {
           </div>
         </div>
         <p className="text-caption text-text-muted mt-3">
-          After photos &amp; video: continue or reject → AI pre-fills appearance checklist (review &amp; correct) →
-          hardware OTG → optional invoice → submit → report.
+          Admission checks &amp; hardware OTG first → 10-angle photos &amp; video → AI pre-fills the appearance
+          checklist (review &amp; correct) → optional invoice → submit → report.
         </p>
       </Card>
 
@@ -65,6 +67,9 @@ export default function StoreHome() {
       <div className="flex flex-wrap justify-center gap-3">
         <Button size="lg" variant="primary" data-testid="start-session" onClick={() => navigate('/otp')}>
           Start New Session
+        </Button>
+        <Button size="lg" variant="secondary" icon={<List size={18} />} data-testid="view-records" onClick={() => navigate('/records')}>
+          Inspection Records
         </Button>
         <Button size="lg" variant="secondary" icon={<Receipt size={18} />} onClick={() => navigate('/notifications')}>
           Review Adjustments

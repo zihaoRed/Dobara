@@ -18,6 +18,7 @@ export default function AppearanceInspect() {
   const [dim, setDim] = useState(APPEARANCE_DIMENSIONS[0].key);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [aiAnswers, setAiAnswers] = useState<Record<string, number>>({});
+  const [detectedColor, setDetectedColor] = useState<string | null>(null);
   const [thinking, setThinking] = useState(true);
   const [thinkingProgress, setThinkingProgress] = useState(0);
   const [helpCode, setHelpCode] = useState<string | null>(null);
@@ -48,11 +49,26 @@ export default function AppearanceInspect() {
     const iv = setInterval(() => {
       setThinkingProgress(Math.min(100, ((Date.now() - started) / DURATION) * 100));
     }, 80);
-    mockAiAppearanceAnalysis(sessionId).then((results: TAiAppearanceResult) => {
+    // 前置硬件步骤已读到型号（dobara_hardware_<sid>.brandModel）——作为外观AI颜色识别提示。
+    let modelHint: string | undefined;
+    try {
+      const hw = JSON.parse(sessionStorage.getItem(`dobara_hardware_${sessionId}`) || 'null');
+      modelHint = hw?.brandModel || undefined;
+    } catch { /* ignore */ }
+    mockAiAppearanceAnalysis(sessionId, modelHint).then((results: TAiAppearanceResult) => {
       if (cancelled) return;
       clearInterval(iv);
-      setAiAnswers(results);
-      setAnswers(results);
+      setAiAnswers(results.items);
+      setAnswers(results.items);
+      if (results.detectedColor) {
+        setDetectedColor(results.detectedColor);
+        try {
+          sessionStorage.setItem(
+            `dobara_device_color_${sessionId}`,
+            JSON.stringify({ color: results.detectedColor, source: 'ai' }),
+          );
+        } catch { /* ignore */ }
+      }
       setThinkingProgress(100);
       setTimeout(() => setThinking(false), 250);
     });
@@ -62,7 +78,7 @@ export default function AppearanceInspect() {
     };
   }, [sessionId]);
 
-  const proceedToHardware = async () => {
+  const proceedToCondition = async () => {
     setSubmitting(true);
     // Unselected items → system auto-inspect (default to first / "None·Normal" grade)
     const resolved: Record<string, number> = {};
@@ -80,7 +96,7 @@ export default function AppearanceInspect() {
       );
     } catch { /* ignore */ }
     markStepComplete(sessionId, 'inspect');
-    navigate(`/session/${sessionId}/hardware`);
+    navigate(`/session/${sessionId}/condition`);
   };
 
   if (thinking) {
@@ -143,6 +159,13 @@ export default function AppearanceInspect() {
             {ALL_APPEARANCE_ITEMS.length} checks. Items marked <b>AI</b> are suggestions — tap to correct.
           </span>
         </div>
+
+        {detectedColor && (
+          <div className="mb-4 rounded-lg bg-primary-50 text-primary-800 px-4 py-3 text-caption font-medium flex items-center gap-2" data-testid="ai-color-detected">
+            <Sparkles size={16} className="shrink-0" />
+            Device color auto-detected from hardware model + photos: <b>{detectedColor}</b>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-[180px_1fr] lg:grid-cols-[220px_1fr] gap-4 mb-4">
           <Card className="p-3 md:sticky md:top-0 self-start">
@@ -259,7 +282,7 @@ export default function AppearanceInspect() {
               : `${answeredCount}/${ALL_APPEARANCE_ITEMS.length} marked · rest will auto-QC`}
           </p>
           <div className="flex gap-2 shrink-0">
-            <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/admission`)}>
+            <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/video`)}>
               Back
             </Button>
             <Button
@@ -268,9 +291,9 @@ export default function AppearanceInspect() {
               loading={submitting}
               disabled={hasRejectFlag}
               data-testid="confirm-inspect"
-              onClick={proceedToHardware}
+              onClick={proceedToCondition}
             >
-              {answeredCount === 0 ? 'Continue · Auto QC' : 'Continue to Hardware'}
+              {answeredCount === 0 ? 'Continue · Auto QC' : 'Continue to Condition'}
             </Button>
           </div>
         </div>

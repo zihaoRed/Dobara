@@ -6,7 +6,13 @@ import { ALL_APPEARANCE_ITEMS } from './appearanceItems';
  *  只覆盖 **外观磨损** 维度（玻璃 G / 边框 B / 后盖 RC / 接口按键 P，共 21 项）——
  *  屏幕显示缺陷（D1-D6）无法从照片判定（坏点/偏色/闪烁/漏液/触控），
  *  其判定归 H5 检测页，故不在 AI 回填范围内（01 PRD TAB-P0-13 分工）。 */
-export type TAiAppearanceResult = Record<string, number>; // itemCode → optionIndex
+export interface TAiAppearanceResult {
+  /** itemCode → optionIndex */
+  items: Record<string, number>;
+  /** Color auto-detected from the model hint (前置硬件型号) + photos (TAB-P0-13). */
+  detectedColor?: string;
+  deviceModelHint?: string;
+}
 
 /** Demo: mostly "None/Normal" (index 0) with a few realistic minor defects so the
  *  clerk can see the AI detecting something and then correct it if needed. */
@@ -17,15 +23,39 @@ const AI_OVERRIDES: Record<string, number> = {
   RC3: 1, // Back wear → Slight
 };
 
-export function mockAiAppearanceAnalysis(sessionId: string): Promise<TAiAppearanceResult> {
+/** Model keyword → demo color, so the AI color detection is deterministic per device. */
+const MODEL_COLOR_HINT: Record<string, string> = {
+  'iphone 13': 'Midnight',
+  'iphone 14': 'Blue',
+  'iphone 15': 'Titanium',
+  'galaxy s22': 'Graphite',
+  'galaxy s24': 'Black',
+  'xiaomi 11': 'Green',
+  'xiaomi 14': 'Blue',
+  oneplus: 'Black',
+};
+
+function resolveColor(modelHint: string): string {
+  const hint = modelHint.toLowerCase();
+  for (const [key, color] of Object.entries(MODEL_COLOR_HINT)) {
+    if (hint.includes(key)) return color;
+  }
+  return 'Black';
+}
+
+export function mockAiAppearanceAnalysis(sessionId: string, modelHint?: string): Promise<TAiAppearanceResult> {
   return new Promise((resolve) => {
     // Simulated server AI recognition latency
     setTimeout(() => {
-      const results: TAiAppearanceResult = {};
+      const items: Record<string, number> = {};
       for (const item of ALL_APPEARANCE_ITEMS) {
-        results[item.code] = AI_OVERRIDES[item.code] ?? 0;
+        items[item.code] = AI_OVERRIDES[item.code] ?? 0;
       }
-      resolve(results);
+      resolve({
+        items,
+        detectedColor: modelHint ? resolveColor(modelHint) : undefined,
+        deviceModelHint: modelHint,
+      });
     }, 2400);
   });
 }

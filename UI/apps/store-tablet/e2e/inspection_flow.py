@@ -1,4 +1,4 @@
-"""E2E: clerk login → OTP → decision (pre-photo gate) → photos/video → inspect → hardware → invoice skip → report.
+"""E2E: clerk login → OTP → decision (pre-photo gate) → admission → hardware → photos/video → inspect → invoice skip → report.
 Also reject path from decision.
 """
 from __future__ import annotations
@@ -38,17 +38,11 @@ def customer_otp(page):
     expect(page.get_by_test_id("appointment-card")).to_be_visible()
 
 
-def through_appearance(page):
+def through_admission(page):
     page.get_by_test_id("start-inspection").click()
     # Appearance review is the FIRST step — reject gate before any capture
     page.get_by_test_id("appearance-decision").wait_for()
     page.get_by_test_id("continue-inspect").click()
-    page.get_by_test_id("photo-capture").wait_for()
-    page.get_by_test_id("demo-fill-photos").click()
-    page.get_by_test_id("photos-continue").click()
-    page.get_by_test_id("video-capture").wait_for()
-    page.get_by_test_id("demo-fill-video").click()
-    page.get_by_test_id("video-continue").click()
     page.get_by_test_id("admission-check").wait_for()
 
 
@@ -62,20 +56,17 @@ def run():
         try:
             clerk_login(page)
             customer_otp(page)
-            through_appearance(page)
+            through_admission(page)
 
-            # locked forward step should be disabled
+            # locked forward step (hardware is next after admission) should be disabled
             expect(page.get_by_test_id("nav-step-hardware")).to_be_disabled()
 
-            # pass admission checks → defect checklist
+            # pass admission checks → hardware audit (hardware now runs BEFORE appearance)
             # TAB-P0-15 user interview: appointment prefill (this customer has one) →
             # all 7 answered & no hit → continue enabled without extra clicks
             expect(page.get_by_test_id("admission-interview")).to_be_visible()
             expect(page.get_by_test_id("admission-continue")).to_be_enabled()
             page.get_by_test_id("admission-continue").click()
-            page.get_by_test_id("appearance-inspect").wait_for()
-            # Checklist is optional — continue with zero selections triggers auto QC
-            page.get_by_test_id("confirm-inspect").click()
             page.get_by_test_id("hardware-results").wait_for()
             # Android IMEI secret-code wizard (v1.8): tablet types *#06, clerk presses the final #
             page.get_by_test_id("imei-wizard").wait_for()
@@ -86,21 +77,28 @@ def run():
             # uses the explicitly-labelled demo shortcut.
             page.get_by_test_id("sim-h5-results").click()
             page.get_by_test_id("hardware-continue").wait_for(state="visible", timeout=30000)
-            # Screen-display verdicts (D1-D6) moved here from the appearance checklist (v1.19):
+            # Screen-display verdicts (D1-D6) live in the hardware step (v1.19):
             # all 6 are required before continuing, and they appear next to the H5 checks.
             expect(page.get_by_test_id("display-verification")).to_be_visible()
             for d in ("D1", "D2", "D3", "D4", "D5", "D6"):
                 page.get_by_test_id(f"display-{d}-0").click()
-            # Color gate: walk-in (no appointment) → continue disabled until clerk confirms color
-            page.get_by_test_id("color-confirm").wait_for()
-            expect(page.get_by_test_id("hardware-continue")).to_be_disabled()
-            page.get_by_test_id("color-option-midnight").click()
-            # wait until enabled
+            # Color gate removed (v1.20): color is auto-associated by the appearance AI later.
             page.wait_for_function(
                 "() => !document.querySelector('[data-testid=hardware-continue]')?.disabled",
                 timeout=20000,
             )
             page.get_by_test_id("hardware-continue").click()
+
+            # hardware → photos → video → appearance AI (appearance now runs AFTER hardware)
+            page.get_by_test_id("photo-capture").wait_for()
+            page.get_by_test_id("demo-fill-photos").click()
+            page.get_by_test_id("photos-continue").click()
+            page.get_by_test_id("video-capture").wait_for()
+            page.get_by_test_id("demo-fill-video").click()
+            page.get_by_test_id("video-continue").click()
+            page.get_by_test_id("appearance-inspect").wait_for()
+            # Checklist is optional — continue with zero selections triggers auto QC
+            page.get_by_test_id("confirm-inspect").click()
 
             # condition point-checks (repair/accessory/functional) — optional, continue
             page.get_by_test_id("condition-check").wait_for()

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { Button, Input, Card } from '@dobara/ui';
 import { ArrowLeft, Phone } from 'lucide-react';
 import { isValidIndiaPhone, OTP_COOLDOWN_SECONDS } from '@dobara/utils';
-import { saveProgress } from '../lib/sessionProgress';
+import { saveProgress, markStepComplete } from '../lib/sessionProgress';
 
 const DEMO_OTP = '123456';
 
@@ -19,10 +19,16 @@ async function apiCall(url: string, body: Record<string, string>) {
   return null;
 }
 
-/** TAB-P0-07 — customer OTP with India phone + cooldown + lockout */
+/** TAB-P0-07 — customer OTP with India phone + cooldown + lockout.
+ *  Also serves the "start existing inspection" verify mode (route /session/:sessionId/verify)
+ *  — TAB-P1-06 列表「开始质检」前对顾客二次核身，确保顾客实际到店。 */
 export default function OtpPage() {
   const navigate = useNavigate();
-  const [phone, setPhone] = useState('');
+  const { sessionId: verifySessionId } = useParams<{ sessionId: string }>();
+  const location = useLocation();
+  const incomingPhone = ((location.state as { phone?: string } | null)?.phone || '').replace(/\D/g, '').slice(-10);
+  const isVerifyMode = !!verifySessionId;
+  const [phone, setPhone] = useState(incomingPhone);
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -84,7 +90,12 @@ export default function OtpPage() {
     setLoading(true);
     const data = await apiCall('/api/otp/verify', { phone: normalized, otp });
     if (data?.success || otp === DEMO_OTP) {
-      await startSession();
+      if (isVerifyMode && verifySessionId) {
+        markStepComplete(verifySessionId, 'session', { phone: normalized });
+        navigate(`/session/${verifySessionId}/decision`);
+      } else {
+        await startSession();
+      }
       return;
     }
     const next = failCount + 1;
@@ -105,9 +116,13 @@ export default function OtpPage() {
           <div className="w-14 h-14 mx-auto bg-primary-50 rounded-full flex items-center justify-center mb-3">
             <Phone size={28} className="text-primary-600" />
           </div>
-          <h2 className="text-h4 font-heading text-text-primary">Customer Verification</h2>
+          <h2 className="text-h4 font-heading text-text-primary">
+            {isVerifyMode ? 'Verify & Start Inspection' : 'Customer Verification'}
+          </h2>
           <p className="text-caption text-text-muted mt-1">
-            Ask for the customer&apos;s phone number · OTP + SMS short link
+            {isVerifyMode
+              ? 'Customer is at the store — verify their phone to begin inspection.'
+              : "Ask for the customer's phone number · OTP + SMS short link"}
           </p>
         </div>
 
@@ -140,7 +155,7 @@ export default function OtpPage() {
                 inputMode="numeric"
               />
               <Button variant="primary" size="lg" loading={loading} onClick={handleVerifyOtp} className="w-full" data-testid="verify-customer-otp">
-                Verify & Start Session
+                {isVerifyMode ? 'Verify & Start Inspection' : 'Verify & Start Session'}
               </Button>
               <Button
                 variant="ghost"

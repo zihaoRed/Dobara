@@ -15,15 +15,13 @@ import re
 import sys
 from playwright.sync_api import sync_playwright, expect
 
-from inspection_flow import clerk_login, customer_otp, through_appearance
+from inspection_flow import clerk_login, customer_otp, through_admission
 
 BASE = os.environ.get("TABLET_BASE", "http://localhost:3002/tablet")
 
 
 def to_hardware(page):
     page.get_by_test_id("admission-continue").click()
-    page.get_by_test_id("appearance-inspect").wait_for()
-    page.get_by_test_id("confirm-inspect").click()
     page.get_by_test_id("hardware-results").wait_for()
     # Android IMEI secret-code wizard — clerk presses the final '#'
     page.get_by_test_id("imei-wizard").wait_for()
@@ -44,7 +42,7 @@ def run():
         try:
             clerk_login(tablet)
             customer_otp(tablet)
-            through_appearance(tablet)
+            through_admission(tablet)
             to_hardware(tablet)
 
             # --- 1. Tablet issues a one-time token once an H5 item comes due ---

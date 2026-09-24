@@ -147,7 +147,7 @@ export default function ConditionCheck() {
       )}
 
       <div className="flex flex-wrap justify-center gap-4">
-        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/hardware`)}>Back</Button>
+        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/inspect`)}>Back</Button>
         <Button variant="primary" size="lg" data-testid="condition-continue" onClick={goInvoice}>
           Continue to Invoice
         </Button>

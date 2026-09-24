@@ -6,10 +6,11 @@ import { markStepComplete, saveProgress } from '../lib/sessionProgress';
 
 const steps = [
   { key: 'decision', label: 'Decision' },
+  { key: 'admission', label: 'Admission' },
+  { key: 'hardware', label: 'Hardware' },
   { key: 'photo', label: 'Photos' },
   { key: 'video', label: 'Video' },
   { key: 'inspect', label: 'Inspect' },
-  { key: 'hardware', label: 'Hardware' },
   { key: 'invoice', label: 'Invoice' },
   { key: 'report', label: 'Report' },
 ];

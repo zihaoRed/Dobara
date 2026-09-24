@@ -354,20 +354,6 @@ export function Appointment() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => {
-          if (searching) {
-            setSearching(false);
-            return;
-          }
-          if (step === 1) navigate('/sell');
-          else setStep(step - 1);
-        }}
-      >
-        ← Back
-      </Button>
       <h1 className="text-h3 font-heading">Book Inspection</h1>
 
       {/* Step indicators: device → condition → store/slot */}

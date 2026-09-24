@@ -6,6 +6,7 @@ import { HARDWARE_CHECK_ITEMS } from '@dobara/utils';
 import { subscribeBus, type IDemoCheckResult } from '@dobara/mock';
 import { markStepComplete } from '../lib/sessionProgress';
 import { DISPLAY_ITEMS } from '../lib/appearanceItems';
+import { getAppointmentSnapshot } from '../lib/appointment';
 
 type TResult = 'normal' | 'abnormal' | 'timeout' | 'pending' | 'manual' | 'unauthorized' | 'pending_network';
 /** TAB-P0-02 v1.8 — detection channel per item: USB read / on-device H5 page / H5 guide + ADB verdict. */
@@ -51,17 +52,6 @@ interface ItemState {
   value: string;
   retries: number;
 }
-
-/**
- * Color cannot be read programmatically (same as IMEI). For walk-in customers
- * with no appointment, the clerk must pick the color here so the inspection
- * record aligns with the appointment schema (brand/model/color/storage).
- * When an appointment exists, its color is pre-selected and confirmed.
- */
-const DEVICE_COLORS = [
-  'Midnight', 'Starlight', 'Blue', 'Green', 'Red', 'Pink', 'Purple',
-  'Black', 'White', 'Titanium', 'Gold', 'Graphite',
-];
 
 const defaultMockValues: Record<string, { status: TResult; value: string }> = {
   'IMEI / Serial Number': { status: 'normal', value: 'IMEI1 ···0006 · direct read' },
@@ -120,9 +110,6 @@ export default function HardwareResults() {
   const [manualImeiOpen, setManualImeiOpen] = useState(false);
   const [manualImei, setManualImei] = useState('');
   const [forceTimeoutIdx, setForceTimeoutIdx] = useState<number | null>(null);
-  // Color confirmation (walk-in has no appointment to align with)
-  const [deviceColor, setDeviceColor] = useState('');
-  const [colorFromAppointment, setColorFromAppointment] = useState(false);
   // 屏幕显示缺陷 D1-D6（H5 纯色画面现场判定，v1.19 从外观点检表移入本步骤）
   const [displayAnswers, setDisplayAnswers] = useState<Record<string, number>>({});
 
@@ -369,23 +356,21 @@ export default function HardwareResults() {
     setManualImeiOpen(false);
   };
 
-  // Pre-fill color from the session's appointment record (if any) so inspection
-  // data aligns with the appointment schema. Walk-in sessions start unconfirmed.
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(`dobara_appointments_${sessionId}`);
-      if (!raw) return;
-      const appt = JSON.parse(raw) as { color?: string };
-      if (appt.color && DEVICE_COLORS.includes(appt.color)) {
-        setDeviceColor(appt.color);
-        setColorFromAppointment(true);
-      }
-    } catch { /* ignore */ }
-  }, [sessionId]);
+  // Appointment vs detected brand/model comparison (TAB-P1-02 数据对比) — hardware reads
+  // the model first (前置), so a mismatch with the appointment is flagged right here.
+  const [modelMismatch, setModelMismatch] = useState<{ appointment: string; detected: string } | null>(null);
 
-  // Walk-in alignment gate: brand/model are read via API, but color must be
-  // confirmed by the clerk before the inspection can continue.
-  const colorConfirmed = deviceColor !== '';
+  useEffect(() => {
+    const bm = items.find((i) => i.name === 'Brand & Model');
+    if (!bm || bm.status === 'pending' || !bm.value) return;
+    const appt = getAppointmentSnapshot(sessionId);
+    if (!appt?.brand || !appt?.model) return;
+    const apptStr = `${appt.brand} ${appt.model}`.trim();
+    const detected = bm.value.trim();
+    const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ');
+    if (norm(apptStr) !== norm(detected)) setModelMismatch({ appointment: apptStr, detected });
+    else setModelMismatch(null);
+  }, [items, sessionId]);
 
   /** H5 滑涂结果异常（HW-TCH-01）→ D6 锁定为"系统检出"，不可人工改判（06 §3.3.2.1.5） */
   const touchLocked = items.find((i) => i.name === 'Screen Touch')?.status === 'abnormal';
@@ -397,18 +382,17 @@ export default function HardwareResults() {
     setDisplayAnswers((prev) => (prev.D6 === 1 ? prev : { ...prev, D6: 1 }));
   }, [touchLocked]);
 
-  const goCondition = () => {
+  const goPhoto = () => {
     try {
-      sessionStorage.setItem(
-        `dobara_device_color_${sessionId}`,
-        JSON.stringify({ color: deviceColor, fromAppointment: colorFromAppointment }),
-      );
+      const brandModel = items.find((i) => i.name === 'Brand & Model')?.value ?? '';
       // Persist audit results (keyed by the CLOUD-P0-16 item_key namespace) + the D1-D6
       // screen-display verdicts taken next to the H5 checks (v1.19 moved here from the
-      // appearance checklist). Touch-group dedupe: 06 PRD §3.3.2.1.5.
+      // appearance checklist). brandModel plaintext feeds the appearance AI color detection
+      // (前置硬件型号 → 后置外观AI 自动关联颜色). Touch-group dedupe: 06 PRD §3.3.2.1.5.
       sessionStorage.setItem(
         `dobara_hardware_${sessionId}`,
         JSON.stringify({
+          brandModel,
           results: Object.fromEntries(
             items.map((i) => [ITEM_KEY_OF[i.name], { status: i.status, value: i.value }]),
           ),
@@ -418,7 +402,7 @@ export default function HardwareResults() {
       );
     } catch { /* ignore */ }
     markStepComplete(sessionId, 'hardware');
-    navigate(`/session/${sessionId}/condition`);
+    navigate(`/session/${sessionId}/photo`);
   };
 
   const testedCount = items.filter((i) => i.status !== 'pending').length;
@@ -681,41 +665,12 @@ export default function HardwareResults() {
               )}
             </Card>
 
-            {/* Color confirmation row — attached to Brand & Model (TAB walk-in alignment) */}
-            {item.name === 'Brand & Model' && item.status !== 'pending' && (
-              <div className="ml-9 mr-3 mb-2 p-3 rounded-md border border-border bg-surface-low" data-testid="color-confirm">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-caption font-semibold text-text-primary">Device Color</span>
-                  {colorFromAppointment && deviceColor ? (
-                    <Badge variant="info" size="sm">From appointment</Badge>
-                  ) : (
-                    <Badge variant="warning" size="sm">{colorConfirmed ? 'Clerk confirmed' : 'Required — no appointment'}</Badge>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {DEVICE_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      data-testid={`color-option-${c.toLowerCase().replace(/\s+/g, '-')}`}
-                      onClick={() => {
-                        setDeviceColor(c);
-                        setColorFromAppointment(false);
-                      }}
-                      className={`px-2.5 py-1 rounded-md text-caption font-medium border transition-colors ${
-                        deviceColor === c
-                          ? 'border-primary-500 bg-primary-50 text-primary-700'
-                          : 'border-border text-text-secondary hover:bg-surface-container'
-                      }`}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-eyebrow text-text-muted mt-2">
-                  Color can't be read via API — confirm it so the inspection record matches the appointment schema
-                  (brand · model · color · storage).
-                </p>
+            {/* Appointment vs detected brand/model comparison (TAB-P1-02 数据对比) */}
+            {item.name === 'Brand & Model' && item.status !== 'pending' && modelMismatch && (
+              <div className="ml-9 mr-3 mb-2 rounded-lg bg-dobara-warning-light text-[#78350f] px-4 py-3 text-caption font-semibold flex items-center gap-2" data-testid="model-mismatch-warning">
+                <ShieldAlert size={16} />
+                Appointment: {modelMismatch.appointment} / Detected: {modelMismatch.detected} — device
+                doesn&apos;t match the appointment.
               </div>
             )}
           </React.Fragment>
@@ -792,15 +747,15 @@ export default function HardwareResults() {
       </Card>
 
       <div className="flex flex-wrap justify-center gap-4 mt-6">
-        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/inspect`)}>Back</Button>
+        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/admission`)}>Back</Button>
         <Button
           variant="primary"
           size="lg"
-          disabled={!done || usbDisconnected || !colorConfirmed || displayAnswered < DISPLAY_ITEMS.length}
+          disabled={!done || usbDisconnected || displayAnswered < DISPLAY_ITEMS.length}
           data-testid="hardware-continue"
-          onClick={goCondition}
+          onClick={goPhoto}
         >
-          Continue to Condition
+          Continue to Photos
         </Button>
       </div>
 

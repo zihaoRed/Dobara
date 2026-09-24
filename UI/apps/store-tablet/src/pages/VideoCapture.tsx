@@ -64,7 +64,7 @@ export default function VideoCapture() {
       return;
     }
     markStepComplete(sessionId, 'video');
-    navigate(`/session/${sessionId}/admission`);
+    navigate(`/session/${sessionId}/inspect`);
   };
 
   const canProceed = recorded && elapsed >= MIN && elapsed <= MAX;
@@ -140,7 +140,7 @@ export default function VideoCapture() {
           data-testid="video-continue"
           onClick={tryContinue}
         >
-          Continue to Appearance Review
+          Continue to Appearance AI
         </Button>
       </div>
     </div>

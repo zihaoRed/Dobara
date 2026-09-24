@@ -104,7 +104,7 @@ export function InspectionReport() {
   if (loading) {
     return (
       <div className="max-w-lg mx-auto">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/sell')} className="mb-3">← Back</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/account/orders')} className="mb-3">← Back</Button>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-500 border-t-transparent mx-auto mb-4" />
           <p className="text-body text-text-secondary">Loading inspection report...</p>
@@ -116,7 +116,7 @@ export function InspectionReport() {
   if (!report) {
     return (
       <div className="max-w-lg mx-auto">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/sell')} className="mb-3">← Back</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/account/orders')} className="mb-3">← Back</Button>
         <Card className="text-center py-8">
           <p className="text-text-muted">Report not available.</p>
         </Card>
@@ -132,7 +132,7 @@ export function InspectionReport() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-32" data-testid="inspection-report">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/sell')} className="mb-1">← Back</Button>
+      <Button variant="ghost" size="sm" onClick={() => navigate('/account/orders')} className="mb-1">← Back</Button>
 
       {expired && (
         <div className="rounded-lg bg-dobara-error text-white px-4 py-3 space-y-2" data-testid="quote-expired-banner">

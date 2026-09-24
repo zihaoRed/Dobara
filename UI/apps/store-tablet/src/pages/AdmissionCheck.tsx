@@ -4,6 +4,7 @@ import { Button, Card, CardHeader, CardContent, Badge } from '@dobara/ui';
 import { ShieldCheck, CheckCircle, XCircle, AlertTriangle, Loader, Cpu, ClipboardList } from 'lucide-react';
 import { ADMISSION_CHECKS, MOTHERBOARD_CHECKS, ADMISSION_SELFCHECK } from '@dobara/utils';
 import { markStepComplete } from '../lib/sessionProgress';
+import { getAppointmentSnapshot } from '../lib/appointment';
 
 type TCheckStatus = 'pass' | 'fail' | 'pending';
 
@@ -35,15 +36,12 @@ export default function AdmissionCheck() {
         next[c.key] = c.key === 'water_damage' ? 'pending' : 'pass';
       }
       setChecks(next);
-      try {
-        const raw = sessionStorage.getItem(`dobara_appointments_${sessionId}`);
-        const appt = raw ? (JSON.parse(raw) as { admissionSelfcheck?: Record<string, string> }) : null;
-        const sc = appt?.admissionSelfcheck;
-        if (sc && Object.keys(sc).length > 0) {
-          setPrefill(sc);
-          setInterview(sc);
-        }
-      } catch { /* ignore */ }
+      const appt = getAppointmentSnapshot(sessionId);
+      const sc = appt?.admissionSelfcheck;
+      if (sc && Object.keys(sc).length > 0) {
+        setPrefill(sc);
+        setInterview(sc);
+      }
       setLoading(false);
     }, 1400);
     return () => clearTimeout(t);
@@ -91,11 +89,11 @@ export default function AdmissionCheck() {
     navigate(`/session/${sessionId}/reject`, { state: { from: 'admission' } });
   };
 
-  const goInspect = () => {
+  const goHardware = () => {
     if (!interviewComplete || interviewReject) return; // 7 项必答 + 命中即拒收（严格）
     persist();
     markStepComplete(sessionId, 'admission');
-    navigate(`/session/${sessionId}/inspect`);
+    navigate(`/session/${sessionId}/hardware`);
   };
 
   if (loading) {
@@ -275,14 +273,14 @@ export default function AdmissionCheck() {
       )}
 
       <div className="flex flex-wrap justify-center gap-4">
-        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/video`)}>Back</Button>
+        <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/decision`)}>Back</Button>
         {reject ? (
           <Button variant="danger" size="lg" data-testid="admission-reject" onClick={goReject}>
             Reject Device
           </Button>
         ) : (
-          <Button variant="primary" size="lg" data-testid="admission-continue" disabled={!interviewComplete} onClick={goInspect}>
-            Continue to Inspect
+          <Button variant="primary" size="lg" data-testid="admission-continue" disabled={!interviewComplete} onClick={goHardware}>
+            Continue to Hardware
           </Button>
         )}
       </div>

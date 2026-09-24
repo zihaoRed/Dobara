@@ -3,11 +3,11 @@
 export const INSPECTION_STEP_KEYS = [
   'session',
   'decision',
+  'admission',
+  'hardware',
   'photo',
   'video',
-  'admission',
   'inspect',
-  'hardware',
   'condition',
   'invoice',
   'submit',
@@ -18,6 +18,8 @@ export type TInspectionStep = (typeof INSPECTION_STEP_KEYS)[number];
 
 export interface ISessionProgress {
   sessionId: string;
+  /** Schema version — bump when INSPECTION_STEP_KEYS order changes so stale progress is discarded. */
+  version: number;
   /** Highest completed step index (-1 = none). Current step may be completedIndex+1. */
   completedIndex: number;
   currentStep: TInspectionStep;
@@ -29,6 +31,8 @@ export interface ISessionProgress {
 const PROGRESS_KEY = 'dobara_tablet_session_progress';
 const AUTH_KEY = 'dobara_tablet_clerk';
 const CHECKPOINT_TTL_MS = 24 * 60 * 60 * 1000;
+/** Bump when INSPECTION_STEP_KEYS is reordered — old index-based progress would be misread. */
+const PROGRESS_VERSION = 2;
 
 export function stepIndex(step: string): number {
   const i = INSPECTION_STEP_KEYS.indexOf(step as TInspectionStep);
@@ -40,7 +44,7 @@ export function getProgress(): ISessionProgress | null {
     const raw = localStorage.getItem(PROGRESS_KEY);
     if (!raw) return null;
     const p = JSON.parse(raw) as ISessionProgress;
-    if (Date.now() - new Date(p.updatedAt).getTime() > CHECKPOINT_TTL_MS) {
+    if ((p.version ?? 1) < PROGRESS_VERSION || Date.now() - new Date(p.updatedAt).getTime() > CHECKPOINT_TTL_MS) {
       localStorage.removeItem(PROGRESS_KEY);
       return null;
     }
@@ -56,6 +60,7 @@ export function saveProgress(partial: Partial<ISessionProgress> & { sessionId: s
   const completedIndex = Math.max(prev?.sessionId === partial.sessionId ? prev.completedIndex : -1, idx - 1, partial.completedIndex ?? -1);
   const next: ISessionProgress = {
     sessionId: partial.sessionId,
+    version: PROGRESS_VERSION,
     completedIndex: partial.rejected ? idx : Math.max(completedIndex, partial.completedIndex ?? completedIndex),
     currentStep: partial.currentStep,
     rejected: partial.rejected ?? (prev?.sessionId === partial.sessionId ? prev.rejected : false),

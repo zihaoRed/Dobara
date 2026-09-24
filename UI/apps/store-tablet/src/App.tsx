@@ -19,6 +19,7 @@ import InspectionReport from './pages/InspectionReport';
 import VerificationStatus from './pages/VerificationStatus';
 import NotificationList from './pages/NotificationList';
 import NotificationDetail from './pages/NotificationDetail';
+import InspectionRecordList from './pages/InspectionRecordList';
 import ClerkLogin from './pages/ClerkLogin';
 import {
   INSPECTION_STEP_KEYS,
@@ -34,11 +35,11 @@ import {
 const INSPECTION_STEPS: { key: TInspectionStep; label: string }[] = [
   { key: 'session', label: 'Session' },
   { key: 'decision', label: 'Decision' },
+  { key: 'admission', label: 'Admission' },
+  { key: 'hardware', label: 'Hardware' },
   { key: 'photo', label: 'Photos' },
   { key: 'video', label: 'Video' },
-  { key: 'admission', label: 'Admission' },
   { key: 'inspect', label: 'Inspect' },
-  { key: 'hardware', label: 'Hardware' },
   { key: 'condition', label: 'Condition' },
   { key: 'invoice', label: 'Invoice' },
   { key: 'submit', label: 'Submit' },
@@ -339,6 +340,8 @@ export default function App() {
           <Route path="/session/:sessionId/verification" element={<RequireClerk><VerificationStatus /></RequireClerk>} />
           <Route path="/notifications" element={<RequireClerk><NotificationList /></RequireClerk>} />
           <Route path="/notifications/:id" element={<RequireClerk><NotificationDetail /></RequireClerk>} />
+          <Route path="/records" element={<RequireClerk><InspectionRecordList /></RequireClerk>} />
+          <Route path="/session/:sessionId/verify" element={<RequireClerk><OtpPage /></RequireClerk>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AppLayout>

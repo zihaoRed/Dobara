@@ -1037,6 +1037,34 @@ export const handlers = [
     return HttpResponse.json({ orders: sorted });
   }),
 
+  // Inspection records (TAB-P1-06) — the tablet's list of inspection jobs by status
+  http.get('/api/inspection-records', async ({ request }) => {
+    await simulateDelay();
+    const seed: {
+      sessionId: string;
+      storeId: string;
+      customerName: string;
+      customerPhone: string;
+      device: string;
+      brand?: string;
+      model?: string;
+      status: 'pending' | 'inspecting' | 'completed' | 'rejected' | 'redeemed' | 'upload_failed';
+      date: string;
+    }[] = [
+      { sessionId: 'sess-101', storeId: 'ST-MH-0001', customerName: 'Arjun Nair', customerPhone: '9876502001', device: 'iPhone 12 64GB', brand: 'Apple', model: 'iPhone 12', status: 'pending', date: '2026-09-24' },
+      { sessionId: 'sess-102', storeId: 'ST-MH-0001', customerName: 'Kavya Menon', customerPhone: '9876502002', device: 'Xiaomi Mi 11', brand: 'Xiaomi', model: 'Mi 11', status: 'pending', date: '2026-09-24' },
+      { sessionId: 'sess-103', storeId: 'ST-MH-0001', customerName: 'Rohan Das', customerPhone: '9876502003', device: 'Galaxy S22 256GB', brand: 'Samsung', model: 'Galaxy S22', status: 'completed', date: '2026-09-23' },
+      { sessionId: 'sess-104', storeId: 'ST-MH-0001', customerName: 'Meera Joshi', customerPhone: '9876502004', device: 'OnePlus Nord 2', brand: 'OnePlus', model: 'Nord 2', status: 'completed', date: '2026-09-23' },
+      { sessionId: 'sess-105', storeId: 'ST-MH-0001', customerName: 'Vikas Rao', customerPhone: '9876502005', device: 'iPhone 11 64GB', brand: 'Apple', model: 'iPhone 11', status: 'rejected', date: '2026-09-22' },
+      { sessionId: 'sess-106', storeId: 'ST-MH-0001', customerName: 'Anita Kulkarni', customerPhone: '9876502006', device: 'Redmi Note 10', brand: 'Xiaomi', model: 'Redmi Note 10', status: 'upload_failed', date: '2026-09-22' },
+    ];
+    const url = new URL(request.url);
+    const status = url.searchParams.get('status');
+    let records = seed;
+    if (status && status !== 'all') records = seed.filter((r) => r.status === status);
+    return HttpResponse.json({ records });
+  }),
+
   http.post('/api/orders', async ({ request }) => {
     await simulateDelay();
     const body = (await request.json()) as {

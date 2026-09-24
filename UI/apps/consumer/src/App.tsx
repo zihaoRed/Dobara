@@ -21,7 +21,6 @@ import { ProfileEdit } from './pages/ProfileEdit';
 import { AccountSecurity } from './pages/AccountSecurity';
 import { Settings } from './pages/Settings';
 import { H5Preview } from './pages/H5Preview';
-import { RecycleHome } from './pages/RecycleHome';
 import { AddressList } from './pages/AddressList';
 import { AfterSaleList } from './pages/AfterSaleList';
 import { AfterSaleApply } from './pages/AfterSaleApply';
@@ -142,7 +141,7 @@ function BuyEntry() {
 /** 企业模式下 /sell（个人换购）不可达——Tab 已隐藏，直达 URL 也拦回企业页（APP-P1-04） */
 function SellEntry() {
   if (isEnterpriseMode()) return <Navigate to="/buy/enterprise" replace />;
-  return <RecycleHome />;
+  return <Appointment />;
 }
 
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -199,9 +198,9 @@ export function App() {
           <Route path="/home/order/success/:orderId" element={<RequireAuth><OrderSuccess /></RequireAuth>} />
           <Route path="/buy/order/success/:orderId" element={<RequireAuth><OrderSuccess /></RequireAuth>} />
 
-          {/* Sell — Exchange / trade-in */}
+          {/* Sell — Exchange / trade-in (一级页：Exchange Tab 直达设备信息选择) */}
           <Route path="/sell" element={<RequireAuth><SellEntry /></RequireAuth>} />
-          <Route path="/sell/appointment" element={<RequireAuth><Appointment /></RequireAuth>} />
+          <Route path="/sell/appointment" element={<Navigate to="/sell" replace />} />
           <Route path="/sell/appointment/success" element={<RequireAuth><AppointmentSuccess /></RequireAuth>} />
           <Route path="/sell/report/:sessionId" element={<RequireAuth><InspectionReport /></RequireAuth>} />
           <Route path="/sell/report/:sessionId/accepted" element={<RequireAuth><QuoteAccepted /></RequireAuth>} />
