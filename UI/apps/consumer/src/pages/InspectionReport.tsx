@@ -104,7 +104,7 @@ export function InspectionReport() {
   if (loading) {
     return (
       <div className="max-w-lg mx-auto">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/account/orders')} className="mb-3">← Back</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/account/orders')} className="mb-3 sticky top-0 z-20 -mt-4 pt-4 pb-2 bg-surface">← Back</Button>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-500 border-t-transparent mx-auto mb-4" />
           <p className="text-body text-text-secondary">Loading inspection report...</p>
@@ -116,7 +116,7 @@ export function InspectionReport() {
   if (!report) {
     return (
       <div className="max-w-lg mx-auto">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/account/orders')} className="mb-3">← Back</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/account/orders')} className="mb-3 sticky top-0 z-20 -mt-4 pt-4 pb-2 bg-surface">← Back</Button>
         <Card className="text-center py-8">
           <p className="text-text-muted">Report not available.</p>
         </Card>

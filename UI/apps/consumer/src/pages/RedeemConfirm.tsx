@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Card, Button, PriceDisplay, Badge } from '@dobara/ui';
 import { CheckCircle, AlertTriangle, Smartphone, PackageCheck } from 'lucide-react';
 import { imeiLast4 } from '@dobara/utils';
+import { PageHeader } from '../components/PageHeader';
 
 type TradeInView = {
   sessionId: string;
@@ -146,10 +147,7 @@ export function RedeemConfirm() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-8" data-testid="redeem-confirm">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/account/orders')} data-testid="redeem-back">
-        ← Back
-      </Button>
-      <h1 className="text-h3 font-heading">Confirm trade-in</h1>
+      <PageHeader title="Confirm trade-in" onBack={() => navigate('/account/orders')} />
       <p className="text-caption text-text-muted -mt-2">
         Review the new-device price entered by the store owner, then confirm in the app.
       </p>

@@ -107,7 +107,7 @@ export function H5Preview() {
   return (
     <div className="max-w-md mx-auto bg-white rounded-2xl min-h-[80vh] pb-28 overflow-hidden" data-testid="h5-inspection-report">
       <div className="px-3 pt-2">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/account')}>← Back</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/account')} className="sticky top-0 z-20 -mt-4 pt-4 pb-2 bg-surface">← Back</Button>
       </div>
       <div className="bg-primary-500 text-white px-4 py-3 flex items-center gap-2 mx-3 rounded-xl">
         <span className="text-eyebrow bg-white/20 px-2 py-0.5 rounded">H5 Preview</span>

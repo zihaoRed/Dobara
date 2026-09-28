@@ -60,7 +60,9 @@ export function AfterSaleDetail() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-8" data-testid="aftersale-detail">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/account/after-sales')}>← Back</Button>
+      <div className="sticky top-0 z-20 -mt-4 pt-4 pb-2 bg-surface">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/account/after-sales')}>← Back</Button>
+      </div>
       <Card>
         <div className="flex justify-between items-start mb-2 gap-2">
           <div>

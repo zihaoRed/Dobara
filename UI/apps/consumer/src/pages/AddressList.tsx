@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Badge, EmptyState, Modal, Input } from '@dobara/ui';
+import { PageHeader } from '../components/PageHeader';
 import { MapPin, Plus, Trash2, Star } from 'lucide-react';
 import { isValidIndiaPhone } from '@dobara/utils';
 import { STATE_REGIONS, citiesForState, stateForPin, pinMatchesState } from '../lib/regionData';
@@ -154,13 +155,9 @@ export function AddressList() {
 
   return (
     <div className="max-w-lg mx-auto pb-8 space-y-4" data-testid="address-list">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/account')}>← Back</Button>
-      <div className="flex items-center justify-between">
-        <h1 className="text-h3 font-bold">Addresses</h1>
-        <Button size="sm" icon={<Plus size={16} />} onClick={openNew} data-testid="add-address" disabled={addresses.length >= 20}>
-          Add
-        </Button>
-      </div>
+      <PageHeader title="Addresses" onBack={() => navigate('/account')} right={
+        <Button size="sm" icon={<Plus size={16} />} onClick={openNew} data-testid="add-address" disabled={addresses.length >= 20}>Add</Button>
+      } />
 
       {loading ? (
         <p className="text-caption text-text-muted">Loading...</p>

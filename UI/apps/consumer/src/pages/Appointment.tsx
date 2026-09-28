@@ -2,11 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, EstimateThinkingPanel } from '@dobara/ui';
 import type { IEstimateDeduction } from '@dobara/ui';
-import { ArrowRight, Smartphone, Info, MapPin, Clock, AlertTriangle } from 'lucide-react';
+import { ArrowRight, Smartphone, Info, MapPin, Clock, AlertTriangle, ChevronDown } from 'lucide-react';
 import type { IBrand, IModel, IStore } from '@dobara/utils';
 import { ADMISSION_SELFCHECK } from '@dobara/utils';
 import { getUserCity, nearestServedCities } from '../lib/userCity';
 import { CityPicker } from '../components/CityPicker';
+import { StorePicker } from '../components/StorePicker';
 
 /**
  * 外观采集项（PRD 02 APP-P1-01）——选项文案与 PRD 对齐，每档绑定 §3.1.2.1 的扣款编码。
@@ -189,6 +190,7 @@ export function Appointment() {
   // never disagree; switching here changes the global city too.
   const [city, setCity] = useState(getUserCity);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
+  const [storePickerOpen, setStorePickerOpen] = useState(false);
   const [selStore, setSelStore] = useState('');
   const [selDate, setSelDate] = useState('');
   const [selSlot, setSelSlot] = useState('');
@@ -224,6 +226,7 @@ export function Appointment() {
   }, []);
 
   const cityStores = stores.filter((s) => s.city === city);
+  const selectedStore = cityStores.find((s) => s.id === selStore);
   const nearBy = nearestServedCities(3);
 
   useEffect(() => {
@@ -735,44 +738,44 @@ export function Appointment() {
                 <MapPin size={12} /> {city}
               </button>
             </div>
-            <div className="space-y-2">
-              {cityStores.map((s, idx) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  data-testid={`store-${s.id}`}
-                  onClick={() => setSelStore(s.id)}
-                  className={`w-full text-left rounded-lg border p-3 ${
-                    selStore === s.id ? 'border-primary-500 bg-primary-50' : 'border-border'
-                  }`}
-                >
-                  <p className="text-body font-semibold">{s.name}</p>
-                  <p className="text-caption text-text-muted">{s.address}</p>
-                  <p className="text-eyebrow text-primary-600 mt-1">{(idx + 1) * 1.2 + 0.8} km away</p>
-                </button>
-              ))}
-              {cityStores.length === 0 && (
-                <div className="rounded-lg bg-surface-low p-3 space-y-2" data-testid="store-empty">
-                  <p className="text-caption text-text-secondary">
-                    {city} doesn&apos;t have a trade-in store yet.
-                  </p>
-                  <p className="text-eyebrow text-text-muted uppercase">Nearby cities with stores</p>
-                  <div className="flex flex-wrap gap-2">
-                    {nearBy.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        data-testid={`nearby-city-${c}`}
-                        onClick={() => { setCity(c); setSelStore(''); }}
-                        className="px-3 py-1 rounded-full text-caption font-medium border border-border hover:bg-surface-container"
-                      >
-                        {c}
-                      </button>
-                    ))}
-                  </div>
+            <button
+              type="button"
+              data-testid="store-selector"
+              onClick={() => setStorePickerOpen(true)}
+              className="w-full text-left rounded-lg border p-3 flex items-center gap-3 hover:border-primary-300 transition-colors"
+            >
+              <MapPin size={16} className="text-primary-500 shrink-0" />
+              {selectedStore ? (
+                <div className="flex-1 min-w-0">
+                  <p className="text-body font-semibold">{selectedStore.name}</p>
+                  <p className="text-caption text-text-muted truncate">{selectedStore.address}</p>
                 </div>
+              ) : (
+                <span className="flex-1 text-body text-text-muted">Select a store</span>
               )}
-            </div>
+              <ChevronDown size={18} className="text-text-muted shrink-0" />
+            </button>
+            {cityStores.length === 0 && (
+              <div className="mt-3 rounded-lg bg-surface-low p-3 space-y-2" data-testid="store-empty">
+                <p className="text-caption text-text-secondary">
+                  {city} doesn&apos;t have a trade-in store yet.
+                </p>
+                <p className="text-eyebrow text-text-muted uppercase">Nearby cities with stores</p>
+                <div className="flex flex-wrap gap-2">
+                  {nearBy.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      data-testid={`nearby-city-${c}`}
+                      onClick={() => { setCity(c); setSelStore(''); }}
+                      className="px-3 py-1 rounded-full text-caption font-medium border border-border hover:bg-surface-container"
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </Card>
 
           <Card>
@@ -833,6 +836,13 @@ export function Appointment() {
       )}
 
       <CityPicker open={cityPickerOpen} onClose={() => setCityPickerOpen(false)} />
+      <StorePicker
+        open={storePickerOpen}
+        onClose={() => setStorePickerOpen(false)}
+        stores={cityStores}
+        selectedId={selStore}
+        onSelect={(id) => { setSelStore(id); setStorePickerOpen(false); }}
+      />
     </div>
   );
 }

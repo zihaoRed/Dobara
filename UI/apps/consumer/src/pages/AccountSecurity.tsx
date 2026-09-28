@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Input, Modal, Badge } from '@dobara/ui';
+import { PageHeader } from '../components/PageHeader';
 import {
   KeyRound, ShieldAlert, AlertTriangle, Check, ChevronRight,
 } from 'lucide-react';
@@ -137,8 +138,7 @@ export function AccountSecurity() {
 
   return (
     <div className="max-w-lg mx-auto py-5 space-y-4" data-testid="account-security">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/account')}>← Back</Button>
-      <h1 className="text-h3 font-bold text-text-primary">Account Security</h1>
+      <PageHeader title="Account Security" onBack={() => navigate('/account')} />
 
       {/* Change password */}
       <Card className="!rounded-xl space-y-3" data-testid="security-password-card">

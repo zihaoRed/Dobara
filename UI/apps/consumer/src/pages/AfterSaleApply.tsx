@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, Button, Input } from '@dobara/ui';
+import { PageHeader } from '../components/PageHeader';
 
 const TYPES = [
   { key: 'return_refund', label: 'Return & Refund' },
@@ -62,8 +63,7 @@ export function AfterSaleApply() {
 
   return (
     <div className="max-w-lg mx-auto pb-10 space-y-4" data-testid="aftersale-apply">
-      <Button variant="ghost" size="sm" onClick={() => navigate(`/account/orders/${orderId}`)}>← Back</Button>
-      <h1 className="text-h3 font-bold">Request After-Sales</h1>
+      <PageHeader title="Request After-Sales" onBack={() => navigate(`/account/orders/${orderId}`)} />
       <p className="text-caption text-text-muted -mt-2">Order #{orderId}</p>
 
       <Card>

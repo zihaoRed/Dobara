@@ -14,6 +14,7 @@ const RECYCLE_STATUS_LABEL: Record<TRecycleStatus, string> = {
   awaiting_redeem: 'Awaiting Redeem',
   completed: 'Completed',
   rejected: 'Rejected by User',
+  cancelled: 'Cancelled',
 };
 
 const RECYCLE_STATUS_BADGE: Record<TRecycleStatus, 'pending' | 'in_progress' | 'completed' | 'rejected' | 'expired'> = {
@@ -24,6 +25,7 @@ const RECYCLE_STATUS_BADGE: Record<TRecycleStatus, 'pending' | 'in_progress' | '
   awaiting_redeem: 'pending',
   completed: 'completed',
   rejected: 'rejected',
+  cancelled: 'rejected',
 };
 
 const STATUS_FILTERS: { key: string; label: string }[] = [

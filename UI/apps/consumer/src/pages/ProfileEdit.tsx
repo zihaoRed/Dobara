@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Input, Badge } from '@dobara/ui';
+import { PageHeader } from '../components/PageHeader';
 import { Camera, Check, Info } from 'lucide-react';
 import { getUser, setUser } from '../App';
 import { maskPhone } from '@dobara/utils';
@@ -121,8 +122,7 @@ export function ProfileEdit() {
 
   return (
     <div className="max-w-lg mx-auto py-5 space-y-4" data-testid="profile-edit">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/account')}>← Back</Button>
-      <h1 className="text-h3 font-bold text-text-primary">Edit Profile</h1>
+      <PageHeader title="Edit Profile" onBack={() => navigate('/account')} />
 
       {/* Avatar — camera / gallery, square-cropped, instant preview */}
       <Card className="!rounded-xl">

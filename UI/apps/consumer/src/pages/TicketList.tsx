@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Badge } from '@dobara/ui';
+import { PageHeader } from '../components/PageHeader';
 import { Plus, ChevronRight, TicketIcon } from 'lucide-react';
 
 /** APP-P1-10 — my tickets list with status filter. */
@@ -64,19 +65,9 @@ export function TicketList() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-10" data-testid="ticket-list">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/account')}>← Back</Button>
-      <div className="flex items-center justify-between">
-        <h1 className="text-h3 font-bold text-text-primary">My Tickets</h1>
-        <Button
-          variant="primary"
-          size="sm"
-          icon={<Plus size={16} />}
-          onClick={() => navigate('/account/tickets/new')}
-          data-testid="new-ticket"
-        >
-          New
-        </Button>
-      </div>
+      <PageHeader title="My Tickets" onBack={() => navigate('/account')} right={
+        <Button variant="primary" size="sm" icon={<Plus size={16} />} onClick={() => navigate('/account/tickets/new')} data-testid="new-ticket">New</Button>
+      } />
 
       <div className="flex gap-2" data-testid="ticket-filters">
         {FILTERS.map((f) => (

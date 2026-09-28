@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Badge, EmptyState, GradeBadge } from '@dobara/ui';
+import { PageHeader } from '../components/PageHeader';
 import { AlertTriangle, CreditCard, Building2 } from 'lucide-react';
 import { imeiLast4 } from '@dobara/utils';
 import { getUser } from '../App';
@@ -148,10 +149,7 @@ export function EnterpriseCart() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-28" data-testid="enterprise-cart">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/buy/enterprise')} data-testid="enterprise-cart-back">
-        ← Back
-      </Button>
-      <h1 className="text-h3 font-heading">Enterprise cart</h1>
+      <PageHeader title="Enterprise cart" onBack={() => navigate('/buy/enterprise')} />
       <p className="text-caption text-text-muted -mt-2">
         {lines.length} unique device{lines.length === 1 ? '' : 's'} · one IMEI each
       </p>

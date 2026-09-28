@@ -4,7 +4,7 @@ import { Card } from '@dobara/ui';
 import {
   User, Phone, Shield, Settings as SettingsIcon,
   ShoppingBag, ExternalLink, ChevronRight,
-  MapPin, HeadphonesIcon, Building2, Pencil,
+  MapPin, HeadphonesIcon, Building2, Pencil, CreditCard,
 } from 'lucide-react';
 import { getUser } from '../App';
 import { maskPhone } from '@dobara/utils';
@@ -43,6 +43,7 @@ export function Profile() {
   const menuItems = [
     { icon: <ShoppingBag size={20} />, label: 'My Orders', desc: 'Purchases, exchange & after-sales', onClick: () => navigate('/account/orders'), highlight: true },
     { icon: <MapPin size={20} />, label: 'Addresses', desc: 'Manage delivery addresses', onClick: () => navigate('/account/addresses') },
+    { icon: <CreditCard size={20} />, label: 'Payment Methods', desc: 'Manage UPI ID & saved cards', onClick: () => navigate('/account/payment-methods'), testId: 'account-payment-methods-entry' },
     { icon: <HeadphonesIcon size={20} />, label: 'Help Center', desc: 'FAQ, tickets & contact support', onClick: () => navigate('/account/help') },
     { icon: <SettingsIcon size={20} />, label: 'Settings', desc: `Language, notifications, ${city} & more`, onClick: () => navigate('/account/settings'), testId: 'account-settings-entry' },
     { icon: <ExternalLink size={20} />, label: 'H5 Inspection Preview', desc: 'Standalone H5 report page', onClick: () => navigate('/account/h5-preview') },

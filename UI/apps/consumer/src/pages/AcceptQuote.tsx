@@ -46,7 +46,7 @@ export function AcceptQuote() {
   if (loading) {
     return (
       <div className="max-w-lg mx-auto">
-        <Button variant="ghost" size="sm" onClick={() => navigate(`/sell/report/${sessionId}`)} className="mb-3">← Back</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate(`/sell/report/${sessionId}`)} className="mb-3 sticky top-0 z-20 -mt-4 pt-4 pb-2 bg-surface">← Back</Button>
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary-500 border-t-transparent mx-auto mb-4" />
           <p className="text-body text-text-secondary">Loading quote...</p>
@@ -58,7 +58,7 @@ export function AcceptQuote() {
   if (!report) {
     return (
       <div className="max-w-lg mx-auto">
-        <Button variant="ghost" size="sm" onClick={() => navigate(`/sell/report/${sessionId}`)} className="mb-3">← Back</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate(`/sell/report/${sessionId}`)} className="mb-3 sticky top-0 z-20 -mt-4 pt-4 pb-2 bg-surface">← Back</Button>
         <Card className="text-center py-8">
           <p className="text-text-muted">Report not found.</p>
         </Card>
@@ -68,7 +68,7 @@ export function AcceptQuote() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-24">
-      <Button variant="ghost" size="sm" onClick={() => navigate(`/sell/report/${sessionId}`)} className="mb-1">← Back</Button>
+      <Button variant="ghost" size="sm" onClick={() => navigate(`/sell/report/${sessionId}`)} className="mb-1 sticky top-0 z-20 -mt-4 pt-4 pb-2 bg-surface">← Back</Button>
       <Card>
         <h2 className="text-h3 font-heading mb-1">Your Offer</h2>
         <p className="text-caption text-text-muted mb-4">

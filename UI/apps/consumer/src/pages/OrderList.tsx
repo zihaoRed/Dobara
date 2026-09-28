@@ -4,6 +4,7 @@ import { Card, Tabs, StatusBadge, Button, EmptyState, SkeletonCard, GradeBadge, 
 import { IndianRupee, MapPin, Clock } from 'lucide-react';
 import type { IOrder, IRecycleOrder, TRecycleStatus } from '@dobara/utils';
 import { imeiLast4 } from '@dobara/utils';
+import { PageHeader } from '../components/PageHeader';
 
 type TabKey = 'buy' | 'sell' | 'aftersale';
 
@@ -124,7 +125,8 @@ function sellBadge(status: TRecycleStatus): 'pending' | 'in_progress' | 'complet
     case 'expired': return 'expired';
     case 'awaiting_redeem': return 'in_progress';
     case 'completed': return 'completed';
-    case 'rejected': return 'cancelled';
+    case 'rejected':
+    case 'cancelled': return 'cancelled';
     default: return 'pending';
   }
 }
@@ -199,20 +201,13 @@ export function OrderList() {
   }, [activeTab]);
 
   const buyOrders = orders.filter((o) => statusFilter === 'all' || o.status === statusFilter);
-  const sellOrders = recycleOrders.filter((o) => statusFilter === 'all' || o.status === statusFilter);
+  const sellOrders = recycleOrders.filter((o) => o.status !== 'cancelled' && (statusFilter === 'all' || o.status === statusFilter));
   const afterTickets = aftersaleTickets.filter((t) => statusFilter === 'all' || t.status === statusFilter);
   const filters = activeTab === 'buy' ? BUY_FILTERS : activeTab === 'sell' ? SELL_FILTERS : AFTERSALE_FILTERS;
 
   const onSellCardClick = (order: IRecycleOrder) => {
     if (order.status === 'appointment_pending') {
-      const est = estimateLabel(order);
-      const parts = [
-        order.storeName && `Store: ${order.storeName}`,
-        order.appointmentDate && `Date: ${order.appointmentDate}`,
-        order.appointmentSlot && `Slot: ${order.appointmentSlot}`,
-        est && `Estimate: ${est}`,
-      ].filter(Boolean);
-      setToast(parts.length ? parts.join(' · ') : 'Appointment scheduled — visit the store with your phone number.');
+      navigate(`/account/recycle/${order.sessionId}`);
       return;
     }
     if (order.status === 'awaiting_redeem') {
@@ -232,8 +227,7 @@ export function OrderList() {
 
   return (
     <div className="max-w-lg mx-auto pb-8" data-testid="order-list">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/account')} className="mb-3">← Back</Button>
-      <h1 className="text-h3 font-bold mb-3">My Orders</h1>
+      <PageHeader title="My Orders" onBack={() => navigate('/account')} />
       {toast && (
         <div
           className="mb-3 rounded-lg bg-primary-50 border border-primary-200 px-3 py-2 text-caption text-primary-800"

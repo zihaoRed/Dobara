@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, Button, Input } from '@dobara/ui';
+import { PageHeader } from '../components/PageHeader';
 import { ShieldCheck, Upload, CheckCircle } from 'lucide-react';
 
 /** APP-P0-12 — KYC status stored locally (demo). Service-side model: 06 PRD CLOUD-P0-19 user_kyc. */
@@ -60,10 +61,7 @@ export function Kyc() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-8" data-testid="kyc-page">
-      <Button variant="ghost" size="sm" onClick={() => navigate(returnTo)}>
-        ← Back
-      </Button>
-      <h1 className="text-h3 font-heading">Identity Verification</h1>
+      <PageHeader title="Identity Verification" onBack={() => navigate(returnTo)} />
       <p className="text-caption text-text-muted -mt-2">
         Marketplace purchases require real-name verification. You must be 18 or older.
       </p>

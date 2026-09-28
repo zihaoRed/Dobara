@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Modal } from '@dobara/ui';
+import { PageHeader } from '../components/PageHeader';
 import { useTranslation } from 'react-i18next';
 import {
   Globe, Moon, Sun, Bell, MapPin, Trash2, Info, FileText,
@@ -108,8 +109,7 @@ export function Settings() {
 
   return (
     <div className="max-w-lg mx-auto py-5 space-y-4" data-testid="settings-page">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/account')}>← Back</Button>
-      <h1 className="text-h3 font-bold text-text-primary">Settings</h1>
+      <PageHeader title="Settings" onBack={() => navigate('/account')} />
 
       {/* Language & appearance */}
       <Card className="!rounded-xl" data-testid="settings-language-card">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button } from '@dobara/ui';
+import { PageHeader } from '../components/PageHeader';
 import { ChevronDown, ChevronUp, Phone, Mail, TicketIcon, List as ListIcon } from 'lucide-react';
 
 const FAQS = [
@@ -40,8 +41,7 @@ export function HelpCenter() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-10" data-testid="help-center">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/account')}>← Back</Button>
-      <h1 className="text-h3 font-bold">Help Center</h1>
+      <PageHeader title="Help Center" onBack={() => navigate('/account')} />
 
       {FAQS.map((group) => (
         <Card key={group.cat}>

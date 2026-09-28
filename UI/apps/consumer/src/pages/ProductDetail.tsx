@@ -100,7 +100,7 @@ export function ProductDetail() {
   if (!device || !model) {
     return (
       <div className="max-w-lg md:max-w-4xl mx-auto">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-3">← Back</Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-3 sticky top-0 z-20 -mt-4 pt-4 pb-2 bg-surface">← Back</Button>
         <Card>
           <p className="text-center text-text-muted py-8">Device not found.</p>
         </Card>
@@ -146,7 +146,7 @@ export function ProductDetail() {
 
   return (
     <div className="max-w-lg md:max-w-4xl mx-auto pb-[140px]">
-      <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-3">← Back</Button>
+      <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-3 sticky top-0 z-20 -mt-4 pt-4 pb-2 bg-surface">← Back</Button>
 
       {/* Main Image Carousel */}
       <div className="relative aspect-[4/3] bg-gradient-to-br from-surface-card to-surface-muted rounded-xl mb-2 overflow-hidden shadow-card">

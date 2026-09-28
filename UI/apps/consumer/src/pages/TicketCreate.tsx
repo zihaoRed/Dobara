@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Input, Modal } from '@dobara/ui';
+import { PageHeader } from '../components/PageHeader';
 import { ChevronRight, Camera, X, TicketIcon, CheckCircle2 } from 'lucide-react';
 
 /** APP-P1-10 — support ticket submission (7 categories, optional order link, photos, TK id). */
@@ -107,13 +108,10 @@ export function TicketCreate() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-10" data-testid="ticket-create">
-      <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>← Back</Button>
-      <div>
-        <h1 className="text-h3 font-bold text-text-primary">Submit a Ticket</h1>
-        <p className="text-caption text-text-muted mt-1">
-          For order returns / exchanges please use After-Sales instead — tickets are for general issues.
-        </p>
-      </div>
+      <PageHeader title="Submit a Ticket" onBack={() => navigate(-1)} />
+      <p className="text-caption text-text-muted mt-1">
+        For order returns / exchanges please use After-Sales instead — tickets are for general issues.
+      </p>
 
       <Card>
         <h3 className="text-caption font-semibold text-text-muted uppercase mb-3">1 · Category</h3>

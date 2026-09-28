@@ -58,9 +58,11 @@ export function TicketDetail() {
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-10" data-testid="ticket-detail">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/account/tickets')}>
-        <ArrowLeft size={16} /> All Tickets
-      </Button>
+      <div className="sticky top-0 z-20 -mt-4 pt-4 pb-2 bg-surface">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/account/tickets')}>
+          <ArrowLeft size={16} /> All Tickets
+        </Button>
+      </div>
 
       <Card>
         <div className="flex items-center gap-2 mb-2">

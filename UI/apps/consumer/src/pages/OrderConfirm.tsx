@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Card, Button, PriceDisplay, GradeBadge, Badge, EmptyState } from '@dobara/ui';
+import { PageHeader } from '../components/PageHeader';
 import { MapPin, Truck, CreditCard, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import type { IDevice, IModel, IBrand } from '@dobara/utils';
 import { calcOrderTotal, imeiLast4, type TDeliveryMethod } from '@dobara/utils';
@@ -283,10 +284,7 @@ export function OrderConfirm() {
 
   return (
     <div className="max-w-lg mx-auto pb-28 space-y-4">
-      <Button variant="ghost" size="sm" onClick={() => navigate(`/buy/product/${imei}`)} data-testid="order-back">
-        ← Back
-      </Button>
-      <h1 className="text-h3 font-bold text-text-primary" data-testid="order-confirm-title">Confirm Order</h1>
+      <PageHeader title="Confirm Order" onBack={() => navigate(`/buy/product/${imei}`)} titleTestId="order-confirm-title" />
       <p className="text-caption text-text-muted -mt-2">Inventory locks only after you submit.</p>
 
       {/* Address */}

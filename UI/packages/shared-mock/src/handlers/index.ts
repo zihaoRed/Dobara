@@ -1037,6 +1037,16 @@ export const handlers = [
     return HttpResponse.json({ orders: sorted });
   }),
 
+  http.post('/api/recycle-orders/:sessionId/cancel', async ({ params }) => {
+    await simulateDelay();
+    const sid = String(params.sessionId);
+    const rcy = recycleOrderStore.find((o) => o.sessionId === sid);
+    if (!rcy) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+    rcy.status = 'cancelled';
+    upsertRecycleOrder({ ...rcy });
+    return HttpResponse.json({ success: true });
+  }),
+
   // Inspection records (TAB-P1-06) — the tablet's list of inspection jobs by status
   http.get('/api/inspection-records', async ({ request }) => {
     await simulateDelay();
