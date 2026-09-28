@@ -2,12 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, EstimateThinkingPanel } from '@dobara/ui';
 import type { IEstimateDeduction } from '@dobara/ui';
-import { ArrowRight, Smartphone, Info, MapPin, Clock, AlertTriangle, ChevronDown } from 'lucide-react';
+import { ArrowRight, Smartphone, Info, MapPin, Clock, AlertTriangle, ChevronDown, Check } from 'lucide-react';
 import type { IBrand, IModel, IStore } from '@dobara/utils';
 import { ADMISSION_SELFCHECK } from '@dobara/utils';
 import { getUserCity, nearestServedCities } from '../lib/userCity';
 import { CityPicker } from '../components/CityPicker';
 import { StorePicker } from '../components/StorePicker';
+
+const formatDay = (d: string) =>
+  new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 
 /**
  * 外观采集项（PRD 02 APP-P1-01）——选项文案与 PRD 对齐，每档绑定 §3.1.2.1 的扣款编码。
@@ -780,40 +783,53 @@ export function Appointment() {
 
           <Card>
             <h3 className="text-h4 font-heading mb-3 flex items-center gap-2"><Clock size={18} /> Visit slot</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-eyebrow text-text-muted uppercase mb-2">Date</p>
-                <div className="space-y-1.5">
-                  {nextDays.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => setSelDate(d)}
-                      className={`w-full text-left px-3 py-2 rounded-md text-caption border ${
-                        selDate === d ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-border hover:bg-surface-container'
-                      }`}
-                    >
-                      {d.slice(5)}
-                    </button>
-                  ))}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border overflow-hidden">
+                <p className="px-3 py-2 text-eyebrow text-text-muted uppercase bg-surface-low border-b border-border">Date</p>
+                <div className="max-h-56 overflow-y-auto divide-y divide-border">
+                  {nextDays.map((d) => {
+                    const selected = selDate === d;
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        data-testid={`date-${d}`}
+                        onClick={() => { setSelDate(d); setSelSlot(''); }}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors ${
+                          selected ? 'bg-primary-50' : 'hover:bg-surface-container'
+                        }`}
+                      >
+                        <span className={`text-caption ${selected ? 'font-semibold text-primary-700' : 'text-text-secondary'}`}>
+                          {formatDay(d)}
+                        </span>
+                        {selected && <Check size={14} className="text-primary-500 shrink-0" />}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              <div>
-                <p className="text-eyebrow text-text-muted uppercase mb-2">Time</p>
-                <div className="space-y-1.5">
-                  {TIME_SLOTS.map((slot) => (
-                    <button
-                      key={slot}
-                      type="button"
-                      data-testid={`slot-${slot}`}
-                      onClick={() => setSelSlot(slot)}
-                      className={`w-full text-left px-3 py-2 rounded-md text-caption border ${
-                        selSlot === slot ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-border hover:bg-surface-container'
-                      }`}
-                    >
-                      {slot}
-                    </button>
-                  ))}
+              <div className="rounded-lg border border-border overflow-hidden">
+                <p className="px-3 py-2 text-eyebrow text-text-muted uppercase bg-surface-low border-b border-border">Time</p>
+                <div className="max-h-56 overflow-y-auto divide-y divide-border">
+                  {TIME_SLOTS.map((slot) => {
+                    const selected = selSlot === slot;
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        data-testid={`slot-${slot}`}
+                        onClick={() => setSelSlot(slot)}
+                        className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors ${
+                          selected ? 'bg-primary-50' : 'hover:bg-surface-container'
+                        }`}
+                      >
+                        <span className={`text-caption ${selected ? 'font-semibold text-primary-700' : 'text-text-secondary'}`}>
+                          {slot}
+                        </span>
+                        {selected && <Check size={14} className="text-primary-500 shrink-0" />}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
