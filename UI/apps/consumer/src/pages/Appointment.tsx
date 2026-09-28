@@ -780,35 +780,42 @@ export function Appointment() {
 
           <Card>
             <h3 className="text-h4 font-heading mb-3 flex items-center gap-2"><Clock size={18} /> Visit slot</h3>
-            <p className="text-caption text-text-muted mb-2">Next 7 days</p>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {nextDays.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setSelDate(d)}
-                  className={`px-3 py-1.5 rounded-md text-caption border ${
-                    selDate === d ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-border'
-                  }`}
-                >
-                  {d.slice(5)}
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {TIME_SLOTS.map((slot) => (
-                <button
-                  key={slot}
-                  type="button"
-                  data-testid={`slot-${slot}`}
-                  onClick={() => setSelSlot(slot)}
-                  className={`px-3 py-1.5 rounded-md text-caption border ${
-                    selSlot === slot ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-border'
-                  }`}
-                >
-                  {slot}
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-eyebrow text-text-muted uppercase mb-2">Date</p>
+                <div className="space-y-1.5">
+                  {nextDays.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setSelDate(d)}
+                      className={`w-full text-left px-3 py-2 rounded-md text-caption border ${
+                        selDate === d ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-border hover:bg-surface-container'
+                      }`}
+                    >
+                      {d.slice(5)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-eyebrow text-text-muted uppercase mb-2">Time</p>
+                <div className="space-y-1.5">
+                  {TIME_SLOTS.map((slot) => (
+                    <button
+                      key={slot}
+                      type="button"
+                      data-testid={`slot-${slot}`}
+                      onClick={() => setSelSlot(slot)}
+                      className={`w-full text-left px-3 py-2 rounded-md text-caption border ${
+                        selSlot === slot ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-border hover:bg-surface-container'
+                      }`}
+                    >
+                      {slot}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </Card>
 
