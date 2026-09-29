@@ -233,6 +233,8 @@ export type TRecycleStatus =
 export interface IRecycleOrder {
   id: string;
   sessionId: string;
+  customerName?: string;
+  customerPhone?: string;
   brand: string;
   model: string;
   amount: number;

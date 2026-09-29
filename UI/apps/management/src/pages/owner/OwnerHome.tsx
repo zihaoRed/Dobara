@@ -101,6 +101,9 @@ const OwnerHome: React.FC = () => {
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="primary" onClick={() => navigate('/owner/appointments')} data-testid="appointments-entry">
+          Appointments
+        </Button>
         <Button size="sm" variant="secondary" onClick={() => navigate('/owner/revenue')}>Revenue</Button>
         <Button size="sm" variant="secondary" onClick={() => navigate('/owner/clerks')}>Staff</Button>
       </div>

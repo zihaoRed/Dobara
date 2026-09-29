@@ -657,6 +657,8 @@ export const handlers = [
       estimateMin?: number;
       estimateMax?: number;
       phone?: string;
+      customerName?: string;
+      customerPhone?: string;
       /** 准入自检结果（02 PRD APP-P1-01 / 06 PRD §3.1.1 admission_selfcheck） */
       admissionSelfcheck?: IAdmissionSelfcheck;
     };
@@ -664,6 +666,8 @@ export const handlers = [
     const order: IRecycleOrder = {
       id: `RCY-${sessionId.slice(-8).toUpperCase()}`,
       sessionId,
+      customerName: body.customerName,
+      customerPhone: body.customerPhone || body.phone,
       brand: body.brand || 'Unknown',
       model: body.model || 'Device',
       amount: 0,

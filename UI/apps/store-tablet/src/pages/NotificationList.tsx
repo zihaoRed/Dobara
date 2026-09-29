@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card, Badge, EmptyState } from '@dobara/ui';
 import { ArrowLeft, Bell, ChevronRight } from 'lucide-react';
+import type { IRecycleOrder } from '@dobara/utils';
 
 interface Notification {
   id: string;
@@ -9,11 +10,11 @@ interface Notification {
   message: string;
   read: boolean;
   time: string;
-  type: 'adjustment';
+  type: 'adjustment' | 'new_appointment';
 }
 
-/** TAB-P0-06 — only ops adjustment notifications */
-const mockNotifications: Notification[] = [
+/** TAB-P0-06 审核调整通知 + 新预约通知（预约创建同步到门店）. */
+const mockAdjustments: Notification[] = [
   {
     id: 'n-1',
     title: 'Price Adjustment - iPhone 13',
@@ -42,8 +43,35 @@ const mockNotifications: Notification[] = [
 
 export default function NotificationList() {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>(mockAdjustments);
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  // 新预约通知：从 recycle-orders 拉 appointment_pending（与 C 端预约同源，打通数据流）.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/recycle-orders');
+        const data = (await res.json()) as { orders: IRecycleOrder[] };
+        const apptNotifs: Notification[] = (data.orders || [])
+          .filter((o) => o.status === 'appointment_pending')
+          .map((o) => ({
+            id: `appt-${o.sessionId}`,
+            title: `New Appointment - ${o.brand} ${o.model}`,
+            message: `${o.customerName || 'Customer'} booked for ${o.appointmentDate || '—'} ${o.appointmentSlot || ''}.`,
+            read: false,
+            time: 'Just now',
+            type: 'new_appointment' as const,
+          }));
+        if (!cancelled) setNotifications((prev) => [...apptNotifs, ...prev]);
+      } catch {
+        /* demo */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="p-4 sm:p-6" data-testid="notification-list">
@@ -52,7 +80,7 @@ export default function NotificationList() {
           <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
             <ArrowLeft size={16} />
           </Button>
-          <h1 className="text-h3 font-heading text-text-primary">Ops Adjustments</h1>
+          <h1 className="text-h3 font-heading text-text-primary">Notifications</h1>
         </div>
         {unreadCount > 0 && (
           <Badge variant="accent" size="md" data-testid="unread-badge">
@@ -64,8 +92,8 @@ export default function NotificationList() {
       {notifications.length === 0 ? (
         <EmptyState
           icon={<Bell size={48} strokeWidth={1.5} />}
-          title="No Adjustments"
-          description="Only sessions where ops changed grade or deductions appear here."
+          title="No Notifications"
+          description="New appointments and ops adjustments appear here."
         />
       ) : (
         <div className="space-y-2">

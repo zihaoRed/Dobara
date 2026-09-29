@@ -6,6 +6,7 @@ import { ArrowRight, Smartphone, Info, MapPin, Clock, AlertTriangle, ChevronDown
 import type { IBrand, IModel, IStore } from '@dobara/utils';
 import { ADMISSION_SELFCHECK } from '@dobara/utils';
 import { getUserCity, nearestServedCities } from '../lib/userCity';
+import { getUser } from '../App';
 import { CityPicker } from '../components/CityPicker';
 import { StorePicker } from '../components/StorePicker';
 
@@ -305,7 +306,10 @@ export function Appointment() {
     const store = stores.find((s) => s.id === selStore);
     const brandName = brands.find((b) => b.id === selBrand)?.name;
     const estimateVal = estimate ?? 0;
+    const user = getUser();
     const body = {
+      customerName: user?.name,
+      customerPhone: user?.phone,
       brand: brandName,
       model: selectedModel?.name,
       color: selColor,

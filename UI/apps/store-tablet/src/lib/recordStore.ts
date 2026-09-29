@@ -1,4 +1,5 @@
 import { getProgress } from './sessionProgress';
+import type { IRecycleOrder } from '@dobara/utils';
 
 /** TAB-P1-06 — 质检单列表 5 个状态 Tab（待质检/质检中/质检完成/质检拒收/取消质检）。
  *  已核销 → 并入质检完成（交接进度 verified）；上传失败 → 并入质检中（uploadFailed 标记）. */
@@ -65,12 +66,38 @@ export async function listInspectionRecords(
   status?: TInspectionRecordStatus,
 ): Promise<IInspectionRecord[]> {
   let records: IInspectionRecord[] = [];
-  try {
-    const res = await fetch(`/api/inspection-records${status ? `?status=${status}` : ''}`);
-    const data = (await res.json()) as { records: IInspectionRecord[] };
-    records = data.records || [];
-  } catch {
-    /* demo */
+
+  if (status === 'pending') {
+    // 待质检：从 recycle-orders 拉 appointment_pending（与 C 端预约同源，打通数据流）
+    try {
+      const res = await fetch('/api/recycle-orders');
+      const data = (await res.json()) as { orders: IRecycleOrder[] };
+      records = (data.orders || [])
+        .filter((o) => o.status === 'appointment_pending')
+        .map((o) => ({
+          sessionId: o.sessionId,
+          storeId: o.storeId || 'ST-MH-0001',
+          customerName: o.customerName || '—',
+          customerPhone: o.customerPhone || '',
+          device: o.brand && o.model ? `${o.brand} ${o.model}` : 'Device',
+          brand: o.brand,
+          model: o.model,
+          status: 'pending' as TInspectionRecordStatus,
+          date: o.appointmentDate || o.createdAt?.slice(0, 10) || '',
+          appointmentDate: o.appointmentDate,
+          appointmentSlot: o.appointmentSlot,
+        }));
+    } catch {
+      /* demo */
+    }
+  } else {
+    try {
+      const res = await fetch(`/api/inspection-records${status ? `?status=${status}` : ''}`);
+      const data = (await res.json()) as { records: IInspectionRecord[] };
+      records = data.records || [];
+    } catch {
+      /* demo */
+    }
   }
 
   const active = getProgress();

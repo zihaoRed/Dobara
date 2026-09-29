@@ -43,6 +43,7 @@ import MallOrderDetail from './pages/admin/MallOrderDetail';
 import AdminSettings from './pages/admin/Settings';
 
 import OwnerHome from './pages/owner/OwnerHome';
+import AppointmentsToday from './pages/owner/AppointmentsToday';
 import TradeInEntry from './pages/owner/TradeInEntry';
 import TradeInHistory from './pages/owner/TradeInHistory';
 import ClerkList from './pages/owner/ClerkList';
@@ -360,6 +361,7 @@ function AppRoutes() {
 
         <Route path="/owner" element={<ModuleGuard module="owner" />}>
           <Route index element={<OwnerHome />} />
+          <Route path="appointments" element={<AppointmentsToday />} />
           <Route path="trade-in/history" element={<TradeInHistory />} />
           <Route path="trade-in/:sessionId" element={<TradeInEntry />} />
           <Route path="clerks" element={<ClerkList />} />
