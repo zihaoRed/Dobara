@@ -1,13 +1,16 @@
 import { getProgress } from './sessionProgress';
 
-/** TAB-P1-06 — inspection record statuses (待质检/质检中/质检完成/已完成-拒收/已核销/上传失败). */
+/** TAB-P1-06 — 质检单列表 5 个状态 Tab（待质检/质检中/质检完成/质检拒收/取消质检）。
+ *  已核销 → 并入质检完成（交接进度 verified）；上传失败 → 并入质检中（uploadFailed 标记）. */
 export type TInspectionRecordStatus =
   | 'pending'
   | 'inspecting'
   | 'completed'
   | 'rejected'
-  | 'redeemed'
-  | 'upload_failed';
+  | 'cancelled';
+
+/** 交接进度（质检完成 Tab 内展示）——沿用核销流程 CLOUD-P0-02 口径. */
+export type THandoverStatus = 'pending_owner' | 'pending_user' | 'verified';
 
 export interface IInspectionRecord {
   sessionId: string;
@@ -19,6 +22,19 @@ export interface IInspectionRecord {
   model?: string;
   status: TInspectionRecordStatus;
   date: string;
+  /** 待质检：预约时间 */
+  appointmentDate?: string;
+  appointmentSlot?: string;
+  /** 质检拒收：拒收原因 */
+  rejectionReason?: string;
+  /** 质检完成：交接进度 */
+  handoverStatus?: THandoverStatus;
+  /** 取消质检：取消时间/原因/取消方 */
+  cancelledAt?: string;
+  cancelReason?: string;
+  cancelledBy?: 'user' | 'clerk';
+  /** 质检中：上传失败标记（触发「重新上传」按钮） */
+  uploadFailed?: boolean;
 }
 
 export const RECORD_STATUS_LABEL: Record<TInspectionRecordStatus, string> = {
@@ -26,28 +42,31 @@ export const RECORD_STATUS_LABEL: Record<TInspectionRecordStatus, string> = {
   inspecting: 'Inspecting',
   completed: 'Completed',
   rejected: 'Rejected',
-  redeemed: 'Redeemed',
-  upload_failed: 'Upload failed',
+  cancelled: 'Cancelled',
 };
 
-export const RECORD_STATUS_FILTERS: { key: TInspectionRecordStatus | 'all'; label: string }[] = [
-  { key: 'all', label: 'All' },
+export const HANDOVER_STATUS_LABEL: Record<THandoverStatus, string> = {
+  pending_owner: 'Awaiting owner price',
+  pending_user: 'Awaiting customer confirm',
+  verified: 'Redeemed',
+};
+
+export const RECORD_STATUS_TABS: { key: TInspectionRecordStatus; label: string }[] = [
   { key: 'pending', label: 'Pending' },
   { key: 'inspecting', label: 'Inspecting' },
   { key: 'completed', label: 'Completed' },
   { key: 'rejected', label: 'Rejected' },
-  { key: 'redeemed', label: 'Redeemed' },
-  { key: 'upload_failed', label: 'Upload failed' },
+  { key: 'cancelled', label: 'Cancelled' },
 ];
 
 /** Fetch inspection records from the mock backend, then overlay the single active session
- *  (TAB-P1-06「未完成」→ 质检中) from local progress so the list shows an in-progress row. */
+ *  (质检中) from local progress so the list shows an in-progress row. */
 export async function listInspectionRecords(
-  status?: TInspectionRecordStatus | 'all',
+  status?: TInspectionRecordStatus,
 ): Promise<IInspectionRecord[]> {
   let records: IInspectionRecord[] = [];
   try {
-    const res = await fetch(`/api/inspection-records${status && status !== 'all' ? `?status=${status}` : ''}`);
+    const res = await fetch(`/api/inspection-records${status ? `?status=${status}` : ''}`);
     const data = (await res.json()) as { records: IInspectionRecord[] };
     records = data.records || [];
   } catch {

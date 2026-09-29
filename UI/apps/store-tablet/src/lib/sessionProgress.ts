@@ -112,6 +112,27 @@ export function resumePath(p: ISessionProgress): string {
   return `/session/${p.sessionId}/${step === 'decision' ? 'decision' : step}`;
 }
 
+/** 修改质检（TAB-P1-06）——回退到上一个已完成步骤重做，返回回退后的路径；不可回退时返回 null. */
+export function modifyInspection(sessionId: string): string | null {
+  const p = getProgress();
+  if (!p || p.sessionId !== sessionId || p.completedIndex < 0) return null;
+  const redoIdx = p.completedIndex; // 上一个已完成步骤（要重做的）
+  const redoStep = INSPECTION_STEP_KEYS[redoIdx];
+  const next: ISessionProgress = {
+    ...p,
+    completedIndex: redoIdx - 1,
+    currentStep: redoStep,
+    updatedAt: new Date().toISOString(),
+  };
+  localStorage.setItem(PROGRESS_KEY, JSON.stringify(next));
+  return redoStep === 'session' ? `/session/${sessionId}` : `/session/${sessionId}/${redoStep}`;
+}
+
+/** 重新质检（TAB-P1-06）——归档原会话并清空本地进度（demo 直接清空），调用方随后跳转 /otp 新建会话. */
+export function reInspect(): void {
+  clearProgress();
+}
+
 export interface IClerkAuth {
   phone: string;
   name: string;
