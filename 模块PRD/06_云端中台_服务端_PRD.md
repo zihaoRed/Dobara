@@ -8,7 +8,7 @@
 
 | 日期 | 版本 | 更新内容 | 更新人 |
 |------|------|----------|--------|
-| 2026-09-29 | v1.20 | **CLOUD-P1-01 换购预约补「预约同步 + 门店通知」**：原预约创建后门店侧被动感知（只在到店核销时首次看到）。补：预约创建后实时通知对应门店的店长（OWN）+ 店员（CLK），双端推送（内部业务应用 + 质检工具），并将预约单同步至门店工作台（店老板「今日预约」+ 质检工具「待质检」）；预约数据模型补 `customer_name`/`customer_phone`。配套 05 PRD v3.14（OWN-P0-04 今日预约工作台）、01 PRD v1.21（待质检数据源打通 + 新预约通知）、需求池同步 | 何子豪 |
+| 2026-09-29 | v1.20 | **①CLOUD-P1-01 换购预约补「预约同步 + 门店通知」**：原预约创建后门店侧被动感知（只在到店核销时首次看到）。补：预约创建后实时通知对应门店的店长（OWN）+ 店员（CLK），双端推送（内部业务应用 + 质检工具），并将预约单同步至门店工作台（店老板「今日预约」+ 质检工具「待质检」）；预约数据模型补 `customer_name`/`customer_phone`。配套 05 PRD v3.14（OWN-P0-04 今日预约工作台）、01 PRD v1.21（待质检数据源打通 + 新预约通知）、需求池同步。**②CLOUD-P0-10 新增「C端回收订单查询聚合」**（修复 BUG-007「C端看不到预约/质检关联数据」——会话关联字段自 §2.9.2 起即存在，缺的是用户侧聚合查询 API）：新增 §2.9.4，API-48 我的回收订单列表（未到店 appointment + 到店后 session 合并视图）+ API-49 详情聚合（预约/质检摘要/报价/核销/时间线五块一次返回）；仅本人会话可查（他人 404），新机 IMEI 仅后四位。配套 02 PRD v2.26②（APP-P1-01 成功页订单详情入口、APP-P1-02 数据源标注）、需求池 P4-P0-20 | 何子豪 |
 | 2026-09-25 | v1.19 | **新增 CLOUD-P0-19 实名认证 KYC（P0）**：商城交易支付前对买家一次性实名认证 + 年龄验证（≥18），仅 Aadhaar（OTP 验证为主、上传证件+人工审核兜底），认证通过复用、未认证/未成年拦截交易，企业账号采购员个人不豁免（KYC-01~07）。配套 02 PRD v2.25（APP-P0-12）、需求池同步 | 何子豪 |
 | 2026-09-24 | v1.18 | **①CR-08 授信单取消/退款补金额口径**：原只写"回补金额"，未明确扣运费；明确 ①未发货取消全额回补冻结（商品+配送费+税费）、②已发货退款回补已用=商品+税费−往返运费（与个人单配送中拒收同口径）、③已结算走贷记单。**②新增 CLOUD-P0-18 旧机数据清除（P0）**：报价接受后生成 `device_wipe`，清除完成（wiped）是「确认核销」与「发仓库」硬前置（DW-01~06）；核销摘要补「旧机已清除」+ 核销成功动作补清除前置校验。配套 01 PRD v1.20、02 PRD v2.24、需求池同步 | 何子豪 |
 | 2026-09-23 | v1.17 | **回收侧「门店→仓库」发货闭环补齐**：①CLOUD-P0-03 状态机新增「待入库 pending_inbound」状态（15→16 状态），核销后 `inspection_completed → pending_inbound → pending_review`，新增 SM-06 禁止核销直跳待上架申请；②CLOUD-P0-02 核销成功动作 `device.status → pending_inbound` 并新增第 5 步「自动生成回收发货单 + 推 DB」；③CLOUD-P0-04 新增 2.4.4 回收发货单数据模型 store_shipment（created/shipped/delivered/exception）+ Delhivery 运单生成与 webhook 物流轨迹回传（默认目标仓 = 门店绑定仓库，DB 可改选）。配套 05 PRD v3.13（DB-P0-04 回收发货调度）、需求池同步；UI：management DB 视图新增待发货列表/发货单详情/批量发货 | 何子豪 |
@@ -1616,6 +1616,67 @@ OTP 验证通过
 - [ ] 会话来源正确标记（walk_in / appointment）
 - [ ] h5_token 安全随机生成，不可猜测
 - [ ] 新注册用户标记 registration_source = "offline_otp"
+
+## 2.9.4 C端回收订单查询聚合（v1.20）
+
+C端 App 的「回收订单」不是独立订单表，而是 **appointment（未到店）+ session（到店后）的用户侧合并视图**。本节定义面向 C 端的聚合查询 API——会话与预约/质检/报价/核销的关联字段自 §2.9.2 起即存在（`appointment_id`/`device_id`/`pricing_id`/`verification_id`），此前缺的是用户侧聚合查询接口，导致 C 端订单详情看不到预约/质检关联数据（BUG-007）。
+
+**API-48 我的回收订单列表：**
+
+```
+GET /api/v1/recycle-orders?status=&page=&page_size=
+Authorization: Bearer <ROLE-USER token>
+```
+
+| 参数 | 说明 |
+|------|------|
+| status | 可选：appointment_pending（待到店）/ inspecting（质检中）/ pending_confirm（待确认）/ expired（已过期）/ awaiting_redeem（待核销）/ completed（已完成）/ rejected（已拒绝） |
+| page / page_size | 分页，默认 1 / 10，最大 50，按更新时间倒序 |
+
+**合并数据源与返回结构：**
+
+| 数据源 | 覆盖状态 | 说明 |
+|--------|---------|------|
+| appointment（到店 OTP 前） | appointment_pending / 预约过期 | 预约提交后、尚未到店创建会话 |
+| session（到店 OTP 后） | inspecting / pending_confirm / expired / awaiting_redeem / completed / rejected | 以 §2.9.2 会话状态映射 |
+
+每条返回：`appointment_id`、`session_id`（到店后非空）、设备品牌/型号/颜色（预约自填，到店后以质检实测覆盖）、状态、创建/更新时间、预约摘要（门店名称、预约日期+时段、预估价格区间——仅 source=appointment）、质检摘要（外观评级 A/B/C/D、电池健康度——质检完成后）、最终回收价（报价生成后）。
+
+**API-49 回收订单详情聚合：**
+
+```
+GET /api/v1/recycle-orders/{ref_id}/detail    （ref_id = session_id；待到店无会话时 = appointment_id）
+Authorization: Bearer <ROLE-USER token>
+```
+
+一次返回 02 PRD APP-P1-02「回收订单详情页」所需的全部关联数据：
+
+| 数据块 | 内容 | 来源 |
+|--------|------|------|
+| 预约信息 | 门店名称/地址、预约日期+时段、预约状态、预估价格区间 | appointment（经 session.appointment_id；walk-in 会话无此块） |
+| 质检报告摘要 | 外观评级（A/B/C/D）、电池健康度、硬件/外观扣款汇总 | 质检包 + pricing_result |
+| 报价信息 | 最终回收价、报价时间、30 分钟有效期基准、接受/拒绝/过期标记 | pricing_result |
+| 核销信息 | 新机机型、新机 IMEI 后四位、新机售价/抵扣/实付、旧机数据清除状态、核销状态 | verification |
+| 换购时间线 | 已预约 → 已到店 → 质检完成 → 报价已接受 → 已核销（含拒绝/过期分支） | session + device_status_log |
+
+**业务规则：**
+
+| 规则项 | 说明 |
+|--------|------|
+| 鉴权 | 仅 ROLE-USER；只能查询属于当前登录用户的预约/会话，他人数据返回 404（不暴露存在性） |
+| 状态映射 | appointment：待到店/已过期；session.status：created→待到店（预约仍在）、inspecting→质检中、report_ready→待确认、quote_accepted→待核销、verified→已完成、rejected→已拒绝、expired→已过期（独立于 rejected，对齐 02 v2.14） |
+| walk-in 会话 | 未预约直接到店的会话同样出现在列表（无预约摘要块），与 H5 跟踪页口径一致 |
+| 聚合只读 | 本组接口仅做聚合展示；业务操作（取消/修改预约、接受/拒绝报价、确认核销）仍走各自独立 API |
+| IMEI 展示 | 新机 IMEI 仅返回后四位（对齐 CLOUD-P0-02 核销摘要口径），全量 IMEI 不下发 C 端 |
+| 无新表 | 本节为聚合查询视图，不新增数据表；实现可用视图或服务层聚合 |
+
+**验收标准：**
+- [ ] API-48 仅返回当前用户自己的预约/会话，访问他人数据返回 404
+- [ ] API-48 合并 appointment 与 session 两个来源，待到店与到店后状态全覆盖且无重复
+- [ ] API-49 一次返回预约/质检摘要/报价/核销/时间线五个数据块，C 端详情页无需多次请求拼装
+- [ ] 状态映射与 C 端订单列表状态筛选一致（含 expired 独立于 rejected）
+- [ ] 新机 IMEI 仅返回后四位
+- [ ] walk-in 会话在列表中正常返回，详情无预约信息块
 
 ## 2.10 CLOUD-P0-12 OTP 验证服务
 **优先级：** P0
@@ -3252,6 +3313,8 @@ Response: {
 | API-45 | H5 下行指令轮询 | GET | `/api/v1/check/{token}/command` | CLOUD-P0-16 |
 | API-46 | 检测进度查询（轮询兜底） | GET | `/api/v1/inspections/{session_id}/check-progress` | CLOUD-P0-16 |
 | API-47 | 下发单项复测指令 | POST | `/api/v1/inspections/{session_id}/check-retest/{item_key}` | CLOUD-P0-16 |
+| API-48 | 我的回收订单列表 | GET | `/api/v1/recycle-orders` | CLOUD-P0-10 §2.9.4 |
+| API-49 | 回收订单详情聚合 | GET | `/api/v1/recycle-orders/{ref_id}/detail` | CLOUD-P0-10 §2.9.4 |
 
 ## 5. 附录 B -- 数据模型汇总
 ## 5.1 核心实体关系

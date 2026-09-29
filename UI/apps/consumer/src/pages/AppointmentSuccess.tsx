@@ -138,7 +138,11 @@ export function AppointmentSuccess() {
         </ul>
       </Card>
 
-      <Button variant="primary" size="lg" className="w-full" onClick={() => navigate('/home')} data-testid="appointment-success-home">
+      {/* 优化单-017 / APP-P1-01（02 v2.26）：预约即一条待到店回收订单，成功页提供订单详情入口 */}
+      <Button variant="primary" size="lg" className="w-full" onClick={() => navigate('/account/orders?tab=sell')} data-testid="appointment-success-view-order">
+        View Order Status
+      </Button>
+      <Button variant="secondary" size="lg" className="w-full" onClick={() => navigate('/home')} data-testid="appointment-success-home">
         Back to Home
       </Button>
     </div>
