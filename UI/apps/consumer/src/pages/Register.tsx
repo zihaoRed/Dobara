@@ -1,5 +1,5 @@
 import React, { useEffect, useState, type ChangeEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input, Button, Card, Modal } from '@dobara/ui';
 import { Building2 } from 'lucide-react';
 import type { IEntBinding } from '@dobara/utils';
@@ -100,6 +100,7 @@ export function LegalDoc({ doc, open, onClose }: { doc: 'agreement' | 'privacy' 
 
 export function Register({ phone }: { phone: string }) {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [agree, setAgree] = useState(false);
@@ -171,7 +172,9 @@ export function Register({ phone }: { phone: string }) {
       }
       markRegistered(phone);
       setUser(phone, 'Demo User', entBinding);
-      navigate('/home', { replace: true });
+      // 游客浏览（APP-P0-05）：注册完成回跳拦截触发前的原页面（Login 透传 redirect）
+      const target = params.get('redirect') || '';
+      navigate(target.startsWith('/') && !target.startsWith('/register') ? target : '/home', { replace: true });
     } finally {
       setSubmitting(false);
     }

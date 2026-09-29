@@ -1,5 +1,5 @@
 import React, { useEffect, useState, type ChangeEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input, Button, Card, Modal, Tabs } from '@dobara/ui';
 import { setUser } from '../App';
 import { isValidIndiaPhone, OTP_COOLDOWN_SECONDS } from '@dobara/utils';
@@ -25,6 +25,10 @@ async function apiCall(url: string, body: Record<string, string>) {
 
 export function Login() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // APP-P0-05 游客浏览：拦截节点拉起登录时携带来源页，成功后回跳（仅接受站内路径，防开放跳转）
+  const rawReturn = params.get('redirect') || '';
+  const returnTo = rawReturn.startsWith('/') && !rawReturn.startsWith('/login') && !rawReturn.startsWith('/register') ? rawReturn : '';
   const [mode, setMode] = useState('otp');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
@@ -66,7 +70,7 @@ export function Login() {
 
   const finishLogin = (name: string, entBinding?: IEntBinding) => {
     setUser(normalizedPhone, name, entBinding);
-    navigate('/home', { replace: true });
+    navigate(returnTo || '/home', { replace: true });
   };
 
   const handleVerifyOtp = async () => {
@@ -81,7 +85,7 @@ export function Login() {
     if (data?.success) {
       // APP-P0-05: new users go set a password + accept terms before entering
       if (data.isNew === true || (data.isNew === undefined && !isKnownUser(normalizedPhone))) {
-        navigate(`/register?phone=${normalizedPhone}`);
+        navigate(`/register?phone=${normalizedPhone}${returnTo ? `&redirect=${encodeURIComponent(returnTo)}` : ''}`);
         return;
       }
       // 企业身份随登录返回（06 §2.12.2：绑定存在即 ROLE-ENT，无二次登录）
@@ -90,7 +94,7 @@ export function Login() {
     }
     if (otp === DEMO_OTP) {
       if (!isKnownUser(normalizedPhone)) {
-        navigate(`/register?phone=${normalizedPhone}`);
+        navigate(`/register?phone=${normalizedPhone}${returnTo ? `&redirect=${encodeURIComponent(returnTo)}` : ''}`);
         return;
       }
       finishLogin('Demo User');
@@ -227,6 +231,17 @@ export function Login() {
           {' · '}
           <button type="button" className="underline" onClick={() => setDocOpen('privacy')}>Privacy Policy</button>
         </p>
+        {/* 游客浏览（APP-P0-05）：从拦截节点进入时可放弃登录，返回原页面继续浏览 */}
+        {returnTo && (
+          <button
+            type="button"
+            className="text-caption text-primary-500 w-full text-center block mt-3"
+            onClick={() => navigate(-1)}
+            data-testid="continue-browsing"
+          >
+            Continue browsing without signing in
+          </button>
+        )}
 
         <LegalDoc doc={docOpen} open={docOpen !== null} onClose={() => setDocOpen(null)} />
       </div>

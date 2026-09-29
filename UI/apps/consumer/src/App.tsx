@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Home as HomeIcon, ShoppingBag, ArrowLeftRight, User } from 'lucide-react';
 
@@ -63,10 +63,13 @@ export function clearUser() {
   localStorage.removeItem(AUTH_KEY);
 }
 
-/* ── Auth Guard ── */
+/* ── Auth Guard — APP-P0-05 游客浏览：浏览类路由不设守卫；操作类节点拦截并携带回跳地址，登录后回原页 ── */
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const user = getUser();
-  if (!user) return <Navigate to="/login" replace />;
+  const location = useLocation();
+  if (!getUser()) {
+    const returnTo = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirect=${returnTo}`} replace />;
+  }
   return <>{children}</>;
 }
 
@@ -168,32 +171,25 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
 /* ── App ── */
 export function App() {
-  const [user, setUserState] = useState(getUser());
-
-  useEffect(() => {
-    const check = () => setUserState(getUser());
-    window.addEventListener('storage', check);
-    return () => window.removeEventListener('storage', check);
-  }, []);
-
   return (
     <BrowserRouter basename="/consumer">
       <AppLayout>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<RegisterRoute />} />
-          <Route path="/" element={<Navigate to={user ? '/home' : '/login'} replace />} />
+          {/* 游客态直接落首页（APP-P0-05），不再强制先登录 */}
+          <Route path="/" element={<Navigate to="/home" replace />} />
 
-          {/* Home — marketing landing */}
-          <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
+          {/* Home — marketing landing（游客可浏览） */}
+          <Route path="/home" element={<Home />} />
 
-          {/* Buy — product catalog + enterprise B2B */}
-          <Route path="/buy" element={<RequireAuth><BuyEntry /></RequireAuth>} />
+          {/* Buy — product catalog + enterprise B2B（列表/商详游客可浏览；企业采购与下单需登录） */}
+          <Route path="/buy" element={<BuyEntry />} />
           <Route path="/buy/enterprise" element={<RequireAuth><EnterpriseHome /></RequireAuth>} />
           <Route path="/buy/enterprise/cart" element={<RequireAuth><EnterpriseCart /></RequireAuth>} />
           <Route path="/buy/enterprise/checkout" element={<RequireAuth><EnterpriseCart /></RequireAuth>} />
-          <Route path="/home/product/:imei" element={<RequireAuth><ProductDetail /></RequireAuth>} />
-          <Route path="/buy/product/:imei" element={<RequireAuth><ProductDetail /></RequireAuth>} />
+          <Route path="/home/product/:imei" element={<ProductDetail />} />
+          <Route path="/buy/product/:imei" element={<ProductDetail />} />
           <Route path="/home/product/:imei/order" element={<RequireAuth><OrderConfirm /></RequireAuth>} />
           <Route path="/buy/product/:imei/order" element={<RequireAuth><OrderConfirm /></RequireAuth>} />
           <Route path="/buy/order/pay/:orderId" element={<RequireAuth><Payment /></RequireAuth>} />
