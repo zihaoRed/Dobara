@@ -5,10 +5,11 @@ import { useNavigate } from 'react-router-dom';
 import { useOwnerStore } from '../../lib/useOwnerStore';
 import { listTradeIns, tradeInStatusLabel, type TTradeInStatus } from '../../lib/tradeInStore';
 
-function badgeVariant(status: TTradeInStatus): 'warning' | 'success' | 'info' | 'neutral' {
+function badgeVariant(status: TTradeInStatus): 'warning' | 'success' | 'info' | 'error' | 'neutral' {
   if (status === 'pending') return 'warning';
   if (status === 'awaiting_user_confirm') return 'info';
   if (status === 'confirmed') return 'success';
+  if (status === 'expired') return 'error';
   return 'neutral';
 }
 

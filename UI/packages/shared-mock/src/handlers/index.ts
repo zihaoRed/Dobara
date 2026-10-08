@@ -130,6 +130,29 @@ function registerQuote(sessionId: string, expiresAt: string) {
   quoteExpiryBySession.set(sessionId, new Date(expiresAt).getTime());
 }
 
+/**
+ * Verification-stage validity (CLOUD-P0-02 §2.2.1): each redeem stage — owner entry
+ * (`pending`) and user confirmation (`awaiting_user_confirm`) — carries its own
+ * 30-minute window. Either lapsing lands the trade-in in `expired` (terminal).
+ */
+const REDEEM_STAGE_TTL_MS = 30 * 60 * 1000;
+const redeemDeadlineBySession = new Map<string, number>();
+// Seeded session whose user-confirm window already lapsed
+redeemDeadlineBySession.set('sess-005', Date.now() - 60 * 60 * 1000);
+
+function isRedeemExpired(sessionId: string): boolean {
+  const at = redeemDeadlineBySession.get(sessionId);
+  return at != null && at <= Date.now();
+}
+
+/** (Re)start the 30-minute clock — on quote accept, and again on price submission */
+function markRedeemStage(sessionId: string) {
+  redeemDeadlineBySession.set(sessionId, Date.now() + REDEEM_STAGE_TTL_MS);
+}
+
+/** AF-06 — a new-device IMEI must not match any device already known to the platform */
+const knownPlatformImeis = new Set(devices.map((d) => d.imei));
+
 export const handlers = [
   // Devices
   http.get('/api/devices', async ({ request }) => {
@@ -769,6 +792,8 @@ export const handlers = [
       date: new Date().toISOString().slice(0, 10),
       newDeviceHint: 'New device at store',
     });
+    // Start the 30-minute owner-entry window (CLOUD-P0-02 §2.2.1)
+    markRedeemStage(sessionId);
     return HttpResponse.json({
       success: true,
       sessionId,
@@ -811,7 +836,7 @@ export const handlers = [
       customerPhone: string;
       device: string;
       deduction: number;
-      status: 'pending' | 'awaiting_user_confirm' | 'confirmed' | 'submitted';
+      status: 'pending' | 'awaiting_user_confirm' | 'confirmed' | 'submitted' | 'expired';
       date: string;
       newPrice?: number;
       actualPayment?: number;
@@ -834,15 +859,49 @@ export const handlers = [
       { sessionId: 'sess-002', storeId: 'ST-MH-0001', customerName: 'Priya Patel', customerPhone: '9876501002', device: 'Galaxy S22 256GB', deduction: 31000, status: 'pending', date: '2026-08-09', newDeviceHint: 'Galaxy S24' },
       { sessionId: 'sess-003', storeId: 'ST-MH-0001', customerName: 'Amit Singh', customerPhone: '9876501003', device: 'OnePlus Nord 2 128GB', deduction: 14000, status: 'awaiting_user_confirm', date: '2026-08-08', newPrice: 28000, actualPayment: 14000, newDeviceHint: 'OnePlus 12R', newDeviceImei: '350123456789012', newDeviceModel: 'OnePlus 12R', brand: 'OnePlus', model: 'Nord 2' },
       { sessionId: 'sess-004', storeId: 'ST-MH-0001', customerName: 'Sneha Reddy', customerPhone: '9876501004', device: 'Xiaomi 11 Lite', deduction: 12000, status: 'confirmed', date: '2026-08-05', newPrice: 32000, actualPayment: 20000, newDeviceHint: 'Xiaomi 14', newDeviceImei: '358901239876543', newDeviceModel: 'Xiaomi 14' },
+      // CLOUD-P0-02 §2.2.1 — user-confirm window lapsed 1h ago → terminal `expired`
+      { sessionId: 'sess-005', storeId: 'ST-MH-0001', customerName: 'Vikram Joshi', customerPhone: '9876501005', device: 'iPhone 12 64GB', deduction: 16000, status: 'expired', date: '2026-08-07', newPrice: 26000, actualPayment: 10000, newDeviceHint: 'iPhone 15', newDeviceImei: '356789120000777', newDeviceModel: 'iPhone 15' },
       { sessionId: 'sess-101', storeId: 'ST-KA-0002', customerName: 'Arjun Nair', customerPhone: '9876502001', device: 'iPhone 12 64GB', deduction: 22000, status: 'pending', date: '2026-08-10' },
     ];
     for (const t of tradeIns) upsertTradeIn(t);
+    // Matching consumer-side recycle order for the expired demo session
+    upsertRecycleOrder({
+      id: 'RCY-REDEEM-EXPIRED',
+      sessionId: 'sess-005',
+      brand: 'Apple',
+      model: 'iPhone 12',
+      amount: 16000,
+      status: 'expired',
+      createdAt: new Date(Date.now() - 25 * 3600000).toISOString(),
+      grade: 'B',
+    });
+
+    /** Flip a lapsed trade-in (and its consumer recycle order) to terminal `expired` */
+    function expireTradeIn(t: TTrade) {
+      if (t.status === 'expired') return;
+      t.status = 'expired';
+      upsertTradeIn({ ...t });
+      const rcy = recycleOrderStore.find((o) => o.sessionId === t.sessionId);
+      if (rcy && (rcy.status === 'pending_confirm' || rcy.status === 'awaiting_redeem')) {
+        rcy.status = 'expired';
+        upsertRecycleOrder({ ...rcy });
+      }
+    }
+
+    /** Lazy stage clock + expiry flip — applied whenever sessions are read or mutated */
+    function applyRedeemExpiry(t: TTrade) {
+      if (t.status === 'pending' || t.status === 'awaiting_user_confirm') {
+        if (!redeemDeadlineBySession.has(t.sessionId)) markRedeemStage(t.sessionId);
+        if (isRedeemExpired(t.sessionId)) expireTradeIn(t);
+      }
+    }
 
     function mergedTradeIns(storeId?: string | null) {
       const map = new Map<string, TTrade>();
       for (const t of tradeIns) map.set(t.sessionId, t);
       for (const t of listTradeInsBus()) map.set(t.sessionId, { ...map.get(t.sessionId), ...t } as TTrade);
       const list = [...map.values()];
+      for (const t of list) applyRedeemExpiry(t);
       return storeId ? list.filter((t) => t.storeId === storeId) : list;
     }
 
@@ -894,11 +953,33 @@ export const handlers = [
           }
         }
         if (!t) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+        applyRedeemExpiry(t);
+        if (t.status === 'expired') {
+          return HttpResponse.json(
+            {
+              code: 'verification_expired',
+              error: 'Verification expired — the 30-minute entry window lapsed. Start a new inspection session.',
+            },
+            { status: 409 },
+          );
+        }
+        // AF-06 — block a recycled/stock IMEI being passed off as the new device
+        if (body.newDeviceImei && knownPlatformImeis.has(body.newDeviceImei)) {
+          return HttpResponse.json(
+            {
+              code: 'duplicate_imei',
+              error: 'New-device IMEI matches an existing platform device (AF-06). Re-check the handset.',
+            },
+            { status: 409 },
+          );
+        }
         t.newPrice = body.newPrice;
         t.actualPayment = body.actualPayment;
         if (body.newDeviceImei) t.newDeviceImei = body.newDeviceImei;
         if (body.newDeviceModel) t.newDeviceModel = body.newDeviceModel;
         t.status = 'awaiting_user_confirm';
+        // Fresh 30-minute window for the user-confirmation stage (§2.2.1)
+        markRedeemStage(sid);
         upsertTradeIn(t);
         const rcy = recycleOrderStore.find((o) => o.sessionId === sid);
         if (rcy) {
@@ -923,6 +1004,16 @@ export const handlers = [
         const sid = String(params.sessionId);
         const mem = tradeIns.find((x) => x.sessionId === sid);
         if (mem) {
+          applyRedeemExpiry(mem);
+          if (mem.status === 'expired') {
+            return HttpResponse.json(
+              {
+                code: 'verification_expired',
+                error: 'Verification expired — the 30-minute confirmation window lapsed. Visit the store to restart the trade-in.',
+              },
+              { status: 409 },
+            );
+          }
           mem.status = 'confirmed';
           upsertTradeIn(mem);
         }

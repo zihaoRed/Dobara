@@ -17,7 +17,7 @@ export interface IDemoTradeIn {
   customerPhone: string;
   device: string;
   deduction: number;
-  status: 'pending' | 'awaiting_user_confirm' | 'confirmed' | 'submitted';
+  status: 'pending' | 'awaiting_user_confirm' | 'confirmed' | 'submitted' | 'expired';
   date: string;
   newPrice?: number;
   actualPayment?: number;

@@ -153,8 +153,13 @@ const TradeInEntry: React.FC = () => {
         applyLocal();
       } else {
         const data = await res.json().catch(() => ({}));
-        if (!applyLocal()) {
-          setError((data as { error?: string }).error || 'Submission failed');
+        const err = data as { error?: string; code?: string };
+        if (res.status === 409 && err.code === 'verification_expired') {
+          // Business rejection — window lapsed, do not mask it with the local fallback
+          setSession((s) => (s ? { ...s, status: 'expired' } : s));
+          setError(err.error || 'Verification expired');
+        } else if (!applyLocal()) {
+          setError(err.error || 'Submission failed');
         }
       }
     } catch {
@@ -175,6 +180,28 @@ const TradeInEntry: React.FC = () => {
     setToast('Inbound queued for warehouse');
     setConfirming(false);
   };
+
+  // CLOUD-P0-02 §2.2.1 — terminal `expired` (entry or user-confirm window lapsed)
+  if (session.status === 'expired') {
+    return (
+      <Card className="text-center py-6" data-testid="tradein-expired">
+        <CardContent className="space-y-4">
+          <AlertCircle size={48} className="text-dobara-warning mx-auto" />
+          <h3 className="text-h3 font-heading">Verification expired</h3>
+          <p className="text-body text-text-secondary">
+            {session.customerName} · {session.device}
+          </p>
+          <p className="text-caption text-text-muted px-4" data-testid="tradein-expired-note">
+            The 30-minute window lapsed before this trade-in was confirmed. Restart with a new
+            inspection session if the customer is still in store.
+          </p>
+          <Button data-testid="tradein-expired-back" onClick={() => navigate('/owner')}>
+            Back to Home
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (submitted || session.status === 'awaiting_user_confirm' || session.status === 'confirmed') {
     const waitingUser = session.status !== 'confirmed';

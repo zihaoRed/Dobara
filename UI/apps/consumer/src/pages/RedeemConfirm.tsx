@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Card, Button, PriceDisplay, Badge } from '@dobara/ui';
+import { Card, Button, PriceDisplay, Badge, Modal } from '@dobara/ui';
 import { CheckCircle, AlertTriangle, Smartphone, PackageCheck } from 'lucide-react';
 import { imeiLast4 } from '@dobara/utils';
 import { PageHeader } from '../components/PageHeader';
@@ -39,6 +39,7 @@ export function RedeemConfirm() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,10 +99,15 @@ export function RedeemConfirm() {
       const res = await fetch(`/api/trade-in/${sessionId}/confirm`, { method: 'POST' });
       if (!res.ok && sessionId !== 'sess-003') {
         const body = await res.json().catch(() => ({}));
+        if (res.status === 409 && (body as { code?: string }).code === 'verification_expired') {
+          setConfirmOpen(false);
+          setData((d) => (d ? { ...d, status: 'expired' } : d));
+        }
         setError((body as { error?: string }).error || 'Confirmation failed');
         setSubmitting(false);
         return;
       }
+      setConfirmOpen(false);
       setDone(true);
       navigate('/account/orders', {
         state: { toast: 'Trade-in confirmed.' },
@@ -229,18 +235,62 @@ export function RedeemConfirm() {
         </div>
       )}
 
-      <Button
-        variant="primary"
-        size="lg"
-        className="w-full"
-        loading={submitting}
-        disabled={submitting || done || data.status === 'confirmed'}
-        onClick={handleConfirm}
-        data-testid="redeem-confirm-btn"
-        icon={<CheckCircle size={18} />}
-      >
-        Confirm trade-in
-      </Button>
+      {data.status === 'expired' ? (
+        <div
+          className="rounded-lg bg-dobara-warning-light text-[#78350f] p-4 flex items-start gap-2"
+          data-testid="redeem-expired"
+        >
+          <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+          <div>
+            <p className="text-body font-semibold">This trade-in has expired</p>
+            <p className="text-caption mt-1">
+              The 30-minute confirmation window lapsed. Please visit the store to restart the
+              trade-in — your quote can be re-inspected.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full"
+          loading={submitting}
+          disabled={submitting || done || data.status === 'confirmed'}
+          onClick={() => setConfirmOpen(true)}
+          data-testid="redeem-confirm-btn"
+          icon={<CheckCircle size={18} />}
+        >
+          Confirm trade-in
+        </Button>
+      )}
+
+      {/* CLOUD-P0-02 §2.2.2 step 3 — final confirmation, cannot be undone */}
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Confirm trade-in?" size="sm">
+        <div className="space-y-4">
+          <div className="flex items-start gap-2 rounded-lg bg-dobara-warning-light text-[#78350f] p-3">
+            <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+            <p className="text-caption">
+              Once confirmed, the old-device trade-in takes effect and <strong>cannot be
+              undone</strong>. Please make sure the last 4 IMEI digits match the phone you
+              received.
+            </p>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)} data-testid="redeem-cancel">
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              loading={submitting}
+              disabled={submitting}
+              onClick={handleConfirm}
+              data-testid="redeem-confirm-final"
+            >
+              Confirm trade-in
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

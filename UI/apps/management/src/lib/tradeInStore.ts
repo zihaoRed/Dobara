@@ -8,7 +8,7 @@ import {
   upsertRecycleOrder,
 } from '@dobara/mock';
 
-export type TTradeInStatus = 'pending' | 'awaiting_user_confirm' | 'confirmed' | 'submitted';
+export type TTradeInStatus = 'pending' | 'awaiting_user_confirm' | 'confirmed' | 'submitted' | 'expired';
 
 export interface ITradeInSession {
   sessionId: string;
@@ -83,6 +83,21 @@ const SEED: ITradeInSession[] = [
     newDeviceHint: 'Xiaomi 14',
     newDeviceImei: '358901239876543',
     newDeviceModel: 'Xiaomi 14',
+  },
+  {
+    sessionId: 'sess-005',
+    storeId: 'ST-MH-0001',
+    customerName: 'Vikram Joshi',
+    customerPhone: '9876501005',
+    device: 'iPhone 12 64GB',
+    deduction: 16000,
+    status: 'expired',
+    date: '2026-08-07',
+    newPrice: 26000,
+    actualPayment: 10000,
+    newDeviceHint: 'iPhone 15',
+    newDeviceImei: '356789120000777',
+    newDeviceModel: 'iPhone 15',
   },
   {
     sessionId: 'sess-101',
@@ -209,6 +224,7 @@ export function tradeInStatusLabel(status: TTradeInStatus): string {
     case 'awaiting_user_confirm': return 'Awaiting user confirm';
     case 'confirmed': return 'Confirmed';
     case 'submitted': return 'Submitted';
+    case 'expired': return 'Expired';
     default: return status;
   }
 }

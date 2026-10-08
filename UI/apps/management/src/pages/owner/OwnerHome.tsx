@@ -7,10 +7,11 @@ import { listTradeIns, pendingCount, tradeInStatusLabel, type TTradeInStatus } f
 import { getRevenueForStore } from '../../lib/revenueStore';
 import { listOwnerNotices } from '../../lib/dbStore';
 
-function badgeVariant(status: TTradeInStatus): 'warning' | 'success' | 'info' | 'neutral' {
+function badgeVariant(status: TTradeInStatus): 'warning' | 'success' | 'info' | 'error' | 'neutral' {
   if (status === 'pending') return 'warning';
   if (status === 'awaiting_user_confirm') return 'info';
   if (status === 'confirmed') return 'success';
+  if (status === 'expired') return 'error';
   return 'neutral';
 }
 
