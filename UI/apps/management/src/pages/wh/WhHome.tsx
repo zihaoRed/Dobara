@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Badge } from '@dobara/ui';
 import { ArrowRight, Package, Truck, Printer, Search, ClipboardCheck } from 'lucide-react';
-import { listPendingInbound, listPickOrders, todayInboundCount, listInboundExceptions } from '../../lib/whStore';
+import { activeWarehouse, listPendingInbound, listPickOrders, todayInboundCount, listInboundExceptions } from '../../lib/whStore';
 
 const WhHome: React.FC = () => {
   const navigate = useNavigate();
@@ -14,7 +14,12 @@ const WhHome: React.FC = () => {
 
   return (
     <div className="space-y-4" data-testid="wh-home">
-      <h2 className="text-h3 font-heading">Warehouse Overview</h2>
+      <div>
+        <h2 className="text-h3 font-heading">Warehouse Overview</h2>
+        <p className="text-caption text-text-muted mt-1">
+          {activeWarehouse().name} · <span className="font-mono">{activeWarehouse().id}</span>
+        </p>
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Card variant="hover" onClick={() => navigate('/wh/inbound')} data-testid="nav-inbound">

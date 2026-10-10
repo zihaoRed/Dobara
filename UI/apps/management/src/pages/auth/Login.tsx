@@ -24,7 +24,7 @@ export default function Login() {
       navigate('/activate', { replace: true });
       return;
     }
-    if (!session.activeRoleCode) {
+    if (!session.activeRoleId) {
       navigate('/select-role', { replace: true });
       return;
     }

@@ -9,6 +9,7 @@ import {
   type IDemoPickOrder,
 } from '@dobara/mock';
 import type { IDevice } from '@dobara/utils';
+import { getSession, activeRole } from './auth';
 
 export type TDeviceLifecycle =
   | 'inspecting'
@@ -140,6 +141,25 @@ export const CURRENT_WH_ID = 'WH-MH-0001';
 export const CURRENT_WH_NAME = 'Mumbai Central Warehouse';
 /** Map ops-review `warehouseId` (wh-mum) → WH org id used by this console. */
 export const CURRENT_WH_OPS_ID = 'wh-mum';
+
+/** WH org id → ops-review/mall `warehouseId`（wh-mum / wh-del …） */
+const WH_OPS_ID: Record<string, string> = {
+  'WH-MH-0001': 'wh-mum',
+  'WH-DL-0001': 'wh-del',
+};
+
+/** 当前活跃库管角色绑定的仓库上下文；非 WH 角色或无会话时回退到 Mumbai 默认。 */
+export function activeWarehouse(): { id: string; name: string; opsId: string } {
+  const role = activeRole(getSession());
+  if (role?.roleCode === 'ROLE-WH' && role.orgId) {
+    return {
+      id: role.orgId,
+      name: role.orgName,
+      opsId: WH_OPS_ID[role.orgId] ?? 'wh-mum',
+    };
+  }
+  return { id: CURRENT_WH_ID, name: CURRENT_WH_NAME, opsId: CURRENT_WH_OPS_ID };
+}
 
 export type TBatchLineStatus = 'pending' | 'scanned' | 'failed';
 
@@ -628,7 +648,7 @@ function submitDeviceToOps(device: IWhDevice) {
     price: mallPrice,
     originalPrice: device.offerPrice,
     city: 'Mumbai',
-    warehouseId: CURRENT_WH_OPS_ID,
+    warehouseId: activeWarehouse().opsId,
   };
   pushReviewDevice(payload);
   void fetch('/api/ops/review/submit', {
@@ -689,7 +709,7 @@ function mergePickOrdersFromBus(): IPickOrder[] {
 
 export function listPendingInbound(): IWhDevice[] {
   return mergeInboundFromBus().filter(
-    (d) => d.status === 'verified_complete' && d.warehouseId === CURRENT_WH_ID,
+    (d) => d.status === 'verified_complete' && d.warehouseId === activeWarehouse().id,
   );
 }
 
@@ -717,7 +737,7 @@ export function lookupForInbound(code: string): {
   if (!device) {
     return { ok: false, error: 'Device not found for this warehouse inbound queue.' };
   }
-  if (device.warehouseId !== CURRENT_WH_ID) {
+  if (device.warehouseId !== activeWarehouse().id) {
     return { ok: false, error: `Device belongs to ${device.warehouseId} — send to the correct warehouse.` };
   }
   if (device.status !== 'verified_complete') {
@@ -1417,7 +1437,7 @@ export function getActiveStocktake(): IStocktakeSession | undefined {
 }
 
 export function createStocktake(
-  warehouseId = 'WH-MH-0001',
+  warehouseId = activeWarehouse().id,
   scope?: { type?: TStocktakeScopeType; value?: string },
 ): IStocktakeSession {
   const existing = getActiveStocktake();

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent, Badge, Button, Input, GradeBadge } from '@dobara/ui';
 import { ArrowLeft, Camera, Cpu, Printer, CheckCircle, RefreshCw, MapPin } from 'lucide-react';
-import { getDevice, updateShelfCode, CURRENT_WH_NAME } from '../../lib/whStore';
+import { getDevice, updateShelfCode, activeWarehouse } from '../../lib/whStore';
 
 function daysInStock(iso?: string): number | null {
   if (!iso) return null;
@@ -68,7 +68,7 @@ const InventoryDetail: React.FC = () => {
         <CardContent className="grid grid-cols-2 gap-2 text-body">
           <span className="text-text-muted">Color</span><span>{device.color}</span>
           <span className="text-text-muted">Storage</span><span>{device.storage}</span>
-          <span className="text-text-muted">Warehouse</span><span>{CURRENT_WH_NAME}</span>
+          <span className="text-text-muted">Warehouse</span><span>{activeWarehouse().name}</span>
           <span className="text-text-muted">In stock</span>
           <span>{days != null ? `${days} days` : '—'}</span>
           <span className="text-text-muted flex items-center gap-1"><MapPin size={14} /> Shelf</span>

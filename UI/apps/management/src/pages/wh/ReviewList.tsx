@@ -5,7 +5,7 @@ import { ClipboardList } from 'lucide-react';
 import { DataTable } from '../../components/DataTable';
 import type { IDevice, TGrade } from '@dobara/utils';
 import { formatInbound, getReviewMeta, maskImei, waitingHours } from '../../lib/reviewMeta';
-import { CURRENT_WH_ID, CURRENT_WH_OPS_ID } from '../../lib/whStore';
+import { activeWarehouse } from '../../lib/whStore';
 
 const brandNames: Record<string, string> = {
   apple: 'Apple', samsung: 'Samsung', xiaomi: 'Xiaomi', oneplus: 'OnePlus', oppo: 'OPPO',
@@ -36,9 +36,10 @@ const ReviewList: React.FC = () => {
   }, []);
 
   const enriched = useMemo(() => {
-    // WH-P0-06 warehouse isolation — only this warehouse's pending devices
+    // WH-P0-06 warehouse isolation — only the active warehouse's pending devices
+    const wh = activeWarehouse();
     const mine = devices.filter(
-      (d) => d.warehouseId === CURRENT_WH_OPS_ID || d.warehouseId === CURRENT_WH_ID,
+      (d) => d.warehouseId === wh.opsId || d.warehouseId === wh.id,
     );
     return mine.map((d) => {
       const meta = getReviewMeta(d.imei);

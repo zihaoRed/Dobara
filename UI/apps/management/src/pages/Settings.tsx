@@ -4,7 +4,7 @@ import { Button, Card, Input, Badge, Modal, Tabs } from '@dobara/ui';
 import { FileText, ShieldCheck } from 'lucide-react';
 import type { TRoleCode } from '@dobara/utils';
 import { useAuth } from '../lib/AuthContext';
-import { DEMO_USERS, isValidPassword } from '../lib/auth';
+import { DEMO_USERS, isValidPassword, activeRole } from '../lib/auth';
 import { NOTIF_GROUPS, groupForRole, INTERNAL_ROLE_ORDER } from '../lib/notifPrefs';
 
 interface IDeviceRow {
@@ -201,6 +201,8 @@ export default function Settings() {
 
   if (!session) return null;
 
+  const activeRoleInfo = activeRole(session);
+
   const doLogout = () => {
     clearMgmtLocalData();
     logout();
@@ -244,7 +246,7 @@ export default function Settings() {
         <p className="text-body font-semibold">{session.name}</p>
         <p className="text-caption font-mono text-text-secondary">+91 {session.phone}</p>
         <p className="text-caption text-text-muted">
-          Active: {session.activeRoleCode ?? '—'} · {session.roles.length} role(s)
+          Active: {activeRoleInfo ? `${activeRoleInfo.roleName}${activeRoleInfo.orgName ? ' · ' + activeRoleInfo.orgName : ''}` : '—'} · {session.roles.length} role(s)
         </p>
       </Card>
 

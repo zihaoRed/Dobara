@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Card } from '@dobara/ui';
 import { Store, Package, DollarSign, Shield } from 'lucide-react';
 import { useAuth } from '../../lib/AuthContext';
-import { roleHome, type TRoleCode } from '../../lib/auth';
+import { roleHome, activeRoleCodeOf, type TRoleCode } from '../../lib/auth';
 
 const ICONS: Record<TRoleCode, React.ReactNode> = {
   'ROLE-SA': <Shield size={22} />,
@@ -31,10 +31,11 @@ export default function RoleSelect() {
     return null;
   }
 
-  const onPick = (roleCode: TRoleCode) => {
-    const next = switchRole(roleCode);
-    if (!next?.activeRoleCode) return;
-    navigate(roleHome(next.activeRoleCode), { replace: true });
+  const onPick = (roleId: string) => {
+    const next = switchRole(roleId);
+    const code = next ? activeRoleCodeOf(next) : null;
+    if (!code) return;
+    navigate(roleHome(code), { replace: true });
   };
 
   return (
@@ -50,10 +51,10 @@ export default function RoleSelect() {
         <div className="space-y-2">
           {session.roles.map((role) => (
             <button
-              key={role.roleCode}
+              key={role.id}
               type="button"
-              data-testid={`pick-role-${role.roleCode}`}
-              onClick={() => onPick(role.roleCode)}
+              data-testid={`pick-role-${role.id}`}
+              onClick={() => onPick(role.id)}
               className="w-full flex items-center gap-3 p-4 rounded-xl border border-border bg-surface-container hover:border-primary-400 hover:bg-primary-50 text-left transition-colors"
             >
               <span className="w-10 h-10 rounded-lg bg-primary-50 text-primary-700 flex items-center justify-center shrink-0">

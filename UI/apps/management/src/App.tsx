@@ -17,6 +17,7 @@ import {
   MODULE_TO_ROLE,
   moduleFromPath,
   roleHome,
+  activeRoleCodeOf,
   type TModule,
 } from './lib/auth';
 
@@ -83,11 +84,12 @@ function PublicOnly({ children }: { children: React.ReactNode }) {
   if (session?.accountStatus === 'pending_activation') {
     return <Navigate to="/activate" replace />;
   }
-  if (session && !session.activeRoleCode) {
+  const roleCode = session ? activeRoleCodeOf(session) : null;
+  if (session && !roleCode) {
     return <Navigate to="/select-role" replace />;
   }
-  if (session?.activeRoleCode) {
-    return <Navigate to={roleHome(session.activeRoleCode)} replace />;
+  if (roleCode) {
+    return <Navigate to={roleHome(roleCode)} replace />;
   }
   return <>{children}</>;
 }
@@ -115,29 +117,31 @@ function RequireActiveRole({ children }: { children: React.ReactNode }) {
   if (session.accountStatus === 'pending_activation') {
     return <Navigate to="/activate" replace />;
   }
-  if (!session.activeRoleCode) {
+  if (!session.activeRoleId) {
     return <Navigate to="/select-role" replace />;
   }
   return <>{children}</>;
 }
 
 function ModuleGuard({ module }: { module: TModule }) {
-  const { session, modules, switchRole } = useAuth();
+  const { session, modules, activeRole, switchModule } = useAuth();
   const neededRole = MODULE_TO_ROLE[module];
 
   useEffect(() => {
     if (!session) return;
     if (!modules.includes(module)) return;
-    if (session.activeRoleCode !== neededRole) {
-      switchRole(neededRole);
+    if (activeRole?.roleCode !== neededRole) {
+      switchModule(module);
     }
-  }, [session, modules, module, neededRole, switchRole]);
+  }, [session, modules, module, activeRole, neededRole, switchModule]);
 
-  if (!session?.activeRoleCode) {
+  if (!session?.activeRoleId) {
     return <Navigate to="/select-role" replace />;
   }
   if (!modules.includes(module)) {
-    return <Navigate to={roleHome(session.activeRoleCode)} replace />;
+    const code = activeRoleCodeOf(session);
+    if (!code) return <Navigate to="/select-role" replace />;
+    return <Navigate to={roleHome(code)} replace />;
   }
 
   return <Outlet />;
@@ -145,14 +149,15 @@ function ModuleGuard({ module }: { module: TModule }) {
 
 function HomeRedirect() {
   const { session } = useAuth();
-  if (!session?.activeRoleCode) return <Navigate to="/select-role" replace />;
-  return <Navigate to={roleHome(session.activeRoleCode)} replace />;
+  const roleCode = session ? activeRoleCodeOf(session) : null;
+  if (!roleCode) return <Navigate to="/select-role" replace />;
+  return <Navigate to={roleHome(roleCode)} replace />;
 }
 
 function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { session, modules, switchRole } = useAuth();
+  const { session, modules, switchModule } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathMod = moduleFromPath(location.pathname);
   const onSettings = location.pathname.startsWith('/settings');
@@ -273,7 +278,7 @@ function AppShell() {
                 key={mod}
                 type="button"
                 onClick={() => {
-                  switchRole(meta.role);
+                  switchModule(mod);
                   navigate(MODULE_HOME[mod]);
                 }}
                 className={`flex flex-col items-center justify-center gap-0.5 w-full h-full transition-colors ${

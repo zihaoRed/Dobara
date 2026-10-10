@@ -6,6 +6,8 @@ import type { TRoleCode, TModule } from './roles';
 export type TAccountStatus = 'pending_activation' | 'active' | 'locked' | 'disabled';
 
 export interface IRoleAssignment {
+  /** 唯一分配 id（`roleCode:orgId` 或 `roleCode:global`）——同一角色可有多条绑定（如库管绑多仓库） */
+  id: string;
   roleCode: TRoleCode;
   roleName: string;
   orgId: string;
@@ -20,7 +22,8 @@ export interface IAppSession {
   name: string;
   phone: string;
   roles: IRoleAssignment[];
-  activeRoleCode: TRoleCode | null;
+  /** 当前活跃角色分配 id（不再用 roleCode，避免同角色多仓库时无法区分） */
+  activeRoleId: string | null;
   token: string;
   lastActivityAt: number;
   accountStatus: TAccountStatus;
@@ -59,6 +62,7 @@ export const DEMO_USERS: IDemoUser[] = [
     accountStatus: 'active',
     roles: [
       {
+        id: 'ROLE-SA:global',
         roleCode: 'ROLE-SA',
         roleName: 'System Admin',
         orgId: '',
@@ -77,6 +81,7 @@ export const DEMO_USERS: IDemoUser[] = [
     accountStatus: 'active',
     roles: [
       {
+        id: 'ROLE-OWN:ST-MH-0001',
         roleCode: 'ROLE-OWN',
         roleName: 'Store Owner',
         orgId: 'ST-MH-0001',
@@ -95,6 +100,7 @@ export const DEMO_USERS: IDemoUser[] = [
     accountStatus: 'active',
     roles: [
       {
+        id: 'ROLE-WH:WH-MH-0001',
         roleCode: 'ROLE-WH',
         roleName: 'Warehouse',
         orgId: 'WH-MH-0001',
@@ -113,6 +119,7 @@ export const DEMO_USERS: IDemoUser[] = [
     accountStatus: 'active',
     roles: [
       {
+        id: 'ROLE-DB:global',
         roleCode: 'ROLE-DB',
         roleName: 'Finance / DB',
         orgId: '',
@@ -131,6 +138,7 @@ export const DEMO_USERS: IDemoUser[] = [
     accountStatus: 'active',
     roles: [
       {
+        id: 'ROLE-OWN:ST-MH-0001',
         roleCode: 'ROLE-OWN',
         roleName: 'Store Owner',
         orgId: 'ST-MH-0001',
@@ -140,6 +148,7 @@ export const DEMO_USERS: IDemoUser[] = [
         isDefault: true,
       },
       {
+        id: 'ROLE-WH:WH-MH-0001',
         roleCode: 'ROLE-WH',
         roleName: 'Warehouse',
         orgId: 'WH-MH-0001',
@@ -148,6 +157,16 @@ export const DEMO_USERS: IDemoUser[] = [
         permissions: WH_PERMS,
       },
       {
+        id: 'ROLE-WH:WH-DL-0001',
+        roleCode: 'ROLE-WH',
+        roleName: 'Warehouse',
+        orgId: 'WH-DL-0001',
+        orgName: 'Delhi NCR Warehouse',
+        orgType: 'warehouse',
+        permissions: WH_PERMS,
+      },
+      {
+        id: 'ROLE-DB:global',
         roleCode: 'ROLE-DB',
         roleName: 'Finance / DB',
         orgId: '',
@@ -165,6 +184,7 @@ export const DEMO_USERS: IDemoUser[] = [
     accountStatus: 'pending_activation',
     roles: [
       {
+        id: 'ROLE-OWN:ST-KA-0002',
         roleCode: 'ROLE-OWN',
         roleName: 'Store Owner',
         orgId: 'ST-KA-0002',
@@ -208,6 +228,19 @@ export function getSession(): IAppSession | null {
       clearSession();
       return null;
     }
+    // 迁移守卫：旧 session 用 activeRoleCode、且角色无 id 时，归一化为 id 化模型
+    let dirty = false;
+    s.roles = s.roles.map((r) => {
+      if (r.id) return r;
+      dirty = true;
+      return { ...r, id: `${r.roleCode}:${r.orgId || 'global'}` };
+    });
+    const legacy = (s as IAppSession & { activeRoleCode?: string }).activeRoleCode;
+    if (!s.activeRoleId && legacy) {
+      s.activeRoleId = s.roles.find((r) => r.roleCode === legacy)?.id ?? null;
+      dirty = true;
+    }
+    if (dirty) saveSession(s);
     return s;
   } catch {
     return null;
@@ -266,13 +299,13 @@ function clearFails(phone: string) {
   localStorage.removeItem(LOCK_PREFIX + phone);
 }
 
-function buildSession(user: IDemoUser, activeRoleCode: TRoleCode | null): IAppSession {
+function buildSession(user: IDemoUser, activeRoleId: string | null): IAppSession {
   return {
     userId: user.userId,
     name: user.name,
     phone: user.phone,
     roles: user.roles,
-    activeRoleCode,
+    activeRoleId,
     token: `demo-jwt-${user.userId}-${Date.now()}`,
     lastActivityAt: Date.now(),
     accountStatus: user.accountStatus,
@@ -316,12 +349,12 @@ export function loginWithPassword(phoneRaw: string, password: string): TLoginRes
 
   clearFails(phone);
 
-  let activeRoleCode: TRoleCode | null = null;
+  let activeRoleId: string | null = null;
   if (user.accountStatus === 'active' && user.roles.length === 1) {
-    activeRoleCode = user.roles[0].roleCode;
+    activeRoleId = user.roles[0].id;
   }
 
-  const session = buildSession(user, activeRoleCode);
+  const session = buildSession(user, activeRoleId);
   saveSession(session);
 
   if (user.accountStatus === 'pending_activation') {
@@ -372,7 +405,7 @@ export function activateAccount(newPassword: string): TLoginResult {
   const next: IAppSession = {
     ...session,
     accountStatus: 'active',
-    activeRoleCode: user.roles.length === 1 ? user.roles[0].roleCode : null,
+    activeRoleId: user.roles.length === 1 ? user.roles[0].id : null,
     lastActivityAt: Date.now(),
     token: `demo-jwt-${user.userId}-${Date.now()}`,
   };
@@ -404,30 +437,47 @@ export function resetPasswordWithOtp(phoneRaw: string, otp: string, newPassword:
   };
 }
 
-export function setActiveRole(roleCode: TRoleCode): IAppSession | null {
+/** 当前活跃角色分配（按 id 定位，支持同一角色多仓库） */
+export function activeRole(session: IAppSession | null): IRoleAssignment | null {
+  if (!session?.activeRoleId) return null;
+  return session.roles.find((r) => r.id === session.activeRoleId) ?? null;
+}
+
+/** 当前活跃角色的角色编码（无活跃角色时返回 null） */
+export function activeRoleCodeOf(session: IAppSession | null): TRoleCode | null {
+  return activeRole(session)?.roleCode ?? null;
+}
+
+/** 某模块下该账号的全部角色分配（如两条 ROLE-WH 绑两个仓库） */
+export function rolesForModule(session: IAppSession | null, module: TModule): IRoleAssignment[] {
+  if (!session) return [];
+  return session.roles.filter((r) => ROLE_TO_MODULE[r.roleCode] === module);
+}
+
+export function setActiveRole(roleId: string): IAppSession | null {
   const s = getSession();
   if (!s) return null;
-  if (!s.roles.some((r) => r.roleCode === roleCode)) return null;
-  const next = { ...s, activeRoleCode: roleCode, lastActivityAt: Date.now() };
+  if (!s.roles.some((r) => r.id === roleId)) return null;
+  const next = { ...s, activeRoleId: roleId, lastActivityAt: Date.now() };
   saveSession(next);
   return next;
 }
 
 export function allowedModules(session: IAppSession | null): TModule[] {
   if (!session) return [];
-  return session.roles
-    .map((r) => ROLE_TO_MODULE[r.roleCode])
-    .filter((m): m is TModule => Boolean(m));
+  return Array.from(
+    new Set(session.roles.map((r) => ROLE_TO_MODULE[r.roleCode]).filter((m): m is TModule => Boolean(m))),
+  );
 }
 
 export function activeModule(session: IAppSession | null): TModule | null {
-  if (!session?.activeRoleCode) return null;
-  return ROLE_TO_MODULE[session.activeRoleCode] ?? null;
+  const code = activeRoleCodeOf(session);
+  return code ? ROLE_TO_MODULE[code] ?? null : null;
 }
 
 export function postLoginPath(result: Extract<TLoginResult, { ok: true }>): string {
   if (result.next === 'activate') return '/activate';
   if (result.next === 'select-role') return '/select-role';
-  const role = result.session.activeRoleCode;
-  return role ? roleHome(role) : '/select-role';
+  const code = activeRoleCodeOf(result.session);
+  return code ? roleHome(code) : '/select-role';
 }

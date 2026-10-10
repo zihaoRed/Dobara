@@ -2,8 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import {
   type IMgmtSession,
   type TModule,
-  type TRoleCode,
   type TLoginResult,
+  type IRoleAssignment,
   getSession,
   clearSession,
   touchSession,
@@ -12,6 +12,8 @@ import {
   activateAccount,
   resetPasswordWithOtp,
   setActiveRole,
+  activeRole,
+  rolesForModule,
   allowedModules,
   activeModule,
   SESSION_IDLE_MS,
@@ -19,13 +21,15 @@ import {
 
 interface IAuthContext {
   session: IMgmtSession | null;
+  activeRole: IRoleAssignment | null;
   modules: TModule[];
   currentModule: TModule | null;
   loginPassword: (phone: string, password: string) => TLoginResult;
   loginOtp: (phone: string, otp: string) => TLoginResult;
   activate: (newPassword: string) => TLoginResult;
   resetPassword: (phone: string, otp: string, newPassword: string) => TLoginResult;
-  switchRole: (roleCode: TRoleCode) => IMgmtSession | null;
+  switchRole: (roleId: string) => IMgmtSession | null;
+  switchModule: (module: TModule) => IMgmtSession | null;
   logout: () => void;
   refresh: () => void;
 }
@@ -77,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<IAuthContext>(() => ({
     session,
+    activeRole: activeRole(session),
     modules: allowedModules(session),
     currentModule: activeModule(session),
     loginPassword: (phone, password) => wrap(loginWithPassword(phone, password)),
@@ -89,8 +94,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(null);
       return r;
     },
-    switchRole: (roleCode) => {
-      const next = setActiveRole(roleCode);
+    switchRole: (roleId) => {
+      const next = setActiveRole(roleId);
+      setSession(next);
+      return next;
+    },
+    switchModule: (module) => {
+      const s = getSession();
+      if (!s) return null;
+      const inModule = rolesForModule(s, module);
+      if (inModule.length === 0) return null;
+      const current = activeRole(s);
+      const target =
+        current && inModule.some((r) => r.id === current.id)
+          ? current
+          : inModule.find((r) => r.isDefault) ?? inModule[0];
+      const next = setActiveRole(target.id);
       setSession(next);
       return next;
     },

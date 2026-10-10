@@ -11,6 +11,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import {
+  activeWarehouse,
   applyStocktake,
   createStocktake,
   getActiveStocktake,
@@ -53,7 +54,7 @@ const Stocktake: React.FC = () => {
   }, [session]);
 
   const onCreate = () => {
-    const next = createStocktake('WH-MH-0001', { type: scopeType, value: scopeType === 'all' ? undefined : scopeValue });
+    const next = createStocktake(activeWarehouse().id, { type: scopeType, value: scopeType === 'all' ? undefined : scopeValue });
     setSession({ ...next });
     setToast(`Stocktake ${next.id} started · ${next.lines.length} expected (${next.scopeLabel})`);
     setError('');

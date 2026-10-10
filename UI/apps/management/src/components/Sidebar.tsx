@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { Modal, Button } from '@dobara/ui';
 import { useAuth } from '../lib/AuthContext';
-import { roleHome, type TModule, type TRoleCode } from '../lib/auth';
+import { roleHome, activeRoleCodeOf, MODULE_HOME, type TModule, type TRoleCode } from '../lib/auth';
 
 interface NavItem {
   label: string;
@@ -93,17 +93,22 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ active }) => {
   const navigate = useNavigate();
-  const { session, modules, switchRole } = useAuth();
+  const { session, modules, switchRole, switchModule, activeRole } = useAuth();
   const [switchOpen, setSwitchOpen] = useState(false);
 
   const navItems =
     active === 'admin' ? adminNav : active === 'owner' ? ownerNav : active === 'wh' ? whNav : dbNav;
-  const activeRole = session?.roles.find((r) => r.roleCode === session.activeRoleCode);
 
-  const onSwitch = (roleCode: TRoleCode) => {
-    const next = switchRole(roleCode);
+  const onSwitch = (roleId: string) => {
+    const next = switchRole(roleId);
     setSwitchOpen(false);
-    if (next?.activeRoleCode) navigate(roleHome(next.activeRoleCode));
+    const code = next ? activeRoleCodeOf(next) : null;
+    if (code) navigate(roleHome(code));
+  };
+
+  const onSwitchModule = (mod: TModule) => {
+    const next = switchModule(mod);
+    if (next) navigate(MODULE_HOME[mod]);
   };
 
   return (
@@ -129,7 +134,7 @@ const Sidebar: React.FC<SidebarProps> = ({ active }) => {
             <span className="min-w-0 flex-1">
               <span className="block text-caption font-semibold text-text-primary truncate">{session.name}</span>
               <span className="block text-eyebrow text-text-muted truncate">
-                {activeRole?.roleName ?? 'No role'} · ···{session.phone.slice(-4)}
+                {activeRole ? `${activeRole.roleName}${activeRole.orgName ? ' · ' + activeRole.orgName : ''}` : 'No role'} · ···{session.phone.slice(-4)}
               </span>
             </span>
             {modules.length > 1 && <RefreshCw size={14} className="text-text-muted shrink-0" />}
@@ -144,7 +149,7 @@ const Sidebar: React.FC<SidebarProps> = ({ active }) => {
             <button
               key={mod}
               type="button"
-              onClick={() => onSwitch(meta.role)}
+              onClick={() => onSwitchModule(mod)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-body font-medium transition-colors ${
                 active === mod
                   ? 'bg-primary-50 text-primary-700'
@@ -200,11 +205,11 @@ const Sidebar: React.FC<SidebarProps> = ({ active }) => {
         <div className="space-y-2">
           {session?.roles.map((role) => (
             <Button
-              key={role.roleCode}
-              variant={role.roleCode === session.activeRoleCode ? 'primary' : 'secondary'}
+              key={role.id}
+              variant={role.id === session.activeRoleId ? 'primary' : 'secondary'}
               className="w-full justify-start"
-              data-testid={`switch-role-${role.roleCode}`}
-              onClick={() => onSwitch(role.roleCode)}
+              data-testid={`switch-role-${role.id}`}
+              onClick={() => onSwitch(role.id)}
             >
               {role.roleName}
               <span className="ml-auto text-eyebrow opacity-80">{role.orgName}</span>
