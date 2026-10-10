@@ -35,6 +35,7 @@ const IS_DEMO = params.get('demo') === '1';
 const URL_TOKEN = params.get('token')?.trim() || '';
 const initialToken = URL_TOKEN || `LOCAL-${Date.now().toString(36).toUpperCase()}`;
 const LOCAL_DEMO = IS_DEMO && !URL_TOKEN;
+const DEMO_RELAY = IS_DEMO && !!URL_TOKEN;
 const OPEN_IDEMPOTENCY_KEY = `h5-open-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 
 /** Anti-cheat fingerprint (CLOUD-P0-16): compared against the tablet's ADB model read */
@@ -66,6 +67,60 @@ function mediaFailure(error: unknown): Extract<TResult, 'unauthorized' | 'unsupp
  *  page degrades to a local walkthrough instead of blocking on a 403/404. */
 function isBackendUnavailable(err: H5ApiError): boolean {
   return err.code === 'NETWORK_ERROR' || /^HTTP_\d+$/.test(err.code);
+}
+
+/** Demo relay (CLOUD-P0-16): item_key in the shared namespace with the tablet/mock. */
+const RELAY_ITEM_KEY: Record<TStepKey, string> = {
+  screen: 'screen_display',
+  touch: 'screen_touch',
+  sensors: 'sensors',
+  speaker: 'speaker_mic',
+  mic: 'speaker_mic',
+  camera: 'camera',
+};
+
+function relayStatus(result: TResult): string {
+  switch (result) {
+    case 'pass': return 'normal';
+    case 'fail': return 'abnormal';
+    case 'unauthorized': return 'unauthorized';
+    default: return 'manual'; // unsupported / unknown
+  }
+}
+
+function relayValue(result: TResult): string {
+  switch (result) {
+    case 'pass': return 'OK';
+    case 'fail': return 'Issue found';
+    case 'unauthorized': return 'Permission denied';
+    case 'unsupported': return 'Unsupported';
+    default: return 'Manual review';
+  }
+}
+
+async function consumeDemoToken(token: string): Promise<void> {
+  const res = await fetch(`/api/check/${encodeURIComponent(token)}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+}
+
+async function reportDemoResult(
+  token: string,
+  itemKey: string,
+  result: TResult,
+  fingerprint?: ReturnType<typeof readFingerprint>,
+): Promise<void> {
+  const res = await fetch(`/api/check/${encodeURIComponent(token)}/results`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      itemKey,
+      status: relayStatus(result),
+      value: relayValue(result),
+      verdictSource: 'h5_auto',
+      ...(fingerprint ? { fingerprint } : {}),
+    }),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
 const STEPS: { key: TStepKey; label: string }[] = [
@@ -128,6 +183,9 @@ export default function DeviceCheck() {
   /** Local-only mode: runs the checks on-device with no backend reporting (either ?demo=1
    *  with no token, or a fallback when the detect backend is unreachable). */
   const [localMode, setLocalMode] = useState(LOCAL_DEMO);
+  /** Demo relay mode: report results to the mock relay so the tablet advances in lock-step. */
+  const [relayMode, setRelayMode] = useState(DEMO_RELAY);
+  const fingerprintSentRef = useRef(false);
   const openingRef = useRef(false);
   const sessionRef = useRef<H5SessionState | null>(null);
   sessionRef.current = session;
@@ -176,15 +234,27 @@ export default function DeviceCheck() {
     setLinking(true);
     setSessionError('');
     try {
-      applySession(await openH5Session(detectToken, OPEN_IDEMPOTENCY_KEY, readFingerprint()));
-    } catch (error) {
-      const apiError = error as H5ApiError;
-      if (isBackendUnavailable(apiError)) {
-        setLocalMode(true);
-        setSessionError('Detect backend unavailable — running the checks locally on this device.');
+      if (relayMode) {
+        await consumeDemoToken(detectToken);
         setPhase('testing');
       } else {
-        setSessionError(`${apiError.message}${apiError.traceId ? ` · traceId=${apiError.traceId}` : ''}`);
+        applySession(await openH5Session(detectToken, OPEN_IDEMPOTENCY_KEY, readFingerprint()));
+      }
+    } catch (error) {
+      if (relayMode) {
+        setLocalMode(true);
+        setRelayMode(false);
+        setSessionError('Check relay unavailable — running the checks locally on this device.');
+        setPhase('testing');
+      } else {
+        const apiError = error as H5ApiError;
+        if (isBackendUnavailable(apiError)) {
+          setLocalMode(true);
+          setSessionError('Detect backend unavailable — running the checks locally on this device.');
+          setPhase('testing');
+        } else {
+          setSessionError(`${apiError.message}${apiError.traceId ? ` · traceId=${apiError.traceId}` : ''}`);
+        }
       }
     } finally {
       openingRef.current = false;
@@ -198,6 +268,17 @@ export default function DeviceCheck() {
       setResults((previous) => ({ ...previous, [key]: result }));
       setRetestKey(null);
       setStepIdx((index) => index + 1);
+      return;
+    }
+    if (relayMode) {
+      setResults((previous) => ({ ...previous, [key]: result }));
+      setRetestKey(null);
+      setStepIdx((index) => index + 1);
+      const fingerprint = fingerprintSentRef.current ? undefined : readFingerprint();
+      fingerprintSentRef.current = true;
+      void reportDemoResult(token.trim(), RELAY_ITEM_KEY[key], result, fingerprint).catch(() => {
+        /* relay drop is non-fatal — the local walkthrough continues */
+      });
       return;
     }
 
@@ -237,8 +318,8 @@ export default function DeviceCheck() {
   const step = STEPS[stepIdx];
 
   useEffect(() => {
-    if (localMode && phase === 'testing' && stepIdx >= STEPS.length) setPhase('done');
-  }, [phase, stepIdx]);
+    if ((localMode || relayMode) && phase === 'testing' && stepIdx >= STEPS.length) setPhase('done');
+  }, [phase, stepIdx, localMode, relayMode]);
 
   useEffect(() => {
     if (URL_TOKEN) void beginSession(URL_TOKEN);

@@ -138,7 +138,7 @@ export default function HardwareResults() {
   }, [platform]);
 
   const h5Url = checkToken
-    ? `${window.location.origin}/device-check/?token=${checkToken}`
+    ? `${window.location.origin}/device-check/?token=${checkToken}&demo=1`
     : '';
 
   /**
@@ -157,7 +157,7 @@ export default function HardwareResults() {
       setH5Phase('awaiting');
       if (platform === 'android') {
         // ADB VIEW intent on real hardware; a new tab is the browser stand-in
-        window.open(`/device-check/?token=${data.token}`, '_blank');
+        window.open(`/device-check/?token=${data.token}&demo=1`, '_blank');
       }
     } catch {
       setH5Phase('idle');
