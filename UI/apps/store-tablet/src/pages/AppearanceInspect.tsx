@@ -78,7 +78,7 @@ export default function AppearanceInspect() {
     };
   }, [sessionId]);
 
-  const proceedToCondition = async () => {
+  const proceedToInvoice = async () => {
     setSubmitting(true);
     // Unselected items → system auto-inspect (default to first / "None·Normal" grade)
     const resolved: Record<string, number> = {};
@@ -96,7 +96,7 @@ export default function AppearanceInspect() {
       );
     } catch { /* ignore */ }
     markStepComplete(sessionId, 'inspect');
-    navigate(`/session/${sessionId}/condition`);
+    navigate(`/session/${sessionId}/invoice`);
   };
 
   if (thinking) {
@@ -291,9 +291,9 @@ export default function AppearanceInspect() {
               loading={submitting}
               disabled={hasRejectFlag}
               data-testid="confirm-inspect"
-              onClick={proceedToCondition}
+              onClick={proceedToInvoice}
             >
-              {answeredCount === 0 ? 'Continue · Auto QC' : 'Continue to Condition'}
+              {answeredCount === 0 ? 'Continue · Auto QC' : 'Continue to Invoice'}
             </Button>
           </div>
         </div>

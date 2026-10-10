@@ -64,8 +64,13 @@ export default function InspectionReport() {
 
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(`dobara_condition_${sessionId}`);
-      if (raw) setCondition(JSON.parse(raw));
+      const admission = JSON.parse(sessionStorage.getItem(`dobara_admission_${sessionId}`) || 'null');
+      const hardware = JSON.parse(sessionStorage.getItem(`dobara_hardware_${sessionId}`) || 'null');
+      setCondition({
+        repairHistory: admission?.repairHistory ?? [],
+        accessoriesMissing: admission?.accessoriesMissing ?? [],
+        functionalDefects: hardware?.functionalDefects ?? [],
+      });
     } catch { /* ignore */ }
   }, [sessionId]);
 

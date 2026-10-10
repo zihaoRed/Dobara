@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Card, ProgressBar, Badge, Input, Modal } from '@dobara/ui';
 import { CheckCircle, XCircle, AlertTriangle, RefreshCw, Usb, Hash, Smartphone, ShieldAlert, ExternalLink } from 'lucide-react';
-import { HARDWARE_CHECK_ITEMS } from '@dobara/utils';
+import { HARDWARE_CHECK_ITEMS, FUNCTIONAL_DEFECT_OPTIONS } from '@dobara/utils';
 import { subscribeBus, type IDemoCheckResult } from '@dobara/mock';
 import { markStepComplete } from '../lib/sessionProgress';
 import { DISPLAY_ITEMS } from '../lib/appearanceItems';
@@ -85,6 +85,10 @@ const BUTTON_FEEL_ITEMS: { code: string; name: string; options: { label: string;
   ]},
 ];
 
+/** 功能缺陷（硬件步骤人工补充）—— mic/speaker/camera_focus 已由 H5 覆盖，不再人工勾选 */
+const H5_COVERED_FUNCTIONAL = new Set(['mic', 'speaker', 'camera_focus']);
+const FUNCTIONAL_OPTIONS = FUNCTIONAL_DEFECT_OPTIONS.filter((o) => !H5_COVERED_FUNCTIONAL.has(o.key));
+
 const statusIcon = (s: TResult) => {
   switch (s) {
     case 'normal':
@@ -133,6 +137,8 @@ export default function HardwareResults() {
   const [displayAnswers, setDisplayAnswers] = useState<Record<string, number>>({});
   // 按键手感（P3/P4/P6，店员按一下判定 松/软/失效，v1.23 从外观 AI 移入）
   const [buttonFeel, setButtonFeel] = useState<Record<string, number>>({});
+  // 功能缺陷（人工补充，多选；mic/speaker/camera_focus 已由 H5 覆盖）
+  const [functionalDefects, setFunctionalDefects] = useState<string[]>([]);
 
   // --- Network provisioning & H5 link (TAB-P0-14) ---
   const [platform, setPlatform] = useState<TPlatform>('android');
@@ -412,6 +418,7 @@ export default function HardwareResults() {
           ),
           displayAnswers,
           buttonFeel,
+          functionalDefects,
         }),
       );
     } catch { /* ignore */ }
@@ -785,6 +792,43 @@ export default function HardwareResults() {
           </React.Fragment>
         ))}
       </div>
+
+      {/* 功能缺陷（人工补充）—— mic/speaker/camera 已由 H5 覆盖，其余仍需店员判断 */}
+      <Card variant="flat" className="p-4 mb-4" data-testid="functional-defects">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-eyebrow text-text-muted uppercase">Functional Defects</p>
+            <p className="text-caption text-text-muted mt-1">
+              Other functional issues not covered by H5 / USB / ADB. Select anything that applies.
+            </p>
+          </div>
+          <Badge variant="neutral">{functionalDefects.length} selected</Badge>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {FUNCTIONAL_OPTIONS.map((o) => {
+            const active = functionalDefects.includes(o.key);
+            return (
+              <button
+                key={o.key}
+                type="button"
+                data-testid={`functional-${o.key}`}
+                onClick={() =>
+                  setFunctionalDefects((prev) =>
+                    prev.includes(o.key) ? prev.filter((k) => k !== o.key) : [...prev, o.key],
+                  )
+                }
+                className={`px-3 py-1.5 rounded-md text-caption font-medium border transition-colors ${
+                  active
+                    ? 'border-primary-500 bg-primary-50 text-primary-700'
+                    : 'border-border text-text-secondary hover:bg-surface-container'
+                }`}
+              >
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+      </Card>
 
       <div className="flex flex-wrap justify-center gap-4 mt-6">
         <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/admission`)}>Back</Button>

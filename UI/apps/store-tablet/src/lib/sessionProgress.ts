@@ -8,7 +8,6 @@ export const INSPECTION_STEP_KEYS = [
   'photo',
   'video',
   'inspect',
-  'condition',
   'invoice',
   'submit',
   'report',
@@ -32,7 +31,7 @@ const PROGRESS_KEY = 'dobara_tablet_session_progress';
 const AUTH_KEY = 'dobara_tablet_clerk';
 const CHECKPOINT_TTL_MS = 24 * 60 * 60 * 1000;
 /** Bump when INSPECTION_STEP_KEYS is reordered — old index-based progress would be misread. */
-const PROGRESS_VERSION = 2;
+const PROGRESS_VERSION = 3;
 
 export function stepIndex(step: string): number {
   const i = INSPECTION_STEP_KEYS.indexOf(step as TInspectionStep);

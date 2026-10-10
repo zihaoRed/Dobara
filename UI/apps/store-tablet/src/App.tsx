@@ -11,7 +11,6 @@ import AppearanceDecision from './pages/AppearanceDecision';
 import AdmissionCheck from './pages/AdmissionCheck';
 import AppearanceInspect from './pages/AppearanceInspect';
 import HardwareResults from './pages/HardwareResults';
-import ConditionCheck from './pages/ConditionCheck';
 import RejectDevice from './pages/RejectDevice';
 import InvoiceCapture from './pages/InvoiceCapture';
 import Submit from './pages/Submit';
@@ -40,7 +39,6 @@ const INSPECTION_STEPS: { key: TInspectionStep; label: string }[] = [
   { key: 'photo', label: 'Photos' },
   { key: 'video', label: 'Video' },
   { key: 'inspect', label: 'Inspect' },
-  { key: 'condition', label: 'Condition' },
   { key: 'invoice', label: 'Invoice' },
   { key: 'submit', label: 'Submit' },
   { key: 'report', label: 'Report' },
@@ -332,7 +330,6 @@ export default function App() {
           <Route path="/session/:sessionId/admission" element={<RequireClerk><StepGuard step="admission"><AdmissionCheck /></StepGuard></RequireClerk>} />
           <Route path="/session/:sessionId/inspect" element={<RequireClerk><StepGuard step="inspect"><AppearanceInspect /></StepGuard></RequireClerk>} />
           <Route path="/session/:sessionId/hardware" element={<RequireClerk><StepGuard step="hardware"><HardwareResults /></StepGuard></RequireClerk>} />
-          <Route path="/session/:sessionId/condition" element={<RequireClerk><StepGuard step="condition"><ConditionCheck /></StepGuard></RequireClerk>} />
           <Route path="/session/:sessionId/reject" element={<RequireClerk><RejectDevice /></RequireClerk>} />
           <Route path="/session/:sessionId/invoice" element={<RequireClerk><StepGuard step="invoice"><InvoiceCapture /></StepGuard></RequireClerk>} />
           <Route path="/session/:sessionId/submit" element={<RequireClerk><StepGuard step="submit"><Submit /></StepGuard></RequireClerk>} />

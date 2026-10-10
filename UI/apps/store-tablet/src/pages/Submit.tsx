@@ -11,7 +11,6 @@ const packageItems = [
   { name: 'Appearance checklist', type: 'Data' },
   { name: 'Admission checks', type: 'Data' },
   { name: 'Hardware diagnostics', type: 'Data' },
-  { name: 'Condition & accessories', type: 'Data' },
   { name: 'Invoice', type: 'Image (optional)' },
 ];
 

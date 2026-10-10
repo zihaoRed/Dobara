@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Card, CardHeader, CardContent, Badge } from '@dobara/ui';
-import { ShieldCheck, CheckCircle, XCircle, AlertTriangle, Loader, Cpu, ClipboardList } from 'lucide-react';
-import { ADMISSION_CHECKS, MOTHERBOARD_CHECKS, ADMISSION_SELFCHECK } from '@dobara/utils';
+import { ShieldCheck, CheckCircle, XCircle, AlertTriangle, Loader, Cpu, ClipboardList, Wrench, Package } from 'lucide-react';
+import { ADMISSION_CHECKS, MOTHERBOARD_CHECKS, ADMISSION_SELFCHECK, REPAIR_HISTORY_OPTIONS, ACCESSORY_OPTIONS } from '@dobara/utils';
 import { markStepComplete } from '../lib/sessionProgress';
 import { getAppointmentSnapshot } from '../lib/appointment';
 
@@ -26,6 +26,9 @@ export default function AdmissionCheck() {
   // 用户问询（TAB-P0-15）：key → 选中的 option value；预填来自预约自报，无预约由店员代采
   const [interview, setInterview] = useState<Record<string, string>>({});
   const [prefill, setPrefill] = useState<Record<string, string> | null>(null);
+  // 维修记录 + 配件（原「状况及配件」步骤，并入准入：问用户历史 + 看配件实物）
+  const [repairHistory, setRepairHistory] = useState<string[]>([]);
+  const [accessories, setAccessories] = useState<string[]>([]);
 
   // Mock: connect device → read IMEI → run admission lookups (blacklist / iCloud / CEIR / carrier / EMI).
   // 同时读预约自报结果（SessionDetail 持久化），有预约则预填问询。
@@ -79,6 +82,8 @@ export default function AdmissionCheck() {
               : 'tablet_corrected'
             : 'tablet_walk_in',
           selfcheckHits: interviewHits,
+          repairHistory,
+          accessoriesMissing: accessories,
         }),
       );
     } catch { /* ignore */ }
@@ -250,6 +255,83 @@ export default function AdmissionCheck() {
                     </p>
                   )}
                 </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 维修记录 + 配件（原「状况及配件」步骤，并入准入） */}
+      <Card className="mb-4" data-testid="admission-repair">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Wrench size={18} className="text-text-muted" />
+            <span className="text-eyebrow text-text-muted uppercase">Repair History</span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-caption text-text-muted mb-3">
+            Ask the customer — has anything been replaced? (CO-RPR; 3+ repairs adds a penalty.)
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {REPAIR_HISTORY_OPTIONS.map((o) => {
+              const active = repairHistory.includes(o.key);
+              return (
+                <button
+                  key={o.key}
+                  type="button"
+                  data-testid={`repair-${o.key}`}
+                  onClick={() =>
+                    setRepairHistory((prev) =>
+                      prev.includes(o.key) ? prev.filter((k) => k !== o.key) : [...prev, o.key],
+                    )
+                  }
+                  className={`px-3 py-1.5 rounded-md text-caption font-medium border transition-colors ${
+                    active
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-border text-text-secondary hover:bg-surface-container'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6" data-testid="admission-accessories">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Package size={18} className="text-text-muted" />
+            <span className="text-eyebrow text-text-muted uppercase">Accessories Missing</span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-caption text-text-muted mb-3">
+            Check what the customer brought (CO-ACC).
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {ACCESSORY_OPTIONS.map((o) => {
+              const active = accessories.includes(o.key);
+              return (
+                <button
+                  key={o.key}
+                  type="button"
+                  data-testid={`accessory-${o.key}`}
+                  onClick={() =>
+                    setAccessories((prev) =>
+                      prev.includes(o.key) ? prev.filter((k) => k !== o.key) : [...prev, o.key],
+                    )
+                  }
+                  className={`px-3 py-1.5 rounded-md text-caption font-medium border transition-colors ${
+                    active
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-border text-text-secondary hover:bg-surface-container'
+                  }`}
+                >
+                  {o.label}
+                </button>
               );
             })}
           </div>
