@@ -110,7 +110,7 @@ export default function HardwareResults() {
   const [manualImeiOpen, setManualImeiOpen] = useState(false);
   const [manualImei, setManualImei] = useState('');
   const [forceTimeoutIdx, setForceTimeoutIdx] = useState<number | null>(null);
-  // 屏幕显示缺陷 D1-D6（H5 纯色画面现场判定，v1.19 从外观点检表移入本步骤）
+  // 屏幕显示缺陷 D1-D5（H5 纯色画面现场目视打分，v1.22 触控已归 Screen Touch 硬件项）
   const [displayAnswers, setDisplayAnswers] = useState<Record<string, number>>({});
 
   // --- Network provisioning & H5 link (TAB-P0-14) ---
@@ -372,23 +372,15 @@ export default function HardwareResults() {
     else setModelMismatch(null);
   }, [items, sessionId]);
 
-  /** H5 滑涂结果异常（HW-TCH-01）→ D6 锁定为"系统检出"，不可人工改判（06 §3.3.2.1.5） */
-  const touchLocked = items.find((i) => i.name === 'Screen Touch')?.status === 'abnormal';
   const displayAnswered = DISPLAY_ITEMS.filter((i) => displayAnswers[i.code] != null).length;
-
-  // 命中 HW-TCH-01 后强制 D6 = Partial（index 1），并覆盖 AI/人工既有取值
-  useEffect(() => {
-    if (!touchLocked) return;
-    setDisplayAnswers((prev) => (prev.D6 === 1 ? prev : { ...prev, D6: 1 }));
-  }, [touchLocked]);
 
   const goPhoto = () => {
     try {
       const brandModel = items.find((i) => i.name === 'Brand & Model')?.value ?? '';
-      // Persist audit results (keyed by the CLOUD-P0-16 item_key namespace) + the D1-D6
+      // Persist audit results (keyed by the CLOUD-P0-16 item_key namespace) + the D1-D5
       // screen-display verdicts taken next to the H5 checks (v1.19 moved here from the
       // appearance checklist). brandModel plaintext feeds the appearance AI color detection
-      // (前置硬件型号 → 后置外观AI 自动关联颜色). Touch-group dedupe: 06 PRD §3.3.2.1.5.
+      // (前置硬件型号 → 后置外观AI 自动关联颜色). Touch is carried by the Screen Touch item.
       sessionStorage.setItem(
         `dobara_hardware_${sessionId}`,
         JSON.stringify({
@@ -397,7 +389,6 @@ export default function HardwareResults() {
             items.map((i) => [ITEM_KEY_OF[i.name], { status: i.status, value: i.value }]),
           ),
           displayAnswers,
-          displayLocked: touchLocked ? ['D6'] : [],
         }),
       );
     } catch { /* ignore */ }
@@ -626,6 +617,9 @@ export default function HardwareResults() {
                   </span>
                 </div>
                 {item.value && <div className="text-[11px] text-text-muted font-mono truncate">{item.value}</div>}
+                {item.name === 'Screen Touch' && item.status === 'abnormal' && (
+                  <div className="text-[11px] font-semibold text-dobara-info">System detected · HW-TCH-01</div>
+                )}
               </div>
               <Badge
                 variant={
@@ -665,6 +659,53 @@ export default function HardwareResults() {
               )}
             </Card>
 
+            {/* Screen Display 缺陷分级（D1-D5）—— 与 H5 纯色画面同处，店员目视打分 */}
+            {item.name === 'Screen Display' && (
+              <Card variant="flat" className="p-3" data-testid="display-verification">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-caption font-semibold text-text-secondary">
+                    Screen defect grading (D1–D5) — judge on the solid-colour screen
+                  </p>
+                  <Badge variant={displayAnswered === DISPLAY_ITEMS.length ? 'success' : 'neutral'}>
+                    {displayAnswered}/{DISPLAY_ITEMS.length}
+                  </Badge>
+                </div>
+                <div className="space-y-3">
+                  {DISPLAY_ITEMS.map((ditem) => (
+                    <div key={ditem.code}>
+                      <p className="text-caption font-semibold text-text-primary mb-1">{ditem.code} · {ditem.name}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {ditem.options.map((opt, oi) => (
+                          <button
+                            key={opt.label}
+                            type="button"
+                            data-testid={`display-${ditem.code}-${oi}`}
+                            onClick={() => {
+                              setDisplayAnswers((prev) => {
+                                const next = { ...prev };
+                                if (next[ditem.code] === oi) delete next[ditem.code];
+                                else next[ditem.code] = oi;
+                                return next;
+                              });
+                            }}
+                            className={`px-2.5 py-1.5 rounded-md text-caption border transition-colors ${
+                              displayAnswers[ditem.code] === oi
+                                ? opt.reject
+                                  ? 'border-dobara-error bg-dobara-error-light text-dobara-error'
+                                  : 'border-primary-500 bg-primary-50 text-primary-700'
+                                : 'border-border text-text-secondary hover:bg-surface-container'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
             {/* Appointment vs detected brand/model comparison (TAB-P1-02 数据对比) */}
             {item.name === 'Brand & Model' && item.status !== 'pending' && modelMismatch && (
               <div className="ml-9 mr-3 mb-2 rounded-lg bg-dobara-warning-light text-[#78350f] px-4 py-3 text-caption font-semibold flex items-center gap-2" data-testid="model-mismatch-warning">
@@ -676,75 +717,6 @@ export default function HardwareResults() {
           </React.Fragment>
         ))}
       </div>
-
-      {/* 屏幕显示缺陷（D1-D6）— H5 纯色画面现场判定（TAB-P0-02 / TAB-P0-14）。
-          照片判不出这些项（坏点/偏色/闪烁/漏液/触控），故不在外观点检表内，判定入口在此。
-          D6 触控由 H5 滑涂测试拥有：检出异常（HW-TCH-01）时自动带出"系统检出"并锁定，
-          仅计自动检测一次（06 PRD §3.3.2.1.5 触控组归并）。 */}
-      <Card variant="flat" className="mt-4 p-4" data-testid="display-verification">
-        <div className="flex items-start gap-2 mb-3">
-          <Smartphone size={18} className="text-text-muted mt-0.5 shrink-0" />
-          <div className="flex-1">
-            <p className="text-eyebrow text-text-muted uppercase">Screen Display — H5 solid-colour verification</p>
-            <p className="text-caption text-text-muted mt-1">
-              Checked on the phone via the H5 check page (solid-colour sweep + slide test), not from photos. D6 is
-              owned by the slide test — it locks to "system detected" when the test flags an anomaly.
-            </p>
-          </div>
-          <Badge variant={displayAnswered === DISPLAY_ITEMS.length ? 'success' : 'neutral'}>
-            {displayAnswered}/{DISPLAY_ITEMS.length}
-          </Badge>
-        </div>
-        <div className="space-y-3">
-          {DISPLAY_ITEMS.map((item) => {
-            const locked = touchLocked && item.code === 'D6';
-            return (
-              <div key={item.code}>
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <p className="text-caption font-semibold text-text-primary">
-                    {item.code} · {item.name}
-                  </p>
-                  {locked && (
-                    <span className="text-eyebrow font-normal text-dobara-info" data-testid="display-D6-locked">
-                      System detected · HW-TCH-01
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {item.options.map((opt, oi) => (
-                    <button
-                      key={opt.label}
-                      type="button"
-                      disabled={locked}
-                      data-testid={`display-${item.code}-${oi}`}
-                      onClick={() => {
-                        if (locked) return;
-                        setDisplayAnswers((prev) => {
-                          const next = { ...prev };
-                          if (next[item.code] === oi) delete next[item.code];
-                          else next[item.code] = oi;
-                          return next;
-                        });
-                      }}
-                      className={`px-2.5 py-1.5 rounded-md text-caption border transition-colors ${
-                        locked ? 'cursor-not-allowed opacity-60' : ''
-                      } ${
-                        displayAnswers[item.code] === oi
-                          ? opt.reject
-                            ? 'border-dobara-error bg-dobara-error-light text-dobara-error'
-                            : 'border-primary-500 bg-primary-50 text-primary-700'
-                          : 'border-border text-text-secondary hover:bg-surface-container'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
 
       <div className="flex flex-wrap justify-center gap-4 mt-6">
         <Button variant="ghost" onClick={() => navigate(`/session/${sessionId}/admission`)}>Back</Button>

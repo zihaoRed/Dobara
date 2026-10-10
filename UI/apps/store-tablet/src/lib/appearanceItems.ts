@@ -86,10 +86,11 @@ export const APPEARANCE_DIMENSIONS: IAppearanceDimension[] = [
 export const ALL_APPEARANCE_ITEMS: IAppearanceItem[] = APPEARANCE_DIMENSIONS.flatMap((d) => d.items);
 
 /**
- * 屏幕显示缺陷（D1-D6）— H5 检测页现场判定，**不属于外观照片点检表**。
- * 判定方法：H5 全屏循环纯色画面（白/红/绿/蓝/黑/灰）店员目视 D1-D5；D6 由 H5 滑涂测试判定
+ * 屏幕显示缺陷（D1-D5）— H5 检测页现场判定，**不属于外观照片点检表**。
+ * 判定方法：H5 全屏循环纯色画面（白/红/绿/蓝/黑/灰）店员目视 D1-D5；触控（原 D6）由
+ * H5 滑涂测试判定、归硬件项 Screen Touch（HW-TCH-01），不在本表（v1.22 去重）。
  * （TAB-P0-02 / TAB-P0-14）。入口在 Hardware 步骤，紧邻 H5 屏幕检测；档位编码与 06 PRD
- * §3.3.2.1.4 维度一一致（CO-DSP-01~12）。
+ * §3.3.2.1.4 维度一一致（CO-DSP-01~10）。
  */
 export const DISPLAY_ITEMS: IAppearanceItem[] = [
   { code: 'D1', name: "Burn-in / Aging", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Slight", deductionCode: 'CO-DSP-01', deduction: 500 }, { label: "Obvious", deductionCode: 'CO-DSP-02', deduction: 1500 }] },
@@ -97,5 +98,4 @@ export const DISPLAY_ITEMS: IAppearanceItem[] = [
   { code: 'D3', name: "Color cast", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Slight", deductionCode: 'CO-DSP-05', deduction: 400 }, { label: "Obvious", deductionCode: 'CO-DSP-06', deduction: 1000 }] },
   { code: 'D4', name: "Flicker", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Occasional", deductionCode: 'CO-DSP-07', deduction: 800 }, { label: "Persistent", deductionCode: 'CO-DSP-08', deduction: 2000 }] },
   { code: 'D5', name: "Bleed / Leak", photoIndex: 0, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Edge bleed", deductionCode: 'CO-DSP-09', deduction: 600 }, { label: "Liquid leak", deductionCode: 'CO-DSP-10', deduction: 2500 }] },
-  { code: 'D6', name: "Touch response", photoIndex: 0, options: [{ label: "Normal", deductionCode: null, deduction: 0 }, { label: "Partial", deductionCode: 'CO-DSP-11', deduction: 1000 }, { label: "Major fail", deductionCode: 'CO-DSP-12', deduction: 0, reject: true }] },
 ];

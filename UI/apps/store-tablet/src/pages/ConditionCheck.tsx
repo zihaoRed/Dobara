@@ -5,6 +5,10 @@ import { Wrench, Package, AlertTriangle } from 'lucide-react';
 import { REPAIR_HISTORY_OPTIONS, ACCESSORY_OPTIONS, FUNCTIONAL_DEFECT_OPTIONS } from '@dobara/utils';
 import { markStepComplete } from '../lib/sessionProgress';
 
+/** 已由 H5 硬件检测覆盖的功能缺陷（麦克风/扬声器/相机对焦），不再人工勾选。 */
+const H5_COVERED_FUNCTIONAL = new Set(['mic', 'speaker', 'camera_focus']);
+const FUNCTIONAL_OPTIONS = FUNCTIONAL_DEFECT_OPTIONS.filter((o) => !H5_COVERED_FUNCTIONAL.has(o.key));
+
 /** CO-RPR / CO-ACC / CO-FNC clerk point-checks — fed into the pricing engine as deductions. */
 export default function ConditionCheck() {
   const { sessionId = '' } = useParams<{ sessionId: string }>();
@@ -135,10 +139,10 @@ export default function ConditionCheck() {
           </CardHeader>
           <CardContent>
             <p className="text-caption text-text-muted mb-3">
-              Cross-check with the hardware audit results (CO-FNC).
+              Cross-check with the hardware audit results. Mic / speaker / camera are covered by the H5 checks (CO-FNC).
             </p>
             <OptionGroup
-              options={FUNCTIONAL_DEFECT_OPTIONS}
+              options={FUNCTIONAL_OPTIONS}
               selected={functional}
               onToggle={(k) => setFunctional((prev) => toggle(prev, k))}
             />

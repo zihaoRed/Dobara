@@ -785,8 +785,8 @@ Change your password after first login.
 | `pricing.dsp.d4_persistent` | CO-DSP-08 | D4 显示闪烁 频繁/持续 | 2,000 INR |
 | `pricing.dsp.d5_edge_bleed` | CO-DSP-09 | D5 液晶漏液/漏光 边缘漏光 | 600 INR |
 | `pricing.dsp.d5_liquid_leak` | CO-DSP-10 | D5 液晶漏液/漏光 漏液 | 2,500 INR |
-| `pricing.dsp.d6_partial` | CO-DSP-11 | D6 触摸功能 局部不灵敏（HW-TCH-01 命中时被归并，不计扣） | 1,000 INR |
-| `pricing.dsp.d6_major_fail` | CO-DSP-12 | D6 触摸功能 大面积失灵 | 0（触发拒收） |
+| `pricing.dsp.d6_partial` | CO-DSP-11 | 触摸功能 局部不灵敏（由硬件检测 HW-TCH-01 判定） | 1,000 INR |
+| `pricing.dsp.d6_major_fail` | CO-DSP-12 | 触摸功能 大面积失灵 | 0（触发拒收） |
 | `pricing.gls.g1_hairline` | CO-GLS-01 | G1 划痕深度 发丝纹 | 200 INR |
 | `pricing.gls.g1_shallow` | CO-GLS-02 | G1 划痕深度 浅划痕 | 800 INR |
 | `pricing.gls.g1_deep` | CO-GLS-03 | G1 划痕深度 深划痕 | 2,000 INR |
