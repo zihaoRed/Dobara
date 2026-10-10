@@ -62,6 +62,12 @@ function mediaFailure(error: unknown): Extract<TResult, 'unauthorized' | 'unsupp
   return 'fail';
 }
 
+/** The detect backend isn't reachable (network down / static demo host with no API) → the
+ *  page degrades to a local walkthrough instead of blocking on a 403/404. */
+function isBackendUnavailable(err: H5ApiError): boolean {
+  return err.code === 'NETWORK_ERROR' || /^HTTP_\d+$/.test(err.code);
+}
+
 const STEPS: { key: TStepKey; label: string }[] = [
   { key: 'screen', label: 'Screen colors' },
   { key: 'touch', label: 'Touch' },
@@ -119,6 +125,9 @@ export default function DeviceCheck() {
   const [session, setSession] = useState<H5SessionState | null>(null);
   const [sessionError, setSessionError] = useState('');
   const [retestKey, setRetestKey] = useState<TStepKey | null>(null);
+  /** Local-only mode: runs the checks on-device with no backend reporting (either ?demo=1
+   *  with no token, or a fallback when the detect backend is unreachable). */
+  const [localMode, setLocalMode] = useState(LOCAL_DEMO);
   const openingRef = useRef(false);
   const sessionRef = useRef<H5SessionState | null>(null);
   sessionRef.current = session;
@@ -159,7 +168,7 @@ export default function DeviceCheck() {
   const beginSession = async (candidate = token) => {
     const detectToken = candidate.trim();
     if (!detectToken || openingRef.current) return;
-    if (LOCAL_DEMO) {
+    if (localMode) {
       setPhase('testing');
       return;
     }
@@ -170,7 +179,13 @@ export default function DeviceCheck() {
       applySession(await openH5Session(detectToken, OPEN_IDEMPOTENCY_KEY, readFingerprint()));
     } catch (error) {
       const apiError = error as H5ApiError;
-      setSessionError(`${apiError.message}${apiError.traceId ? ` · traceId=${apiError.traceId}` : ''}`);
+      if (isBackendUnavailable(apiError)) {
+        setLocalMode(true);
+        setSessionError('Detect backend unavailable — running the checks locally on this device.');
+        setPhase('testing');
+      } else {
+        setSessionError(`${apiError.message}${apiError.traceId ? ` · traceId=${apiError.traceId}` : ''}`);
+      }
     } finally {
       openingRef.current = false;
       setLinking(false);
@@ -179,7 +194,7 @@ export default function DeviceCheck() {
 
   const finishStep = async (key: TStepKey, result: TResult) => {
     if (submitting) return;
-    if (LOCAL_DEMO) {
+    if (localMode) {
       setResults((previous) => ({ ...previous, [key]: result }));
       setRetestKey(null);
       setStepIdx((index) => index + 1);
@@ -222,7 +237,7 @@ export default function DeviceCheck() {
   const step = STEPS[stepIdx];
 
   useEffect(() => {
-    if (LOCAL_DEMO && phase === 'testing' && stepIdx >= STEPS.length) setPhase('done');
+    if (localMode && phase === 'testing' && stepIdx >= STEPS.length) setPhase('done');
   }, [phase, stepIdx]);
 
   useEffect(() => {
@@ -232,7 +247,7 @@ export default function DeviceCheck() {
   }, []);
 
   useEffect(() => {
-    if (LOCAL_DEMO || phase === 'token' || phase === 'done' || !session || !token.trim()) return;
+    if (localMode || phase === 'token' || phase === 'done' || !session || !token.trim()) return;
     let stopped = false;
     let timer: number | undefined;
     const poll = async () => {
@@ -270,7 +285,7 @@ export default function DeviceCheck() {
           setToken={setToken}
           linking={linking}
           error={sessionError}
-          localDemo={LOCAL_DEMO}
+          localDemo={localMode}
           onStart={() => void beginSession()}
         />
       )}
