@@ -1,4 +1,4 @@
-/** TAB-P0-13 manual appearance checklist — 4 dimensions / 21 items.
+/** TAB-P0-13 manual appearance checklist — 4 dimensions / 18 items（按键手感 P3/P4/P6 已移入硬件）.
  *  Every tier carries the deduction code that owns its amount (PRD 06 §3.3.2.1.4),
  *  so the tablet, the estimate and the pricing engine all read the same figure.
  *
@@ -10,6 +10,9 @@
  *  AI 回填这些项等于给店员假答案；其判定主依据是 H5 检测页（纯色画面目视 + 滑涂测试，
  *  01 PRD TAB-P0-02 / TAB-P0-14）。D1-D6 现由 Hardware 步骤的 `DISPLAY_ITEMS` 承载，
  *  与 H5 屏幕检测同处一步；D6 的系统检出锁定也随之下移。
+ *
+ *  v1.23: 按键手感（P3 音量键 / P4 电源键 / P6 其他按键，判定"软/失效"）移出本表 ——
+ *  按键松/软需人为按压，AI 识图判不了；归硬件检测「按键」项（ADB 判定按键事件 + 店员手感）。
  */
 
 export interface IAppearanceOption {
@@ -70,14 +73,11 @@ export const APPEARANCE_DIMENSIONS: IAppearanceDimension[] = [
   },
   {
     key: 'ports',
-    label: "Ports & Buttons",
+    label: "Ports",
     items: [
       { code: 'P1', name: "Charging port", photoIndex: 8, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Loose", deductionCode: 'CO-PRT-01', deduction: 500 }, { label: "Damaged", deductionCode: 'CO-PRT-02', deduction: 1500 }] },
       { code: 'P2', name: "Port corrosion", photoIndex: 8, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Slight", deductionCode: 'CO-PRT-03', deduction: 600 }, { label: "Obvious", deductionCode: 'CO-PRT-04', deduction: 2000 }] },
-      { code: 'P3', name: "Volume keys", photoIndex: 4, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Soft", deductionCode: 'CO-PRT-05', deduction: 300 }, { label: "Failed", deductionCode: 'CO-PRT-06', deduction: 800 }] },
-      { code: 'P4', name: "Power key", photoIndex: 5, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Soft", deductionCode: 'CO-PRT-07', deduction: 300 }, { label: "Failed", deductionCode: 'CO-PRT-08', deduction: 800 }] },
       { code: 'P5', name: "Speaker / Jack", photoIndex: 8, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Dusty", deductionCode: 'CO-PRT-09', deduction: 200 }, { label: "Damaged", deductionCode: 'CO-PRT-10', deduction: 600 }] },
-      { code: 'P6', name: "Other buttons (mute switch / Action key)", photoIndex: 5, options: [{ label: "None", deductionCode: null, deduction: 0 }, { label: "Soft", deductionCode: 'CO-PRT-11', deduction: 300 }, { label: "Failed/Stuck", deductionCode: 'CO-PRT-12', deduction: 800 }] },
     ],
   },
 ];

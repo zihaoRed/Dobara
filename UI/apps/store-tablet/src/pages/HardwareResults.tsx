@@ -66,6 +66,25 @@ const defaultMockValues: Record<string, { status: TResult; value: string }> = {
   Buttons: { status: 'normal', value: 'ADB key events OK (Vol± / Power)' },
 };
 
+/** 按键手感（HW 硬件步骤：店员按一下判定 松/软/失效）—— 原外观点检 P3/P4/P6，v1.23 移入 */
+const BUTTON_FEEL_ITEMS: { code: string; name: string; options: { label: string; deductionCode: string | null }[] }[] = [
+  { code: 'P3', name: 'Volume keys', options: [
+    { label: 'Normal', deductionCode: null },
+    { label: 'Soft', deductionCode: 'CO-PRT-05' },
+    { label: 'Failed', deductionCode: 'CO-PRT-06' },
+  ]},
+  { code: 'P4', name: 'Power key', options: [
+    { label: 'Normal', deductionCode: null },
+    { label: 'Soft', deductionCode: 'CO-PRT-07' },
+    { label: 'Failed', deductionCode: 'CO-PRT-08' },
+  ]},
+  { code: 'P6', name: 'Other buttons', options: [
+    { label: 'Normal', deductionCode: null },
+    { label: 'Soft', deductionCode: 'CO-PRT-11' },
+    { label: 'Failed / Stuck', deductionCode: 'CO-PRT-12' },
+  ]},
+];
+
 const statusIcon = (s: TResult) => {
   switch (s) {
     case 'normal':
@@ -112,6 +131,8 @@ export default function HardwareResults() {
   const [forceTimeoutIdx, setForceTimeoutIdx] = useState<number | null>(null);
   // 屏幕显示缺陷 D1-D5（H5 纯色画面现场目视打分，v1.22 触控已归 Screen Touch 硬件项）
   const [displayAnswers, setDisplayAnswers] = useState<Record<string, number>>({});
+  // 按键手感（P3/P4/P6，店员按一下判定 松/软/失效，v1.23 从外观 AI 移入）
+  const [buttonFeel, setButtonFeel] = useState<Record<string, number>>({});
 
   // --- Network provisioning & H5 link (TAB-P0-14) ---
   const [platform, setPlatform] = useState<TPlatform>('android');
@@ -373,6 +394,7 @@ export default function HardwareResults() {
   }, [items, sessionId]);
 
   const displayAnswered = DISPLAY_ITEMS.filter((i) => displayAnswers[i.code] != null).length;
+  const buttonFeelAnswered = BUTTON_FEEL_ITEMS.filter((i) => buttonFeel[i.code] != null).length;
 
   const goPhoto = () => {
     try {
@@ -389,6 +411,7 @@ export default function HardwareResults() {
             items.map((i) => [ITEM_KEY_OF[i.name], { status: i.status, value: i.value }]),
           ),
           displayAnswers,
+          buttonFeel,
         }),
       );
     } catch { /* ignore */ }
@@ -706,6 +729,51 @@ export default function HardwareResults() {
               </Card>
             )}
 
+            {/* 按键手感（P3/P4/P6）—— 店员按一下判定 松/软/失效 */}
+            {item.name === 'Buttons' && (
+              <Card variant="flat" className="p-3" data-testid="button-feel">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-caption font-semibold text-text-secondary">
+                    Button feel (P3/P4/P6) — press each key to judge loose / soft / failed
+                  </p>
+                  <Badge variant={buttonFeelAnswered === BUTTON_FEEL_ITEMS.length ? 'success' : 'neutral'}>
+                    {buttonFeelAnswered}/{BUTTON_FEEL_ITEMS.length}
+                  </Badge>
+                </div>
+                <div className="space-y-3">
+                  {BUTTON_FEEL_ITEMS.map((bf) => (
+                    <div key={bf.code}>
+                      <p className="text-caption font-semibold text-text-primary mb-1">{bf.code} · {bf.name}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {bf.options.map((opt, oi) => (
+                          <button
+                            key={opt.label}
+                            type="button"
+                            data-testid={`button-feel-${bf.code}-${oi}`}
+                            onClick={() => {
+                              setButtonFeel((prev) => {
+                                const next = { ...prev };
+                                if (next[bf.code] === oi) delete next[bf.code];
+                                else next[bf.code] = oi;
+                                return next;
+                              });
+                            }}
+                            className={`px-2.5 py-1.5 rounded-md text-caption border transition-colors ${
+                              buttonFeel[bf.code] === oi
+                                ? 'border-primary-500 bg-primary-50 text-primary-700'
+                                : 'border-border text-text-secondary hover:bg-surface-container'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
             {/* Appointment vs detected brand/model comparison (TAB-P1-02 数据对比) */}
             {item.name === 'Brand & Model' && item.status !== 'pending' && modelMismatch && (
               <div className="ml-9 mr-3 mb-2 rounded-lg bg-dobara-warning-light text-[#78350f] px-4 py-3 text-caption font-semibold flex items-center gap-2" data-testid="model-mismatch-warning">
@@ -723,7 +791,7 @@ export default function HardwareResults() {
         <Button
           variant="primary"
           size="lg"
-          disabled={!done || usbDisconnected || displayAnswered < DISPLAY_ITEMS.length}
+          disabled={!done || usbDisconnected || displayAnswered < DISPLAY_ITEMS.length || buttonFeelAnswered < BUTTON_FEEL_ITEMS.length}
           data-testid="hardware-continue"
           onClick={goPhoto}
         >
