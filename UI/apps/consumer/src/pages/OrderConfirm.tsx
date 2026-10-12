@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Card, Button, PriceDisplay, GradeBadge, Badge, EmptyState } from '@dobara/ui';
+import { Card, Button, PriceDisplay, GradeBadge, Badge, EmptyState, Modal } from '@dobara/ui';
 import { PageHeader } from '../components/PageHeader';
 import { MapPin, Truck, CreditCard, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import type { IDevice, IModel, IBrand } from '@dobara/utils';
@@ -74,7 +74,7 @@ export function OrderConfirm() {
   const [loading, setLoading] = useState(true);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
-  const [showAllAddresses, setShowAllAddresses] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
   const [delivery, setDelivery] = useState<TDeliveryMethod>('standard');
   const [paymentMethod, setPaymentMethod] = useState('upi');
   const [serviceability, setServiceability] = useState<Serviceability>({ serviceable: false, loading: true });
@@ -298,7 +298,7 @@ export function OrderConfirm() {
           <p className="text-caption text-dobara-error">Please add a delivery address</p>
         ) : (
           <div className="space-y-2">
-            {!showAllAddresses && selectedAddress && (
+            {selectedAddress && (
               <>
                 <div className="rounded-lg border border-border p-3" data-testid={`address-${selectedAddress.id}`}>
                   <div className="flex items-center gap-2 mb-1">
@@ -312,7 +312,7 @@ export function OrderConfirm() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="secondary" size="sm" className="flex-1" onClick={() => setShowAllAddresses(true)} data-testid="change-address">
+                  <Button variant="secondary" size="sm" className="flex-1" onClick={() => setShowAddressModal(true)} data-testid="change-address">
                     Change
                   </Button>
                   <Button variant="ghost" size="sm" className="flex-1" onClick={() => navigate('/account/addresses')} data-testid="manage-addresses">
@@ -321,34 +321,6 @@ export function OrderConfirm() {
                 </div>
               </>
             )}
-
-            {showAllAddresses &&
-              addresses.map((addr) => (
-                <button
-                  key={addr.id}
-                  type="button"
-                  data-testid={`address-${addr.id}`}
-                  onClick={() => {
-                    setSelectedAddressId(addr.id);
-                    setShowAllAddresses(false);
-                  }}
-                  className={`w-full text-left rounded-lg border p-3 transition-colors ${
-                    selectedAddressId === addr.id
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-border hover:bg-surface-low'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-body font-semibold">{addr.name}</span>
-                    {addr.label && <Badge variant="neutral" size="sm">{addr.label}</Badge>}
-                    {addr.isDefault && <Badge variant="accent" size="sm">Default</Badge>}
-                  </div>
-                  <p className="text-caption text-text-secondary">+91 {addr.phone}</p>
-                  <p className="text-caption text-text-muted">
-                    {addr.address}, {addr.city}, {addr.state} — {addr.pincode}
-                  </p>
-                </button>
-              ))}
           </div>
         )}
 
@@ -492,6 +464,37 @@ export function OrderConfirm() {
           )}
         </div>
       </div>
+
+      <Modal open={showAddressModal} onClose={() => setShowAddressModal(false)} title="Select Delivery Address" size="sm">
+        <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+          {addresses.map((addr) => (
+            <button
+              key={addr.id}
+              type="button"
+              data-testid={`address-option-${addr.id}`}
+              onClick={() => {
+                setSelectedAddressId(addr.id);
+                setShowAddressModal(false);
+              }}
+              className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                selectedAddressId === addr.id
+                  ? 'border-primary-500 bg-primary-50'
+                  : 'border-border hover:bg-surface-low'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-body font-semibold">{addr.name}</span>
+                {addr.label && <Badge variant="neutral" size="sm">{addr.label}</Badge>}
+                {addr.isDefault && <Badge variant="accent" size="sm">Default</Badge>}
+              </div>
+              <p className="text-caption text-text-secondary">+91 {addr.phone}</p>
+              <p className="text-caption text-text-muted">
+                {addr.address}, {addr.city}, {addr.state} — {addr.pincode}
+              </p>
+            </button>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 }
