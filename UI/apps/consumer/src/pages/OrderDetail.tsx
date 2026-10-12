@@ -23,6 +23,8 @@ export function OrderDetail() {
   const [showCancel, setShowCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [message, setMessage] = useState('');
+  const [showTracking, setShowTracking] = useState(false);
+  const [now, setNow] = useState(Date.now());
 
   const load = () => {
     if (!orderId) return;
@@ -42,6 +44,12 @@ export function OrderDetail() {
   useEffect(() => {
     load();
   }, [orderId]);
+
+  useEffect(() => {
+    if (order?.status !== 'pending_payment') return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [order?.status]);
 
   const statusToBadge = (status: string): 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'shipped' | 'returned' => {
     switch (status) {
@@ -123,6 +131,12 @@ export function OrderDetail() {
     order.status === 'pending_payment'
       ? 'Cancel this order? The device will be released for others.'
       : 'Cancel this order? A full refund will be sent to your original payment method.';
+
+  const remainingMs = order.expiresAt ? new Date(order.expiresAt).getTime() - now : 0;
+  const payCountdown =
+    remainingMs > 0
+      ? `${Math.floor(remainingMs / 60000)}:${String(Math.floor((remainingMs % 60000) / 1000)).padStart(2, '0')}`
+      : '0:00';
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-8" data-testid="order-detail">
@@ -267,6 +281,18 @@ export function OrderDetail() {
         </div>
       </Card>
 
+      {order.status === 'pending_payment' && (
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full"
+          onClick={() => navigate(`/buy/order/pay/${order.id}`)}
+          data-testid="pay-now"
+        >
+          Pay Now{order.expiresAt ? ` · ${payCountdown}` : ''}
+        </Button>
+      )}
+
       {canCancel && (
         <Button
           variant="danger"
@@ -279,7 +305,19 @@ export function OrderDetail() {
         </Button>
       )}
 
-      {(order.status === 'paid' || order.status === 'shipped' || order.status === 'completed' || order.status === 'return_requested') && (
+      {(order.status === 'shipped' || order.status === 'completed') && order.trackingNumber && (
+        <Button
+          variant="secondary"
+          size="lg"
+          className="w-full"
+          onClick={() => setShowTracking(true)}
+          data-testid="view-tracking"
+        >
+          View Tracking
+        </Button>
+      )}
+
+      {order.status === 'completed' && (
         <Button
           variant="secondary"
           size="lg"
@@ -288,6 +326,18 @@ export function OrderDetail() {
           data-testid="request-aftersale"
         >
           Request After-Sales
+        </Button>
+      )}
+
+      {order.status === 'return_requested' && (
+        <Button
+          variant="secondary"
+          size="lg"
+          className="w-full"
+          onClick={() => navigate('/account/after-sales')}
+          data-testid="view-aftersale"
+        >
+          View After-Sales
         </Button>
       )}
 
@@ -305,6 +355,25 @@ export function OrderDetail() {
       >
         Questions about this order? Submit a ticket →
       </button>
+
+      <Modal open={showTracking} onClose={() => setShowTracking(false)} title="Tracking" size="sm">
+        <div className="space-y-3">
+          <p className="text-caption text-text-muted">
+            Tracking number: <span className="font-mono font-semibold text-primary-600">{order.trackingNumber}</span>
+          </p>
+          {[
+            { label: 'Order placed', done: true },
+            { label: 'Shipped', done: true },
+            { label: 'Out for delivery', done: order.status === 'completed' },
+            { label: order.status === 'completed' ? 'Delivered' : 'In transit', done: order.status === 'completed' },
+          ].map((s, i) => (
+            <div key={i} className="flex gap-3">
+              <div className={`w-2.5 h-2.5 rounded-full mt-1 ${s.done ? 'bg-primary-500' : 'bg-surface-high'}`} />
+              <p className={`text-body ${s.done ? 'text-text-primary font-medium' : 'text-text-muted'}`}>{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </Modal>
 
       <Modal open={showCancel} onClose={() => setShowCancel(false)} title="Cancel Order?" size="sm">
         <div className="space-y-4">

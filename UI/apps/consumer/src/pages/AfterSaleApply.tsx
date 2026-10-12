@@ -3,11 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Card, Button, Input } from '@dobara/ui';
 import { PageHeader } from '../components/PageHeader';
 
-const TYPES = [
-  { key: 'return_refund', label: 'Return & Refund' },
-  { key: 'exchange', label: 'Exchange' },
-];
-
 const REASONS: Record<string, string[]> = {
   appearance: ['Grade mismatch', 'Undisclosed scratches', 'Screen defects', 'Body deformation'],
   functional: ['Battery much worse', 'Touch issues', 'Camera issues', 'Speaker/mic issues', 'Face ID unavailable', 'Won\'t boot'],
@@ -20,11 +15,9 @@ const REASONS: Record<string, string[]> = {
 export function AfterSaleApply() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
-  const [type, setType] = useState('return_refund');
   const [reasonGroup, setReasonGroup] = useState('appearance');
   const [reason, setReason] = useState(REASONS.appearance[0]);
   const [description, setDescription] = useState('');
-  const [logistics, setLogistics] = useState('pickup');
   const [photos, setPhotos] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -44,10 +37,9 @@ export function AfterSaleApply() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId,
-          type,
+          type: 'return_refund',
           reason: `${reasonGroup}:${reason}`,
           description,
-          logistics,
           photos: Array.from({ length: photos }, (_, i) => `photo-${i + 1}`),
         }),
       });
@@ -67,21 +59,8 @@ export function AfterSaleApply() {
       <p className="text-caption text-text-muted -mt-2">Order #{orderId}</p>
 
       <Card>
-        <h3 className="text-h4 font-heading mb-3">Type</h3>
-        <div className="flex gap-2">
-          {TYPES.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setType(t.key)}
-              className={`flex-1 px-3 py-2 rounded-lg border text-caption font-semibold ${
-                type === t.key ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-border'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <h3 className="text-h4 font-heading mb-2">Type</h3>
+        <p className="text-body text-text-secondary">Return &amp; Refund</p>
       </Card>
 
       <Card>
@@ -137,26 +116,6 @@ export function AfterSaleApply() {
           )}
         </div>
         {photos < 2 && <p className="text-caption text-dobara-error mt-2">At least 2 photos required</p>}
-      </Card>
-
-      <Card>
-        <h3 className="text-h4 font-heading mb-3">Return logistics</h3>
-        {[
-          { key: 'pickup', label: 'Doorstep pickup', desc: 'Morning 9-12 / Afternoon 12-5' },
-          { key: 'self', label: 'Ship yourself', desc: 'Upload courier tracking later' },
-        ].map((opt) => (
-          <button
-            key={opt.key}
-            type="button"
-            onClick={() => setLogistics(opt.key)}
-            className={`w-full text-left rounded-lg border p-3 mb-2 ${
-              logistics === opt.key ? 'border-primary-500 bg-primary-50' : 'border-border'
-            }`}
-          >
-            <p className="text-body font-semibold">{opt.label}</p>
-            <p className="text-caption text-text-muted">{opt.desc}</p>
-          </button>
-        ))}
       </Card>
 
       {error && <p className="text-caption text-dobara-error">{error}</p>}

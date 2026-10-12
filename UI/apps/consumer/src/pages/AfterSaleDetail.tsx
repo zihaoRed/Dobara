@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Card, Button, StatusBadge } from '@dobara/ui';
+import { Card, Button, StatusBadge, Input } from '@dobara/ui';
 
 interface Ticket {
   id: string;
@@ -16,7 +16,7 @@ interface Ticket {
 
 const DEMO_BY_ID: Record<string, Ticket> = {
   'AS-PENDING': { id: 'AS-PENDING', orderId: 'ORD-AS', type: 'return_refund', reason: 'appearance:Grade mismatch', description: 'Screen has deeper scratches than listed.', logistics: 'pickup', status: 'pending_review', createdAt: new Date().toISOString(), photos: ['1', '2'] },
-  'AS-APPROVED': { id: 'AS-APPROVED', orderId: 'ORD-DONE', type: 'exchange', reason: 'wrong_item:Wrong color', description: 'Received Blue instead of Midnight.', logistics: 'pickup', status: 'approved', createdAt: new Date().toISOString(), photos: ['1', '2'] },
+  'AS-APPROVED': { id: 'AS-APPROVED', orderId: 'ORD-DONE', type: 'return_refund', reason: 'wrong_item:Wrong color', description: 'Received Blue instead of Midnight.', logistics: 'self', status: 'approved', createdAt: new Date().toISOString(), photos: ['1', '2'] },
   'AS-RETURNING': { id: 'AS-RETURNING', orderId: 'ORD-SHIP', type: 'return_refund', reason: 'shipping:Damaged in transit', description: 'Corner dent on arrival.', logistics: 'self', status: 'returning', createdAt: new Date().toISOString(), photos: ['1', '2'] },
   'AS-REJECTED': { id: 'AS-REJECTED', orderId: 'ORD-RET', type: 'return_refund', reason: 'functional:Battery much worse', description: 'Evidence insufficient.', logistics: 'pickup', status: 'rejected', createdAt: new Date().toISOString(), photos: ['1', '2'] },
   'AS-REFUNDED': { id: 'AS-REFUNDED', orderId: 'ORD-RET', type: 'return_refund', reason: 'appearance:Undisclosed scratches', description: 'Refund completed.', logistics: 'pickup', status: 'refunded', createdAt: new Date().toISOString(), photos: ['1', '2', '3'] },
@@ -43,6 +43,8 @@ export function AfterSaleDetail() {
   const { ticketId } = useParams<{ ticketId: string }>();
   const navigate = useNavigate();
   const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [tracking, setTracking] = useState('');
+  const [shipSubmitted, setShipSubmitted] = useState(false);
 
   useEffect(() => {
     fetch(`/api/after-sales/${ticketId}`)
@@ -75,8 +77,7 @@ export function AfterSaleDetail() {
         <p className="text-caption text-text-secondary mt-1">{ticket.reason}</p>
         {ticket.description && <p className="text-caption text-text-muted mt-2">{ticket.description}</p>}
         <p className="text-caption text-text-muted mt-2">
-          Logistics: {ticket.logistics === 'pickup' ? 'Doorstep pickup' : 'Self ship'}
-          {ticket.photos?.length ? ` · ${ticket.photos.length} photos` : ''}
+          {ticket.photos?.length ? `${ticket.photos.length} photos` : 'No photos'}
         </p>
       </Card>
 
@@ -108,6 +109,41 @@ export function AfterSaleDetail() {
           </div>
         )}
       </Card>
+
+      {(ticket.status === 'approved' || ticket.status === 'returning' || ticket.status === 'refunded') && (
+        <Card>
+          <h3 className="text-h4 font-heading mb-3">Return Method</h3>
+          <div className="p-3 rounded-md border border-primary-300 bg-primary-50 mb-3">
+            <p className="text-body font-semibold">Self ship</p>
+            <p className="text-caption text-text-muted">Pack the device securely and ship it back to the warehouse yourself.</p>
+          </div>
+          {ticket.status === 'approved' && !shipSubmitted && (
+            <>
+              <Input
+                label="Courier tracking number"
+                value={tracking}
+                onChange={(e) => setTracking(e.target.value)}
+                placeholder="e.g. SF123456789"
+              />
+              <Button
+                variant="primary"
+                className="w-full mt-3"
+                disabled={!tracking.trim()}
+                onClick={() => setShipSubmitted(true)}
+                data-testid="confirm-ship"
+              >
+                Confirm shipped
+              </Button>
+            </>
+          )}
+          {ticket.status === 'approved' && shipSubmitted && (
+            <p className="text-caption text-dobara-success font-semibold">Tracking number submitted — return in transit.</p>
+          )}
+          {ticket.status === 'returning' && (
+            <p className="text-caption text-text-muted">Return in transit — awaiting warehouse check.</p>
+          )}
+        </Card>
+      )}
 
       <Button variant="secondary" className="w-full" onClick={() => navigate('/account/help')}>
         Contact Support
