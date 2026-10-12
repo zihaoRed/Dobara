@@ -313,6 +313,9 @@ export interface IAfterSaleTicket {
   photos: string[];
   status: string;
   createdAt: string;
+  returnTrackingNo?: string;
+  reviewNote?: string;
+  refundedAt?: string;
 }
 
 /** After-sales tickets covering review → refund lifecycle */
@@ -331,7 +334,7 @@ export const afterSaleStore: IAfterSaleTicket[] = [
   {
     id: 'AS-APPROVED',
     orderId: 'ORD-DONE',
-    type: 'exchange',
+    type: 'return_refund',
     reason: 'wrong_item:Wrong color',
     description: 'Received Blue instead of Midnight.',
     logistics: 'pickup',

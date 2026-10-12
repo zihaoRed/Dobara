@@ -41,6 +41,8 @@ import RecycleOrderList from './pages/admin/RecycleOrderList';
 import RecycleOrderDetail from './pages/admin/RecycleOrderDetail';
 import MallOrderList from './pages/admin/MallOrderList';
 import MallOrderDetail from './pages/admin/MallOrderDetail';
+import AfterSaleList from './pages/admin/AfterSaleList';
+import AfterSaleDetail from './pages/admin/AfterSaleDetail';
 import AdminSettings from './pages/admin/Settings';
 
 import OwnerHome from './pages/owner/OwnerHome';
@@ -67,6 +69,7 @@ import BatchOutbound from './pages/wh/BatchOutbound';
 import Stocktake from './pages/wh/Stocktake';
 import ReviewList from './pages/wh/ReviewList';
 import ReviewDetail from './pages/wh/ReviewDetail';
+import ReturnInbound from './pages/wh/ReturnInbound';
 
 import DbHome from './pages/db/DbHome';
 import SettlementList from './pages/db/SettlementList';
@@ -355,6 +358,8 @@ function AppRoutes() {
           <Route path="orders/recycle/:id" element={<RecycleOrderDetail />} />
           <Route path="orders/mall" element={<MallOrderList />} />
           <Route path="orders/mall/:id" element={<MallOrderDetail />} />
+          <Route path="after-sales" element={<AfterSaleList />} />
+          <Route path="after-sales/:ticketId" element={<AfterSaleDetail />} />
           <Route path="config" element={<ConfigCenter />} />
           <Route path="category" element={<CategoryMgmt />} />
           <Route path="category/:modelId" element={<SpecEdit />} />
@@ -393,6 +398,7 @@ function AppRoutes() {
           <Route path="stocktake" element={<Stocktake />} />
           <Route path="review" element={<ReviewList />} />
           <Route path="review/:imei" element={<ReviewDetail />} />
+          <Route path="return-inbound" element={<ReturnInbound />} />
         </Route>
 
         <Route path="/db" element={<ModuleGuard module="db" />}>

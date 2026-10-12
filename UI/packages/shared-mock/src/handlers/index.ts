@@ -391,6 +391,44 @@ export const handlers = [
     return HttpResponse.json({ ticket });
   }),
 
+  // 管理员审核售后申请（通过/驳回）
+  http.post('/api/after-sales/:id/review', async ({ params, request }) => {
+    await simulateDelay();
+    const ticket = afterSaleStore.find((t) => t.id === String(params.id));
+    if (!ticket) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+    const body = (await request.json()) as { action: 'approve' | 'reject'; note?: string };
+    ticket.status = body.action === 'approve' ? 'approved' : 'rejected';
+    ticket.reviewNote = body.note;
+    const order = orderStore.find((o) => o.id === ticket.orderId);
+    if (order && body.action === 'reject') order.status = 'completed';
+    return HttpResponse.json({ ticket });
+  }),
+
+  // 用户审核通过后自行寄回、填写快递单号
+  http.post('/api/after-sales/:id/return-shipped', async ({ params, request }) => {
+    await simulateDelay();
+    const ticket = afterSaleStore.find((t) => t.id === String(params.id));
+    if (!ticket) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+    const body = (await request.json()) as { trackingNo: string };
+    ticket.status = 'returning';
+    ticket.returnTrackingNo = body.trackingNo;
+    return HttpResponse.json({ ticket });
+  }),
+
+  // 验收通过后退款
+  http.post('/api/after-sales/:id/refund', async ({ params, request }) => {
+    await simulateDelay();
+    const ticket = afterSaleStore.find((t) => t.id === String(params.id));
+    if (!ticket) return HttpResponse.json({ error: 'Not found' }, { status: 404 });
+    const body = (await request.json()) as { full: boolean; note?: string };
+    ticket.status = body.full ? 'refunded' : 'refunded'; // 简化：退款后统一 refunded（部分退款留 note）
+    ticket.reviewNote = body.note;
+    ticket.refundedAt = new Date().toISOString();
+    const order = orderStore.find((o) => o.id === ticket.orderId);
+    if (order) order.status = 'returned';
+    return HttpResponse.json({ ticket });
+  }),
+
   // Brands & Models
   http.get('/api/brands', async () => {
     await simulateDelay();
