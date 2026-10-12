@@ -894,7 +894,7 @@ if (invoice_provided) {
   └────┬─────┘        │
        │              │
        ├──────────────────────────────┐
-       │ 用户申请退货 (签收后 7 天内)    │ 超过 7 天 / 用户确认收货
+       │ 用户申请退货 (签收后 7 天内)    │ 超过 7 天自动完成
        ▼                              ▼
   ┌──────────────────────┐    ┌──────────────┐
   │ [退货申请已提交]     │    │ [已完成] (终态)│
@@ -941,7 +941,7 @@ if (invoice_provided) {
 | 已发货 | `shipped` | 仓库已出库，物流运输中 | `delivered` / `return_in_transit` | 否 |
 | 退回中 | `return_in_transit` | 配送中用户拒收或物流退回，设备退回原仓库途中 | `available_for_sale` | 否 |
 | 已签收 | `delivered` | 物流已送达 / 用户已收货 | `return_requested` / `completed` | 否 |
-| 已完成 | `completed` | 签收后超过 7 天无退货申请 / 用户主动确认收货，交易完结 | — | 是 |
+| 已完成 | `completed` | 签收后超过 7 天无退货申请，交易自动完结 | — | 是 |
 | 退货申请已提交 | `return_requested` | 用户已申请退货，待管理员审核 | `return_pending_shipping` / `return_rejected` | 否 |
 | 待用户寄回 | `return_pending_shipping` | 管理员审核通过，等待用户寄回 | `returned` / `return_partial_refund` / `return_rejected` | 否 |
 | 已退货 | `returned` | 退货完成，已全额退款 | — | 是 |
